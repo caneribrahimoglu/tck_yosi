@@ -5,6 +5,40 @@ All notable changes to **TCK YÖSİ** will be documented in this file.
 This project follows a chronological changelog format.
 
 ---
+# Changelog
+
+Tüm önemli değişiklikler bu dosyada tutulur.
+
+Bu proje, Semantic Versioning mantığına benzer şekilde geliştirme oturumları baz alınarak kayıt altına alınmaktadır.
+
+---
+
+## Unreleased
+
+### Added
+
+- Design System için `AppCard` ortak bileşeni oluşturuldu.
+- `AppCard` içerisine standart:
+    - Border Radius
+    - Padding
+    - Shadow
+    - Ripple Effect
+    - Material Surface
+      yapısı eklendi.
+- Dashboard kartları `AppCard` kullanacak şekilde refactor edildi.
+
+### Changed
+
+- Dashboard içerisindeki magic number'lar kaldırıldı.
+- Padding değerleri `AppSpacing` üzerinden yönetilmeye başlandı.
+- Radius değerleri `AppRadius` üzerinden yönetilmeye başlandı.
+- Ortak tasarım tokenlarının kullanım oranı artırıldı.
+
+### Fixed
+
+- Widget testi yeni uygulama mimarisine göre güncellendi.
+- `flutter analyze` temiz hale getirildi.
+- `flutter test` başarıyla çalışır duruma getirildi.
 
 # [Unreleased]
 

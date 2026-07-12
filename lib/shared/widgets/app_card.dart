@@ -18,6 +18,8 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final content = Padding(padding: padding, child: child);
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
@@ -28,11 +30,9 @@ class AppCard extends StatelessWidget {
         color: Colors.transparent,
         borderRadius: AppRadius.md,
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: AppRadius.md,
-          child: Padding(padding: padding, child: child),
-        ),
+        child: onTap == null
+            ? content
+            : InkWell(onTap: onTap, borderRadius: AppRadius.md, child: content),
       ),
     );
   }
