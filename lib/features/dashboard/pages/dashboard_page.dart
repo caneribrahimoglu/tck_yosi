@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../../core/responsive/responsive.dart';
+import '../../../core/constants/app_spacing.dart';
+import '../../../shared/widgets/app_card.dart';
 
-class DashboardPage extends StatefulWidget{
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
 }
+
 class _DashboardPageState extends State<DashboardPage> {
   int selectedMenuIndex = 0;
 
@@ -15,7 +18,6 @@ class _DashboardPageState extends State<DashboardPage> {
     _DashboardMenuItem(title: 'Araçlar', icon: Icons.local_shipping),
     _DashboardMenuItem(title: 'Görevler', icon: Icons.assessment),
     _DashboardMenuItem(title: 'Raporlar', icon: Icons.bar_chart),
-
   ];
 
   @override
@@ -27,6 +29,7 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void dispose() {
     debugPrint('Dashboard dispose çalıştı');
+    super.dispose();
   }
 
   @override
@@ -36,17 +39,15 @@ class _DashboardPageState extends State<DashboardPage> {
     final isDesktop = Responsive.isDesktop(context);
 
     return Scaffold(
-      appBar: isDesktop ? null : AppBar(
-        title: const Text('TCK YÖSİ'),
-        centerTitle: true,
-      ),
+      appBar: isDesktop
+          ? null
+          : AppBar(title: const Text('TCK YÖSİ'), centerTitle: true),
       body: isDesktop ? _buildDesktopLayout() : _buildMobileTabletLayout(),
     );
-
   }
 
   Widget _buildDesktopLayout() {
-    return Row (
+    return Row(
       children: [
         NavigationRail(
           selectedIndex: selectedMenuIndex,
@@ -56,11 +57,14 @@ class _DashboardPageState extends State<DashboardPage> {
             });
           },
           labelType: NavigationRailLabelType.all,
-          destinations: menuItems.map(
-              (item) => NavigationRailDestination(
+          destinations: menuItems
+              .map(
+                (item) => NavigationRailDestination(
                   icon: Icon(item.icon),
-                  label: Text(item.title)),
-          ).toList(),
+                  label: Text(item.title),
+                ),
+              )
+              .toList(),
         ),
         const VerticalDivider(width: 1),
         Expanded(
@@ -96,7 +100,7 @@ class _DashboardContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -104,17 +108,17 @@ class _DashboardContent extends StatelessWidget {
               'Dashboard',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               'Seçili modül: $selectedTitle',
               style: Theme.of(context).textTheme.bodyLarge,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xl),
             Expanded(
               child: GridView.count(
                 crossAxisCount: crossAxisCount,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
+                mainAxisSpacing: AppSpacing.lg,
+                crossAxisSpacing: AppSpacing.lg,
                 children: const [
                   _SummaryCard(
                     title: 'Personel',
@@ -159,30 +163,17 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 3,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {},
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 42),
-              const SizedBox(height: 12),
-              Text(
-                value,
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
+    return AppCard(
+      onTap: () {},
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 42),
+          const SizedBox(height: AppSpacing.md),
+          Text(value, style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: AppSpacing.xs),
+          Text(title, textAlign: TextAlign.center),
+        ],
       ),
     );
   }
@@ -192,8 +183,5 @@ class _DashboardMenuItem {
   final String title;
   final IconData icon;
 
-  const _DashboardMenuItem({
-    required this.title,
-    required this.icon,
-  });
+  const _DashboardMenuItem({required this.title, required this.icon});
 }

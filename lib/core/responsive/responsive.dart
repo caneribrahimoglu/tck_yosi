@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 class Responsive {
-
   static const double mobileBreakpoint = 600;
   static const double desktopBreakpoint = 1200;
 
@@ -12,8 +11,7 @@ class Responsive {
   static bool isTablet(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
 
-    return width >= mobileBreakpoint &&
-        width < desktopBreakpoint;
+    return width >= mobileBreakpoint && width < desktopBreakpoint;
   }
 
   static bool isDesktop(BuildContext context) {
