@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/responsive/responsive.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/app_button.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -142,6 +143,33 @@ class _DashboardContent extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.md,
+              children: [
+                AppButton.primary(
+                  label: 'Kaydet',
+                  icon: Icons.save_outlined,
+                  onPressed: () {
+                    debugPrint('Kaydet tıklandı');
+                  },
+                ),
+                AppButton.secondary(
+                  label: 'İptal',
+                  onPressed: () {
+                    debugPrint('İptal tıklandı');
+                  },
+                ),
+                AppButton.danger(
+                  label: 'Sil',
+                  icon: Icons.delete_outline,
+                  onPressed: () {
+                    debugPrint('Sil tıklandı');
+                  },
+                ),
+              ],
             ),
           ],
         ),
