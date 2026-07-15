@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
-import '../../../core/responsive/responsive.dart';
-import '../../../core/constants/app_spacing.dart';
-import '../../../shared/widgets/app_card.dart';
-import '../../../shared/widgets/app_button.dart';
+
+import '../../../../core/constants/app_spacing.dart';
+import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/app_card.dart';
+import '../../../../shared/widgets/app_text_field.dart';
+import '../../../../shared/widgets/app_dropdown.dart';
+import '../../../../core/enums/app_dialog_type.dart';
+import '../../../../shared/widgets/app_dialog.dart';
+import '../../../../core/enums/app_snackbar_type.dart';
+import '../../../../shared/widgets/app_snackbar.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -13,167 +19,303 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   int selectedMenuIndex = 0;
+  String? selectedFuelType;
 
   final List<_DashboardMenuItem> menuItems = const [
-    _DashboardMenuItem(title: 'Personel', icon: Icons.people_alt),
-    _DashboardMenuItem(title: 'Araçlar', icon: Icons.local_shipping),
-    _DashboardMenuItem(title: 'Görevler', icon: Icons.assessment),
-    _DashboardMenuItem(title: 'Raporlar', icon: Icons.bar_chart),
+    _DashboardMenuItem(title: 'Personel', icon: Icons.people_alt_outlined),
+    _DashboardMenuItem(title: 'Araçlar', icon: Icons.local_shipping_outlined),
+    _DashboardMenuItem(title: 'Envanter', icon: Icons.inventory_2_outlined),
+    _DashboardMenuItem(title: 'Raporlar', icon: Icons.bar_chart_outlined),
   ];
 
   @override
-  void initState() {
-    super.initState();
-    debugPrint('Dashboard initState çalıştı');
-  }
-
-  @override
-  void dispose() {
-    debugPrint('Dashboard dispose çalıştı');
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    debugPrint('Dashboard built çalıştı');
-
-    final isDesktop = Responsive.isDesktop(context);
-
     return Scaffold(
-      appBar: isDesktop
-          ? null
-          : AppBar(title: const Text('TCK YÖSİ'), centerTitle: true),
-      body: isDesktop ? _buildDesktopLayout() : _buildMobileTabletLayout(),
+      appBar: AppBar(title: const Text('TCK YÖSİ')),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth >= 900;
+
+          if (isDesktop) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(width: 240, child: _buildSideMenu()),
+                const VerticalDivider(width: 1),
+                Expanded(child: _buildDashboardContent()),
+              ],
+            );
+          }
+
+          return _buildDashboardContent();
+        },
+      ),
+      drawer: MediaQuery.sizeOf(context).width < 900
+          ? Drawer(child: SafeArea(child: _buildSideMenu()))
+          : null,
     );
   }
 
-  Widget _buildDesktopLayout() {
-    return Row(
-      children: [
-        NavigationRail(
-          selectedIndex: selectedMenuIndex,
-          onDestinationSelected: (index) {
-            setState(() {
-              selectedMenuIndex = index;
-            });
-          },
-          labelType: NavigationRailLabelType.all,
-          destinations: menuItems
-              .map(
-                (item) => NavigationRailDestination(
-                  icon: Icon(item.icon),
-                  label: Text(item.title),
-                ),
-              )
-              .toList(),
-        ),
-        const VerticalDivider(width: 1),
-        Expanded(
-          child: _DashboardContent(
-            selectedTitle: menuItems[selectedMenuIndex].title,
-            crossAxisCount: 4,
+  Widget _buildSideMenu() {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.md,
+            ),
+            child: Text(
+              'Yönetim Menüsü',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: AppSpacing.sm),
+          ...List.generate(menuItems.length, (index) {
+            final item = menuItems[index];
+            final isSelected = selectedMenuIndex == index;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: ListTile(
+                selected: isSelected,
+                leading: Icon(item.icon),
+                title: Text(item.title),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onTap: () {
+                  setState(() {
+                    selectedMenuIndex = index;
+                  });
+                },
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
-  Widget _buildMobileTabletLayout() {
-    final isTablet = Responsive.isTablet(context);
+  Widget _buildDashboardContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'TCK YÖSİ Dashboard',
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Yönetim sistemine genel bakış',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: AppSpacing.xl),
 
-    return _DashboardContent(
-      selectedTitle: menuItems[selectedMenuIndex].title,
-      crossAxisCount: isTablet ? 3 : 2,
-    );
-  }
-}
+          _buildSummaryCards(),
 
-class _DashboardContent extends StatelessWidget {
-  final String selectedTitle;
-  final int crossAxisCount;
+          const SizedBox(height: AppSpacing.xl),
 
-  const _DashboardContent({
-    required this.selectedTitle,
-    required this.crossAxisCount,
-  });
+          Text(
+            'AppButton Test Alanı',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: AppSpacing.md),
 
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Dashboard',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Seçili modül: $selectedTitle',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: crossAxisCount,
-                mainAxisSpacing: AppSpacing.lg,
-                crossAxisSpacing: AppSpacing.lg,
-                children: const [
-                  _SummaryCard(
-                    title: 'Personel',
-                    value: '24',
-                    icon: Icons.people_alt,
+          Wrap(
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.md,
+            children: [
+              AppButton.primary(
+                label: 'Primary',
+                icon: Icons.add,
+                onPressed: () {
+                  debugPrint('Primary butona basıldı');
+                },
+              ),
+              AppButton.secondary(
+                label: 'Secondary',
+                icon: Icons.edit_outlined,
+                onPressed: () {
+                  debugPrint('Secondary butona basıldı');
+                },
+              ),
+              AppButton.danger(
+                label: 'Danger',
+                icon: Icons.delete_outline,
+                onPressed: () {
+                  debugPrint('Danger butona basıldı');
+                },
+              ),
+              const AppButton.primary(
+                label: 'Kaydetme Yetkiniz Yok',
+                icon: Icons.lock_outline,
+                onPressed: null,
+              ),
+            ],
+          ),
+
+          const SizedBox(height: AppSpacing.xl),
+
+          Text(
+            'AppTextField Test Alanı',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          AppCard(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppTextField(
+                    label: 'Araç plakası',
+                    hint: '34 ABC 123',
+                    prefixIcon: Icons.directions_car_outlined,
                   ),
-                  _SummaryCard(
-                    title: 'Araçlar',
-                    value: '12',
-                    icon: Icons.local_shipping,
+                  SizedBox(height: AppSpacing.md),
+                  AppTextField(
+                    label: 'Devre dışı alan',
+                    hint: 'Bu alan düzenlenemez',
+                    prefixIcon: Icons.lock_outline,
+                    enabled: false,
                   ),
-                  _SummaryCard(
-                    title: 'Aktif Görev',
-                    value: '8',
-                    icon: Icons.assignment,
+                  const SizedBox(height: AppSpacing.md),
+
+                  AppDropdown<String>(
+                    label: 'Yakıt türü',
+                    hint: 'Seçiniz',
+                    prefixIcon: Icons.local_gas_station_outlined,
+                    value: selectedFuelType,
+                    items: const [
+                      DropdownMenuItem(value: 'diesel', child: Text('Dizel')),
+                      DropdownMenuItem(
+                        value: 'gasoline',
+                        child: Text('Benzin'),
+                      ),
+                      DropdownMenuItem(value: 'hybrid', child: Text('Hibrit')),
+                      DropdownMenuItem(
+                        value: 'electric',
+                        child: Text('Elektrik'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        selectedFuelType = value;
+                      });
+                    },
                   ),
-                  _SummaryCard(
-                    title: 'Envanter',
-                    value: '96',
-                    icon: Icons.warning_amber,
+                  AppButton.secondary(
+                    label: 'Dialog Aç',
+                    icon: Icons.open_in_new,
+                    onPressed: () async {
+                      final confirmed = await AppDialog.show(
+                        context: context,
+                        type: AppDialogType.confirm,
+                        title: 'Kaydı Sil',
+                        message: 'Bu işlem geri alınamaz.',
+                        primaryButtonText: 'Sil',
+                        secondaryButtonText: 'Vazgeç',
+                      );
+
+                      debugPrint('Dialog sonucu: $confirmed');
+                    },
+                  ),
+                  AppButton.primary(
+                    label: 'Başarılı',
+                    icon: Icons.check_circle_outline,
+                    onPressed: () {
+                      AppSnackbar.show(
+                        context: context,
+                        type: AppSnackbarType.success,
+                        message: 'Kayıt başarıyla oluşturuldu.',
+                      );
+                    },
+                  ),
+
+                  AppButton.danger(
+                    label: 'Hata',
+                    icon: Icons.error_outline,
+                    onPressed: () {
+                      AppSnackbar.show(
+                        context: context,
+                        type: AppSnackbarType.error,
+                        message: 'İşlem sırasında bir hata oluştu.',
+                      );
+                    },
+                  ),
+
+                  AppButton.secondary(
+                    label: 'Uyarı',
+                    icon: Icons.warning_amber_rounded,
+                    onPressed: () {
+                      AppSnackbar.show(
+                        context: context,
+                        type: AppSnackbarType.warning,
+                        message: 'Lütfen zorunlu alanları kontrol edin.',
+                      );
+                    },
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.xl),
-            Wrap(
-              spacing: AppSpacing.md,
-              runSpacing: AppSpacing.md,
-              children: [
-                AppButton.primary(
-                  label: 'Kaydet',
-                  icon: Icons.save_outlined,
-                  onPressed: () {
-                    debugPrint('Kaydet tıklandı');
-                  },
-                ),
-                AppButton.secondary(
-                  label: 'İptal',
-                  onPressed: () {
-                    debugPrint('İptal tıklandı');
-                  },
-                ),
-                AppButton.danger(
-                  label: 'Sil',
-                  icon: Icons.delete_outline,
-                  onPressed: () {
-                    debugPrint('Sil tıklandı');
-                  },
-                ),
-              ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCards() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardWidth = constraints.maxWidth >= 1000
+            ? (constraints.maxWidth - (AppSpacing.md * 2)) / 3
+            : constraints.maxWidth >= 600
+            ? (constraints.maxWidth - AppSpacing.md) / 2
+            : constraints.maxWidth;
+
+        return Wrap(
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.md,
+          children: [
+            SizedBox(
+              width: cardWidth,
+              child: const _SummaryCard(
+                title: 'Personel',
+                value: '24',
+                icon: Icons.people_alt_outlined,
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: const _SummaryCard(
+                title: 'Araç',
+                value: '12',
+                icon: Icons.local_shipping_outlined,
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: const _SummaryCard(
+                title: 'Envanter',
+                value: '96',
+                icon: Icons.inventory_2_outlined,
+              ),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -192,15 +334,23 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      onTap: () {},
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Row(
         children: [
-          Icon(icon, size: 42),
-          const SizedBox(height: AppSpacing.md),
-          Text(value, style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: AppSpacing.xs),
-          Text(title, textAlign: TextAlign.center),
+          Icon(icon, size: 36, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: AppSpacing.md),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(title, style: Theme.of(context).textTheme.bodyLarge),
+            ],
+          ),
         ],
       ),
     );

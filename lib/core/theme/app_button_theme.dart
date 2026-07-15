@@ -27,6 +27,22 @@ class AppButtonTheme {
     };
   }
 
+  static Color hoverBackgroundColor(AppButtonVariant variant) {
+    return switch (variant) {
+      AppButtonVariant.primary => AppColors.primaryHover,
+      AppButtonVariant.secondary => AppColors.secondaryHover,
+      AppButtonVariant.danger => AppColors.errorHover,
+    };
+  }
+
+  static Color focusOverlayColor(AppButtonVariant variant) {
+    return switch (variant) {
+      AppButtonVariant.primary => AppColors.focusRing,
+      AppButtonVariant.secondary => AppColors.focusRing,
+      AppButtonVariant.danger => AppColors.focusRing,
+    };
+  }
+
   static Color foregroundColor(AppButtonVariant variant) {
     return switch (variant) {
       AppButtonVariant.primary => AppColors.textOnPrimary,
@@ -41,6 +57,18 @@ class AppButtonTheme {
       AppButtonVariant.secondary => AppColors.primary,
       AppButtonVariant.danger => AppColors.error,
     };
+  }
+
+  static Color disabledBackgroundColor(AppButtonVariant variant) {
+    return AppColors.disabledBackground;
+  }
+
+  static Color disabledForegroundColor(AppButtonVariant variant) {
+    return AppColors.disabledForeground;
+  }
+
+  static Color disabledBorderColor(AppButtonVariant variant) {
+    return AppColors.disabledBorder;
   }
 
   static EdgeInsetsGeometry padding(AppButtonSize size) {

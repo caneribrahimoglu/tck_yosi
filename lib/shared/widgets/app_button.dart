@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/app_spacing.dart';
 import '../../core/enums/app_button_size.dart';
 import '../../core/enums/app_button_variant.dart';
-import '../../core/constants/app_spacing.dart';
 import '../../core/theme/app_button_theme.dart';
 
 class AppButton extends StatelessWidget {
@@ -16,7 +16,7 @@ class AppButton extends StatelessWidget {
     super.key,
     required this.label,
     required this.onPressed,
-    required this.icon,
+    this.icon,
     required this.size,
     required this.variant,
   });
@@ -35,6 +35,7 @@ class AppButton extends StatelessWidget {
          size: size,
          variant: AppButtonVariant.primary,
        );
+
   const AppButton.secondary({
     Key? key,
     required String label,
@@ -71,19 +72,63 @@ class AppButton extends StatelessWidget {
     final foregroundColor = AppButtonTheme.foregroundColor(variant);
     final borderColor = AppButtonTheme.borderColor(variant);
 
+    final disabledBackgroundColor = AppButtonTheme.disabledBackgroundColor(
+      variant,
+    );
+
+    final disabledForegroundColor = AppButtonTheme.disabledForegroundColor(
+      variant,
+    );
+
+    final disabledBorderColor = AppButtonTheme.disabledBorderColor(variant);
+
+    final hoverBackgroundColor = AppButtonTheme.hoverBackgroundColor(variant);
+
+    final focusOverlayColor = AppButtonTheme.focusOverlayColor(variant);
+
     return SizedBox(
       height: AppButtonTheme.height(size),
       child: FilledButton(
         onPressed: onPressed,
-        style: FilledButton.styleFrom(
-          backgroundColor: backgroundColor,
-          foregroundColor: foregroundColor,
-          padding: AppButtonTheme.padding(size),
-          shape: RoundedRectangleBorder(
-            borderRadius: AppButtonTheme.borderRadius,
-            side: BorderSide(color: borderColor),
-          ),
-        ),
+        style:
+            FilledButton.styleFrom(
+              foregroundColor: foregroundColor,
+              disabledForegroundColor: disabledForegroundColor,
+              padding: AppButtonTheme.padding(size),
+              shape: RoundedRectangleBorder(
+                borderRadius: AppButtonTheme.borderRadius,
+              ),
+            ).copyWith(
+              backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+                if (states.contains(WidgetState.disabled)) {
+                  return disabledBackgroundColor;
+                }
+
+                if (states.contains(WidgetState.hovered)) {
+                  return hoverBackgroundColor;
+                }
+
+                return backgroundColor;
+              }),
+              overlayColor: WidgetStateProperty.resolveWith<Color?>((states) {
+                if (states.contains(WidgetState.disabled)) {
+                  return null;
+                }
+
+                if (states.contains(WidgetState.focused)) {
+                  return focusOverlayColor;
+                }
+
+                return null;
+              }),
+              side: WidgetStateProperty.resolveWith<BorderSide>((states) {
+                if (states.contains(WidgetState.disabled)) {
+                  return BorderSide(color: disabledBorderColor);
+                }
+
+                return BorderSide(color: borderColor);
+              }),
+            ),
         child: icon == null
             ? Text(label)
             : Row(
