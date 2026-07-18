@@ -99,7 +99,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             const SizedBox(height: AppSpacing.md),
                             Text(
-                              'TCK YÖSİ',
+                              'KAYNAŞLI BAKIM VE İŞLETME ŞEFLİĞİ',
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.headlineMedium
                                   ?.copyWith(fontWeight: FontWeight.w700),

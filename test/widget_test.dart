@@ -2,9 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tck_yosi/app/app.dart';
 
 void main() {
-  testWidgets('TCK YÖSİ uygulaması açılır', (WidgetTester tester) async {
+  testWidgets('oturum yoksa login ekranı açılır', (WidgetTester tester) async {
     await tester.pumpWidget(const TckYosiApp());
 
-    expect(find.text('TCK YÖSİ'), findsWidgets);
+    await tester.pumpAndSettle();
+
+    expect(find.text('KAYNAŞLI BAKIM VE İŞLETME ŞEFLİĞİ'), findsOneWidget);
+    expect(find.text('Operasyon Yönetim Platformu'), findsOneWidget);
+    expect(find.text('Giriş Yap'), findsOneWidget);
   });
 }

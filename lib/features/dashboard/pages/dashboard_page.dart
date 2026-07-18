@@ -13,9 +13,17 @@ import '../../../../shared/widgets/app_page_header.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../../../core/enums/app_status_type.dart';
 import '../../../../shared/widgets/app_status_chip.dart';
+import '../../auth/domain/models/app_user.dart';
 
 class DashboardPage extends StatefulWidget {
-  const DashboardPage({super.key});
+  final AppUser currentUser;
+  final Future<void> Function() onLogout;
+
+  const DashboardPage({
+    super.key,
+    required this.currentUser,
+    required this.onLogout,
+  });
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -24,6 +32,23 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   int selectedMenuIndex = 0;
   String? selectedFuelType;
+
+  Future<void> _confirmLogout() async {
+    final confirmed = await AppDialog.show(
+      context: context,
+      type: AppDialogType.confirm,
+      title: 'Çıkış Yap',
+      message: 'Oturumunuzu kapatmak istediğinize emin misiniz?',
+      primaryButtonText: 'Çıkış Yap',
+      secondaryButtonText: 'Vazgeç',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    await widget.onLogout();
+  }
 
   final List<_DashboardMenuItem> menuItems = const [
     _DashboardMenuItem(title: 'Personel', icon: Icons.people_alt_outlined),
@@ -35,7 +60,25 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('TCK YÖSİ')),
+      appBar: AppBar(
+        title: const Text('TCK YÖSİ'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.md),
+            child: Row(
+              children: [
+                Text(widget.currentUser.fullName),
+                const SizedBox(width: AppSpacing.sm),
+                IconButton(
+                  tooltip: 'Çıkış yap',
+                  onPressed: _confirmLogout,
+                  icon: const Icon(Icons.logout_rounded),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isDesktop = constraints.maxWidth >= 900;
