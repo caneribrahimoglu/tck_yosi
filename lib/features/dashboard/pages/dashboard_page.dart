@@ -9,6 +9,10 @@ import '../../../../core/enums/app_dialog_type.dart';
 import '../../../../shared/widgets/app_dialog.dart';
 import '../../../../core/enums/app_snackbar_type.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
+import '../../../../shared/widgets/app_page_header.dart';
+import '../../../../shared/widgets/app_loading.dart';
+import '../../../../core/enums/app_status_type.dart';
+import '../../../../shared/widgets/app_status_chip.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -72,6 +76,7 @@ class _DashboardPageState extends State<DashboardPage> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
           ),
+
           const SizedBox(height: AppSpacing.sm),
           ...List.generate(menuItems.length, (index) {
             final item = menuItems[index];
@@ -105,16 +110,9 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'TCK YÖSİ Dashboard',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Yönetim sistemine genel bakış',
-            style: Theme.of(context).textTheme.bodyLarge,
+          const AppPageHeader(
+            title: 'TCK YÖSİ Dashboard',
+            subtitle: 'Yönetim sistemine genel bakış',
           ),
           const SizedBox(height: AppSpacing.xl),
 
@@ -166,11 +164,25 @@ class _DashboardPageState extends State<DashboardPage> {
           const SizedBox(height: AppSpacing.xl),
 
           Text(
+            'AppLoading Test Alanı',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          const AppCard(child: AppLoading(message: 'Veriler yükleniyor...')),
+
+          const SizedBox(height: AppSpacing.xl),
+
+          Text(
             'AppTextField Test Alanı',
             style: Theme.of(
               context,
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
           ),
+
           const SizedBox(height: AppSpacing.md),
 
           AppCard(
@@ -266,6 +278,40 @@ class _DashboardPageState extends State<DashboardPage> {
                         message: 'Lütfen zorunlu alanları kontrol edin.',
                       );
                     },
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+
+                  Text(
+                    'AppStatusChip Test Alanı',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+
+                  const SizedBox(height: AppSpacing.md),
+
+                  const Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: [
+                      AppStatusChip(
+                        label: 'Aktif',
+                        type: AppStatusType.success,
+                      ),
+                      AppStatusChip(
+                        label: 'Bakımda',
+                        type: AppStatusType.warning,
+                      ),
+                      AppStatusChip(
+                        label: 'Arızalı',
+                        type: AppStatusType.error,
+                      ),
+                      AppStatusChip(label: 'Bilgi', type: AppStatusType.info),
+                      AppStatusChip(
+                        label: 'Pasif',
+                        type: AppStatusType.neutral,
+                      ),
+                    ],
                   ),
                 ],
               ),
