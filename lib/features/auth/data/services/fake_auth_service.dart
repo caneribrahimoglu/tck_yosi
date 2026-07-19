@@ -39,6 +39,8 @@ class FakeAuthService implements AuthService {
           AppPermission.managePersonnel,
           AppPermission.viewReports,
           AppPermission.approveOperations,
+          AppPermission.assignTechnicalWork,
+          AppPermission.manageTeamPermissions,
         },
       ),
     ),

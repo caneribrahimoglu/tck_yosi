@@ -151,8 +151,7 @@ class _EngineerDashboardPageState extends State<EngineerDashboardPage> {
       builder: (context, constraints) {
         final columnCount = switch (constraints.maxWidth) {
           >= 1100 => 3,
-          >= 650 => 2,
-          _ => 1,
+          _ => 2,
         };
 
         final totalSpacing = AppSpacing.md * (columnCount - 1);
@@ -295,28 +294,64 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      child: Row(
-        children: [
-          Icon(icon, size: 40, color: color),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 220;
+
+        if (isCompact) {
+          return AppCard(
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  children: [
+                    Icon(icon, size: 28, color: color),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      value,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(title, style: Theme.of(context).textTheme.bodyLarge),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                ),
               ],
             ),
+          );
+        }
+
+        return AppCard(
+          child: Row(
+            children: [
+              Icon(icon, size: 40, color: color),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(title, style: Theme.of(context).textTheme.bodyLarge),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

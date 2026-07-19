@@ -98,7 +98,7 @@ void main() {
     expect(find.text('Bugünkü Aracın'), findsNothing);
   });
 
-  testWidgets('şef rolü yönetim dashboardunu gösterir', (
+  testWidgets('şef rolü şeflik operasyon dashboardunu gösterir', (
     WidgetTester tester,
   ) async {
     tester.view.physicalSize = const Size(1400, 900);
@@ -110,7 +110,7 @@ void main() {
     });
 
     const chief = AppUser(
-      id: 'chief-test',
+      id: 'user-chief-001',
       fullName: 'Test Şef',
       username: 'test.sef',
       role: UserRole.chief,
@@ -119,6 +119,8 @@ void main() {
         AppPermission.managePersonnel,
         AppPermission.viewReports,
         AppPermission.approveOperations,
+        AppPermission.assignTechnicalWork,
+        AppPermission.manageTeamPermissions,
       },
     );
 
@@ -132,10 +134,18 @@ void main() {
       ),
     );
 
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(find.text('TCK YÖSİ Dashboard'), findsOneWidget);
-    expect(find.text('Yönetim Menüsü'), findsOneWidget);
+    expect(find.text('Şeflik Operasyon Merkezi'), findsOneWidget);
+    expect(find.text('Açık Operasyonlar'), findsOneWidget);
+    expect(find.text('Kritik Olaylar'), findsOneWidget);
+    expect(find.text('Atanmamış İşler'), findsOneWidget);
+    expect(find.text('Görev ve İş Ata'), findsOneWidget);
+    expect(find.text('Yetki Yönetimi'), findsOneWidget);
+    expect(find.text('Yol yüzeyinde çökme'), findsNWidgets(2));
+    expect(find.text('Ekip Durumu'), findsOneWidget);
+    expect(find.text('Onay Bekleyenler'), findsOneWidget);
+    expect(find.text('Yönetim Menüsü'), findsNothing);
     expect(find.text('Bugünkü Aracın'), findsNothing);
   });
 

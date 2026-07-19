@@ -40,6 +40,8 @@ void main() {
     expect(controller.criticalWorkCount, 2);
     expect(controller.awaitingInspectionCount, 1);
     expect(controller.errorMessage, isNull);
+    expect(controller.unassignedWorkCount, 1);
+    expect(controller.inProgressWorkCount, 1);
   });
 
   test('repository hata verirse failure durumuna geçer', () async {

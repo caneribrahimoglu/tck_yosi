@@ -43,6 +43,19 @@ class TechnicalWorkController extends ChangeNotifier {
         .length;
   }
 
+  int get unassignedWorkCount {
+    return _allWorks.where((work) => work.isOpen && !work.isAssigned).length;
+  }
+
+  int get inProgressWorkCount {
+    return _allWorks
+        .where(
+          (work) =>
+              work.isOpen && work.status == TechnicalWorkStatus.inProgress,
+        )
+        .length;
+  }
+
   Future<void> load(String userId) async {
     _status = TechnicalWorkLoadStatus.loading;
     _errorMessage = null;

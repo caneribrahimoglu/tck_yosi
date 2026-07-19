@@ -10,4 +10,6 @@ enum AppPermission {
   viewReports,
   approveOperations,
   manageUsers,
+  assignTechnicalWork,
+  manageTeamPermissions,
 }
