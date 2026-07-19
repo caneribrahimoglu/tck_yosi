@@ -48,7 +48,7 @@ void main() {
     });
 
     const engineer = AppUser(
-      id: 'engineer-test',
+      id: 'user-engineer-001',
       fullName: 'Test Mühendis',
       username: 'test.muhendis',
       role: UserRole.engineer,

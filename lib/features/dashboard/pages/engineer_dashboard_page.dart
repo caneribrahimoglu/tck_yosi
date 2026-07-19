@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_spacing.dart';
-import '../../../core/enums/app_status_type.dart';
+
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_page_header.dart';
 import '../../../shared/widgets/app_status_chip.dart';
 import '../../auth/domain/enums/app_permission.dart';
 import '../../auth/domain/models/app_user.dart';
+import '../../technical_operations/data/fake_technical_work_data.dart';
+import '../../technical_operations/domain/enums/technical_work_priority.dart';
+import '../../technical_operations/domain/models/technical_work.dart';
+import '../../technical_operations/presentation/technical_work_presentation.dart';
 
 class EngineerDashboardPage extends StatelessWidget {
   final AppUser currentUser;
@@ -157,6 +161,8 @@ class EngineerDashboardPage extends StatelessWidget {
   }
 
   Widget _buildAssignedWorkSection(BuildContext context) {
+    final assignedWorks = FakeTechnicalWorkData.assignedTo(currentUser.id);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -167,37 +173,24 @@ class EngineerDashboardPage extends StatelessWidget {
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: AppSpacing.md),
-        const Column(
-          children: [
-            _TechnicalWorkCard(
-              location: 'D-100 / Km 14+200',
-              title: 'Aydınlatma arızası',
-              description: 'Yol aydınlatma direklerinin bir bölümü çalışmıyor.',
-              icon: Icons.lightbulb_outline_rounded,
-              statusLabel: 'Kritik',
-              statusType: AppStatusType.error,
-            ),
-            SizedBox(height: AppSpacing.md),
-            _TechnicalWorkCard(
-              location: 'Ankara istikameti / Km 22+450',
-              title: 'Hasarlı yön levhası',
-              description:
-                  'Yönlendirme levhasında görüşü etkileyen hasar bulunuyor.',
-              icon: Icons.signpost_outlined,
-              statusLabel: 'İnceleme Bekliyor',
-              statusType: AppStatusType.warning,
-            ),
-            SizedBox(height: AppSpacing.md),
-            _TechnicalWorkCard(
-              location: 'Köprü yaklaşımı / Km 31+800',
-              title: 'Bariyer deformasyonu',
-              description: 'Hasarlı bariyer için saha ekibi görevlendirildi.',
-              icon: Icons.fence_outlined,
-              statusLabel: 'Ekibe Atandı',
-              statusType: AppStatusType.info,
-            ),
-          ],
-        ),
+        if (assignedWorks.isEmpty)
+          const AppCard(
+            child: Text('Şu anda sana atanmış bir teknik iş bulunmuyor.'),
+          )
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: assignedWorks.length,
+            separatorBuilder: (context, index) {
+              return const SizedBox(height: AppSpacing.md);
+            },
+            itemBuilder: (context, index) {
+              final work = assignedWorks[index];
+
+              return _TechnicalWorkCard(work: work);
+            },
+          ),
       ],
     );
   }
@@ -245,21 +238,9 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _TechnicalWorkCard extends StatelessWidget {
-  final String location;
-  final String title;
-  final String description;
-  final IconData icon;
-  final String statusLabel;
-  final AppStatusType statusType;
+  final TechnicalWork work;
 
-  const _TechnicalWorkCard({
-    required this.location,
-    required this.title,
-    required this.description,
-    required this.icon,
-    required this.statusLabel,
-    required this.statusType,
-  });
+  const _TechnicalWorkCard({required this.work});
 
   @override
   Widget build(BuildContext context) {
@@ -272,7 +253,7 @@ class _TechnicalWorkCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
-                icon,
+                work.category.icon,
                 size: 36,
                 color: Theme.of(context).colorScheme.primary,
               ),
@@ -282,7 +263,7 @@ class _TechnicalWorkCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      location,
+                      work.location,
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.w600,
@@ -290,18 +271,35 @@ class _TechnicalWorkCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      title,
+                      work.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      description,
+                      work.description,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
                 ),
+              ),
+            ],
+          );
+
+          final statusChips = Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              if (work.priority == TechnicalWorkPriority.high ||
+                  work.priority == TechnicalWorkPriority.critical)
+                AppStatusChip(
+                  label: work.priority.label,
+                  type: work.priority.statusType,
+                ),
+              AppStatusChip(
+                label: work.status.label,
+                type: work.status.statusType,
               ),
             ],
           );
@@ -312,7 +310,7 @@ class _TechnicalWorkCard extends StatelessWidget {
               children: [
                 workDetails,
                 const SizedBox(height: AppSpacing.md),
-                AppStatusChip(label: statusLabel, type: statusType),
+                statusChips,
               ],
             );
           }
@@ -321,7 +319,7 @@ class _TechnicalWorkCard extends StatelessWidget {
             children: [
               Expanded(child: workDetails),
               const SizedBox(width: AppSpacing.lg),
-              AppStatusChip(label: statusLabel, type: statusType),
+              statusChips,
             ],
           );
         },

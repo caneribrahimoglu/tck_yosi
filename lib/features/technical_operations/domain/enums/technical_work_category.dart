@@ -1,0 +1,16 @@
+enum TechnicalWorkCategory {
+  roadSurface,
+  lighting,
+  trafficSign,
+  roadMarking,
+  barrier,
+  drainage,
+  bridgeAndViaduct,
+  tunnel,
+  landslide,
+  building,
+  electricalSystem,
+  vehicle,
+  workMachine,
+  other,
+}
