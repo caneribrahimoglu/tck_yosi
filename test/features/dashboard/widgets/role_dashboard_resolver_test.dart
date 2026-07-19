@@ -36,6 +36,51 @@ void main() {
     expect(find.text('Yönetim Menüsü'), findsNothing);
   });
 
+  testWidgets('mühendis rolü teknik operasyon dashboardunu gösterir', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const engineer = AppUser(
+      id: 'engineer-test',
+      fullName: 'Test Mühendis',
+      username: 'test.muhendis',
+      role: UserRole.engineer,
+      permissions: {
+        AppPermission.createFaultReport,
+        AppPermission.viewReports,
+        AppPermission.approveOperations,
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RoleDashboardResolver(
+          currentUser: engineer,
+          onLogout: () async {},
+        ),
+      ),
+    );
+
+    await tester.pump();
+
+    expect(find.text('Teknik Operasyonlar'), findsOneWidget);
+    expect(find.text('Açık Teknik İşler'), findsOneWidget);
+    expect(find.text('Aydınlatma arızası'), findsOneWidget);
+    expect(find.text('Hasarlı yön levhası'), findsOneWidget);
+    expect(find.text('Bariyer deformasyonu'), findsOneWidget);
+    expect(find.text('Saha Bildirimi Oluştur'), findsOneWidget);
+    expect(find.text('Teknik Raporlar'), findsOneWidget);
+    expect(find.text('Yönetim Menüsü'), findsNothing);
+    expect(find.text('Bugünkü Aracın'), findsNothing);
+  });
+
   testWidgets('şef rolü yönetim dashboardunu gösterir', (
     WidgetTester tester,
   ) async {

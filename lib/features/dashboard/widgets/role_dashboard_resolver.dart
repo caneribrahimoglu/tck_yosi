@@ -4,6 +4,7 @@ import '../../auth/domain/enums/user_role.dart';
 import '../../auth/domain/models/app_user.dart';
 import '../pages/dashboard_page.dart';
 import '../pages/driver_dashboard_page.dart';
+import '../pages/engineer_dashboard_page.dart';
 
 class RoleDashboardResolver extends StatelessWidget {
   final AppUser currentUser;
@@ -22,11 +23,13 @@ class RoleDashboardResolver extends StatelessWidget {
         currentUser: currentUser,
         onLogout: onLogout,
       ),
-
+      UserRole.engineer => EngineerDashboardPage(
+        currentUser: currentUser,
+        onLogout: onLogout,
+      ),
       UserRole.cleaningStaff ||
       UserRole.technician ||
       UserRole.chief ||
-      UserRole.engineer ||
       UserRole.director ||
       UserRole.admin => DashboardPage(
         currentUser: currentUser,
