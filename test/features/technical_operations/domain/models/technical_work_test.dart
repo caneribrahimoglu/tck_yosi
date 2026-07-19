@@ -47,4 +47,22 @@ void main() {
 
     expect(work.isCompleted, isTrue);
   });
+
+  test('bildirilen iş açık kabul edilir', () {
+    final work = createWork(status: TechnicalWorkStatus.reported);
+
+    expect(work.isOpen, isTrue);
+  });
+
+  test('tamamlanan iş açık kabul edilmez', () {
+    final work = createWork(status: TechnicalWorkStatus.completed);
+
+    expect(work.isOpen, isFalse);
+  });
+
+  test('iptal edilen iş açık kabul edilmez', () {
+    final work = createWork(status: TechnicalWorkStatus.cancelled);
+
+    expect(work.isOpen, isFalse);
+  });
 }

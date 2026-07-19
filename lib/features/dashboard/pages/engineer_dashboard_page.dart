@@ -1,27 +1,53 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_spacing.dart';
-
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/app_loading.dart';
 import '../../../shared/widgets/app_page_header.dart';
 import '../../../shared/widgets/app_status_chip.dart';
 import '../../auth/domain/enums/app_permission.dart';
 import '../../auth/domain/models/app_user.dart';
-import '../../technical_operations/data/fake_technical_work_data.dart';
 import '../../technical_operations/domain/enums/technical_work_priority.dart';
 import '../../technical_operations/domain/models/technical_work.dart';
+import '../../technical_operations/presentation/controllers/technical_work_controller.dart';
+import '../../technical_operations/presentation/controllers/technical_work_load_status.dart';
 import '../../technical_operations/presentation/technical_work_presentation.dart';
 
-class EngineerDashboardPage extends StatelessWidget {
+class EngineerDashboardPage extends StatefulWidget {
   final AppUser currentUser;
   final Future<void> Function() onLogout;
+  final TechnicalWorkController technicalWorkController;
 
   const EngineerDashboardPage({
     super.key,
     required this.currentUser,
     required this.onLogout,
+    required this.technicalWorkController,
   });
+
+  @override
+  State<EngineerDashboardPage> createState() {
+    return _EngineerDashboardPageState();
+  }
+}
+
+class _EngineerDashboardPageState extends State<EngineerDashboardPage> {
+  @override
+  void initState() {
+    super.initState();
+
+    widget.technicalWorkController.load(widget.currentUser.id);
+  }
+
+  @override
+  void didUpdateWidget(covariant EngineerDashboardPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.currentUser.id != widget.currentUser.id) {
+      widget.technicalWorkController.load(widget.currentUser.id);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,11 +59,11 @@ class EngineerDashboardPage extends StatelessWidget {
             padding: const EdgeInsets.only(right: AppSpacing.md),
             child: Row(
               children: [
-                Text(currentUser.fullName),
+                Text(widget.currentUser.fullName),
                 const SizedBox(width: AppSpacing.sm),
                 IconButton(
                   tooltip: 'Çıkış yap',
-                  onPressed: onLogout,
+                  onPressed: widget.onLogout,
                   icon: const Icon(Icons.logout_rounded),
                 ),
               ],
@@ -45,23 +71,73 @@ class EngineerDashboardPage extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppPageHeader(
-              title: 'Teknik Operasyonlar',
-              subtitle:
-                  'Hoş geldin, ${currentUser.fullName}. '
-                  'Saha işlerini ve teknik süreçleri buradan takip edebilirsin.',
+      body: AnimatedBuilder(
+        animation: widget.technicalWorkController,
+        builder: (context, child) {
+          return switch (widget.technicalWorkController.status) {
+            TechnicalWorkLoadStatus.initial ||
+            TechnicalWorkLoadStatus.loading => const AppLoading(
+              message: 'Teknik işler yükleniyor...',
             ),
-            const SizedBox(height: AppSpacing.xl),
-            _buildSummarySection(context),
-            const SizedBox(height: AppSpacing.xl),
-            _buildQuickActions(context),
-            const SizedBox(height: AppSpacing.xl),
-            _buildAssignedWorkSection(context),
+            TechnicalWorkLoadStatus.loaded => _buildLoadedContent(context),
+            TechnicalWorkLoadStatus.failure => _buildFailureContent(context),
+          };
+        },
+      ),
+    );
+  }
+
+  Widget _buildLoadedContent(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppPageHeader(
+            title: 'Teknik Operasyonlar',
+            subtitle:
+                'Hoş geldin, ${widget.currentUser.fullName}. '
+                'Saha işlerini ve teknik süreçleri '
+                'buradan takip edebilirsin.',
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          _buildSummarySection(context),
+          const SizedBox(height: AppSpacing.xl),
+          _buildQuickActions(context),
+          const SizedBox(height: AppSpacing.xl),
+          _buildAssignedWorkSection(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFailureContent(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              size: 48,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              widget.technicalWorkController.errorMessage ??
+                  'Beklenmeyen bir hata oluştu.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppButton.primary(
+              label: 'Tekrar Dene',
+              icon: Icons.refresh_rounded,
+              onPressed: () {
+                widget.technicalWorkController.load(widget.currentUser.id);
+              },
+            ),
           ],
         ),
       ),
@@ -69,6 +145,8 @@ class EngineerDashboardPage extends StatelessWidget {
   }
 
   Widget _buildSummarySection(BuildContext context) {
+    final controller = widget.technicalWorkController;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final columnCount = switch (constraints.maxWidth) {
@@ -78,6 +156,7 @@ class EngineerDashboardPage extends StatelessWidget {
         };
 
         final totalSpacing = AppSpacing.md * (columnCount - 1);
+
         final cardWidth = (constraints.maxWidth - totalSpacing) / columnCount;
 
         return Wrap(
@@ -88,25 +167,25 @@ class EngineerDashboardPage extends StatelessWidget {
               width: cardWidth,
               child: _SummaryCard(
                 title: 'Açık Teknik İşler',
-                value: '18',
+                value: controller.openWorkCount.toString(),
                 icon: Icons.engineering_outlined,
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
             SizedBox(
               width: cardWidth,
-              child: const _SummaryCard(
+              child: _SummaryCard(
                 title: 'Kritik Bildirimler',
-                value: '4',
+                value: controller.criticalWorkCount.toString(),
                 icon: Icons.warning_amber_rounded,
                 color: Colors.red,
               ),
             ),
             SizedBox(
               width: cardWidth,
-              child: const _SummaryCard(
+              child: _SummaryCard(
                 title: 'İnceleme Bekleyenler',
-                value: '7',
+                value: controller.awaitingInspectionCount.toString(),
                 icon: Icons.manage_search_rounded,
                 color: Colors.orange,
               ),
@@ -132,7 +211,9 @@ class EngineerDashboardPage extends StatelessWidget {
           spacing: AppSpacing.md,
           runSpacing: AppSpacing.md,
           children: [
-            if (currentUser.hasPermission(AppPermission.createFaultReport))
+            if (widget.currentUser.hasPermission(
+              AppPermission.createFaultReport,
+            ))
               AppButton.primary(
                 label: 'Saha Bildirimi Oluştur',
                 icon: Icons.add_location_alt_outlined,
@@ -148,7 +229,7 @@ class EngineerDashboardPage extends StatelessWidget {
               icon: Icons.event_note_outlined,
               onPressed: () {},
             ),
-            if (currentUser.hasPermission(AppPermission.viewReports))
+            if (widget.currentUser.hasPermission(AppPermission.viewReports))
               AppButton.secondary(
                 label: 'Teknik Raporlar',
                 icon: Icons.description_outlined,
@@ -161,7 +242,7 @@ class EngineerDashboardPage extends StatelessWidget {
   }
 
   Widget _buildAssignedWorkSection(BuildContext context) {
-    final assignedWorks = FakeTechnicalWorkData.assignedTo(currentUser.id);
+    final assignedWorks = widget.technicalWorkController.assignedWorks;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,7 +256,10 @@ class EngineerDashboardPage extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         if (assignedWorks.isEmpty)
           const AppCard(
-            child: Text('Şu anda sana atanmış bir teknik iş bulunmuyor.'),
+            child: Text(
+              'Şu anda sana atanmış bir teknik iş '
+              'bulunmuyor.',
+            ),
           )
         else
           ListView.separated(

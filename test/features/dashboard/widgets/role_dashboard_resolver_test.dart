@@ -4,8 +4,20 @@ import 'package:tck_yosi/features/auth/domain/enums/app_permission.dart';
 import 'package:tck_yosi/features/auth/domain/enums/user_role.dart';
 import 'package:tck_yosi/features/auth/domain/models/app_user.dart';
 import 'package:tck_yosi/features/dashboard/widgets/role_dashboard_resolver.dart';
+import 'package:tck_yosi/features/technical_operations/data/repositories/fake_technical_work_repository.dart';
+import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_controller.dart';
 
 void main() {
+  TechnicalWorkController createTechnicalWorkController() {
+    final controller = TechnicalWorkController(
+      repository: FakeTechnicalWorkRepository(delay: Duration.zero),
+    );
+
+    addTearDown(controller.dispose);
+
+    return controller;
+  }
+
   testWidgets('şoför rolü şoför dashboardunu gösterir', (
     WidgetTester tester,
   ) async {
@@ -25,7 +37,11 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: RoleDashboardResolver(currentUser: driver, onLogout: () async {}),
+        home: RoleDashboardResolver(
+          currentUser: driver,
+          onLogout: () async {},
+          technicalWorkController: createTechnicalWorkController(),
+        ),
       ),
     );
 
@@ -64,11 +80,12 @@ void main() {
         home: RoleDashboardResolver(
           currentUser: engineer,
           onLogout: () async {},
+          technicalWorkController: createTechnicalWorkController(),
         ),
       ),
     );
 
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.text('Teknik Operasyonlar'), findsOneWidget);
     expect(find.text('Açık Teknik İşler'), findsOneWidget);
@@ -85,7 +102,6 @@ void main() {
     WidgetTester tester,
   ) async {
     tester.view.physicalSize = const Size(1400, 900);
-
     tester.view.devicePixelRatio = 1;
 
     addTearDown(() {
@@ -108,7 +124,11 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: RoleDashboardResolver(currentUser: chief, onLogout: () async {}),
+        home: RoleDashboardResolver(
+          currentUser: chief,
+          onLogout: () async {},
+          technicalWorkController: createTechnicalWorkController(),
+        ),
       ),
     );
 
@@ -138,6 +158,7 @@ void main() {
         home: RoleDashboardResolver(
           currentUser: driverWithoutFuelPermission,
           onLogout: () async {},
+          technicalWorkController: createTechnicalWorkController(),
         ),
       ),
     );

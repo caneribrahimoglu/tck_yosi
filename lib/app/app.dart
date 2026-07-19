@@ -4,6 +4,8 @@ import '../core/theme/app_theme.dart';
 import '../features/auth/data/services/fake_auth_service.dart';
 import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/auth/presentation/widgets/auth_gate.dart';
+import '../features/technical_operations/data/repositories/fake_technical_work_repository.dart';
+import '../features/technical_operations/presentation/controllers/technical_work_controller.dart';
 
 class TckYosiApp extends StatefulWidget {
   const TckYosiApp({super.key});
@@ -14,17 +16,23 @@ class TckYosiApp extends StatefulWidget {
 
 class _TckYosiAppState extends State<TckYosiApp> {
   late final AuthController _authController;
+  late final TechnicalWorkController _technicalWorkController;
 
   @override
   void initState() {
     super.initState();
 
     _authController = AuthController(authService: FakeAuthService());
+
+    _technicalWorkController = TechnicalWorkController(
+      repository: FakeTechnicalWorkRepository(),
+    );
   }
 
   @override
   void dispose() {
     _authController.dispose();
+    _technicalWorkController.dispose();
 
     super.dispose();
   }
@@ -35,7 +43,10 @@ class _TckYosiAppState extends State<TckYosiApp> {
       title: 'TCK YÖSİ',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: AuthGate(authController: _authController),
+      home: AuthGate(
+        authController: _authController,
+        technicalWorkController: _technicalWorkController,
+      ),
     );
   }
 }

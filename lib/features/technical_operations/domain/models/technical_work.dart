@@ -40,4 +40,9 @@ class TechnicalWork {
   bool get isCompleted {
     return status == TechnicalWorkStatus.completed;
   }
+
+  bool get isOpen {
+    return status != TechnicalWorkStatus.completed &&
+        status != TechnicalWorkStatus.cancelled;
+  }
 }
