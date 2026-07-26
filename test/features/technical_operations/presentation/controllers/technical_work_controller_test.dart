@@ -4,6 +4,7 @@ import 'package:tck_yosi/features/technical_operations/domain/models/technical_w
 import 'package:tck_yosi/features/technical_operations/domain/repositories/technical_work_repository.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_controller.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_load_status.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/create_field_report_request.dart';
 
 void main() {
   test('yükleme başladığında loading durumuna geçer', () async {
@@ -68,6 +69,14 @@ class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
 
   @override
   Future<List<TechnicalWork>> getAssignedWorks(String userId) {
+    throw Exception('Repository error');
+  }
+
+  @override
+  Future<TechnicalWork> createFieldReport({
+    required CreateFieldReportRequest request,
+    required String createdByUserId,
+  }) {
     throw Exception('Repository error');
   }
 }

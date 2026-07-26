@@ -4,6 +4,7 @@ import 'package:tck_yosi/features/technical_operations/domain/enums/technical_wo
 import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_priority.dart';
 import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_status.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/technical_work.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/create_field_report_request.dart';
 
 void main() {
   final testWorks = [
@@ -65,5 +66,35 @@ void main() {
     final result = await repository.getAssignedWorks('engineer-without-work');
 
     expect(result, isEmpty);
+  });
+
+  test('yeni bir saha raporu oluşturur', () async {
+    final repository = FakeTechnicalWorkRepository(
+      works: [],
+      delay: Duration.zero,
+    );
+    final request = CreateFieldReportRequest(
+      title: 'Yeni Arıza',
+      description: 'Detaylı açıklama',
+      location: 'D-100 / Km 50+000',
+      category: TechnicalWorkCategory.lighting,
+    );
+
+    final result = await repository.createFieldReport(
+      request: request,
+      createdByUserId: 'user-001',
+    );
+
+    expect(result.title, 'Yeni Arıza');
+    expect(result.createdByUserId, 'user-001');
+    expect(result.category, TechnicalWorkCategory.lighting);
+    expect(result.status, TechnicalWorkStatus.reported);
+    expect(result.priority, TechnicalWorkPriority.normal);
+    expect(result.assignedToUserId, isNull);
+
+    final allWorks = await repository.getAllWorks();
+
+    expect(allWorks, hasLength(1));
+    expect(allWorks.single.id, result.id);
   });
 }
