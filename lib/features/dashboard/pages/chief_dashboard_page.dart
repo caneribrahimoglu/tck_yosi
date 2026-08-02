@@ -25,6 +25,7 @@ class ChiefDashboardPage extends StatefulWidget {
   final Future<void> Function() onLogout;
   final TechnicalWorkController technicalWorkController;
   final Future<void> Function() onCreateFieldReport;
+  final Future<void> Function() onManageTeams;
 
   const ChiefDashboardPage({
     super.key,
@@ -32,6 +33,7 @@ class ChiefDashboardPage extends StatefulWidget {
     required this.onLogout,
     required this.technicalWorkController,
     required this.onCreateFieldReport,
+    required this.onManageTeams,
   });
 
   @override
@@ -257,7 +259,7 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
               AppButton.secondary(
                 label: 'Ekip Yönetimi',
                 icon: Icons.groups_outlined,
-                onPressed: () {},
+                onPressed: widget.onManageTeams,
               ),
             if (widget.currentUser.hasPermission(
               AppPermission.manageTeamPermissions,

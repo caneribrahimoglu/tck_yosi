@@ -6,6 +6,8 @@ import '../../technical_operations/domain/models/technical_work.dart';
 import '../../technical_operations/presentation/controllers/field_report_controller.dart';
 import '../../technical_operations/presentation/controllers/technical_work_controller.dart';
 import '../../technical_operations/presentation/pages/field_report_page.dart';
+import '../../teams/presentation/controllers/team_controller.dart';
+import '../../teams/presentation/pages/team_management_page.dart';
 import '../pages/chief_dashboard_page.dart';
 import '../pages/dashboard_page.dart';
 import '../pages/driver_dashboard_page.dart';
@@ -16,6 +18,7 @@ class RoleDashboardResolver extends StatelessWidget {
   final Future<void> Function() onLogout;
   final TechnicalWorkController technicalWorkController;
   final FieldReportController fieldReportController;
+  final TeamController teamController;
 
   const RoleDashboardResolver({
     super.key,
@@ -23,6 +26,7 @@ class RoleDashboardResolver extends StatelessWidget {
     required this.onLogout,
     required this.technicalWorkController,
     required this.fieldReportController,
+    required this.teamController,
   });
 
   Future<void> _openFieldReport(BuildContext context) async {
@@ -41,6 +45,15 @@ class RoleDashboardResolver extends StatelessWidget {
       return;
     }
 
+    await technicalWorkController.load(currentUser.id);
+  }
+
+  Future<void> _openTeamManagement(BuildContext context) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => TeamManagementPage(controller: teamController),
+      ),
+    );
     await technicalWorkController.load(currentUser.id);
   }
 
@@ -63,6 +76,7 @@ class RoleDashboardResolver extends StatelessWidget {
         onLogout: onLogout,
         technicalWorkController: technicalWorkController,
         onCreateFieldReport: () => _openFieldReport(context),
+        onManageTeams: () => _openTeamManagement(context),
       ),
       UserRole.cleaningStaff ||
       UserRole.technician ||

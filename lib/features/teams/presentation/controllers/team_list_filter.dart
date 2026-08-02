@@ -1,0 +1,1 @@
+enum TeamListFilter { active, archived }

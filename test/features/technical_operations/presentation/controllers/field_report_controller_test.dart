@@ -83,6 +83,11 @@ void main() {
 
 class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
   @override
+  Future<bool> hasOpenWorkAssignedToTeam(String teamId) async {
+    throw Exception('Repository error');
+  }
+
+  @override
   Future<TechnicalWork> assignWork({
     required String workId,
     required TechnicalWorkPriority priority,

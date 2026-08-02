@@ -8,6 +8,11 @@ import '../features/technical_operations/data/repositories/fake_technical_work_r
 import '../features/technical_operations/domain/repositories/technical_work_repository.dart';
 import '../features/technical_operations/presentation/controllers/field_report_controller.dart';
 import '../features/technical_operations/presentation/controllers/technical_work_controller.dart';
+import '../features/teams/data/repositories/fake_team_repository.dart';
+import '../features/teams/domain/repositories/team_repository.dart';
+import '../features/teams/presentation/controllers/team_controller.dart';
+import '../features/teams/data/adapters/team_assignment_target_adapter.dart';
+import '../features/technical_operations/data/adapters/technical_work_team_archive_guard.dart';
 
 class TckYosiApp extends StatefulWidget {
   const TckYosiApp({super.key});
@@ -21,6 +26,8 @@ class _TckYosiAppState extends State<TckYosiApp> {
   late final TechnicalWorkRepository _technicalWorkRepository;
   late final TechnicalWorkController _technicalWorkController;
   late final FieldReportController _fieldReportController;
+  late final TeamRepository _teamRepository;
+  late final TeamController _teamController;
 
   @override
   void initState() {
@@ -28,7 +35,17 @@ class _TckYosiAppState extends State<TckYosiApp> {
 
     _authController = AuthController(authService: FakeAuthService());
 
-    _technicalWorkRepository = FakeTechnicalWorkRepository();
+    _teamRepository = FakeTeamRepository(
+      archiveGuard: TechnicalWorkTeamArchiveGuard(
+        repositoryProvider: () => _technicalWorkRepository,
+      ),
+    );
+
+    _technicalWorkRepository = FakeTechnicalWorkRepository(
+      teamAssignmentTargetSource: TeamAssignmentTargetAdapter(
+        repository: _teamRepository,
+      ),
+    );
 
     _technicalWorkController = TechnicalWorkController(
       repository: _technicalWorkRepository,
@@ -37,6 +54,11 @@ class _TckYosiAppState extends State<TckYosiApp> {
     _fieldReportController = FieldReportController(
       repository: _technicalWorkRepository,
     );
+
+    _teamController = TeamController(
+      repository: _teamRepository,
+      actorPermissions: const {},
+    );
   }
 
   @override
@@ -44,6 +66,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
     _authController.dispose();
     _technicalWorkController.dispose();
     _fieldReportController.dispose();
+    _teamController.dispose();
 
     super.dispose();
   }
@@ -58,6 +81,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
         authController: _authController,
         technicalWorkController: _technicalWorkController,
         fieldReportController: _fieldReportController,
+        teamController: _teamController,
       ),
     );
   }

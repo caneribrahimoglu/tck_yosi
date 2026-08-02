@@ -7,6 +7,10 @@ import 'package:tck_yosi/features/technical_operations/domain/models/technical_w
 import 'package:tck_yosi/features/technical_operations/domain/models/create_field_report_request.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/assignment_target.dart';
 import 'package:tck_yosi/features/technical_operations/domain/enums/assignment_target_type.dart';
+import 'package:tck_yosi/features/auth/domain/enums/app_permission.dart';
+import 'package:tck_yosi/features/teams/data/adapters/team_assignment_target_adapter.dart';
+import 'package:tck_yosi/features/teams/data/repositories/fake_team_repository.dart';
+import 'package:tck_yosi/features/technical_operations/data/adapters/technical_work_team_archive_guard.dart';
 
 void main() {
   final testWorks = [
@@ -168,6 +172,158 @@ void main() {
 
       expect(result.assignedToUserId, engineer.id);
       expect(result.assignedToTeamId, isNull);
+    },
+  );
+
+  test('yeni oluşturulan aktif ekip atama hedeflerinde görünür', () async {
+    final teamRepository = FakeTeamRepository(delay: Duration.zero);
+    final team = await teamRepository.createTeam(
+      name: 'Yeni Müdahale Ekibi',
+      description: '',
+      actorPermissions: const {AppPermission.manageTeamPermissions},
+    );
+    final repository = FakeTechnicalWorkRepository(
+      works: [],
+      delay: Duration.zero,
+      teamAssignmentTargetSource: TeamAssignmentTargetAdapter(
+        repository: teamRepository,
+      ),
+    );
+
+    final targets = await repository.getAssignmentTargets();
+
+    expect(targets.any((target) => target.id == team.id), isTrue);
+  });
+
+  test('pasif ve arşivlenmiş ekipler atama hedeflerinde görünmez', () async {
+    const manager = {AppPermission.manageTeamPermissions};
+    final teamRepository = FakeTeamRepository(delay: Duration.zero);
+    final passive = await teamRepository.createTeam(
+      name: 'Pasif Ekip',
+      description: '',
+      actorPermissions: manager,
+    );
+    final archived = await teamRepository.createTeam(
+      name: 'Arşiv Ekip',
+      description: '',
+      actorPermissions: manager,
+    );
+    await teamRepository.setTeamActive(
+      teamId: passive.id,
+      isActive: false,
+      actorPermissions: manager,
+    );
+    await teamRepository.archiveTeam(
+      teamId: archived.id,
+      actorPermissions: manager,
+    );
+    final repository = FakeTechnicalWorkRepository(
+      works: [],
+      delay: Duration.zero,
+      teamAssignmentTargetSource: TeamAssignmentTargetAdapter(
+        repository: teamRepository,
+      ),
+    );
+
+    final targets = await repository.getAssignmentTargets();
+
+    expect(targets.any((target) => target.id == passive.id), isFalse);
+    expect(targets.any((target) => target.id == archived.id), isFalse);
+    expect(targets.any((target) => target.id == 'team-technical'), isTrue);
+  });
+
+  test('arşivleme geçmiş teknik işin ekip kimliğini korur', () async {
+    const manager = {AppPermission.manageTeamPermissions};
+    final historicalWork = testWorks[1].copyWith(
+      status: TechnicalWorkStatus.completed,
+      assignedToTeamId: 'team-technical',
+    );
+    late final FakeTechnicalWorkRepository technicalRepository;
+    final teamRepository = FakeTeamRepository(
+      delay: Duration.zero,
+      archiveGuard: TechnicalWorkTeamArchiveGuard(
+        repositoryProvider: () => technicalRepository,
+      ),
+    );
+    technicalRepository = FakeTechnicalWorkRepository(
+      works: [historicalWork],
+      delay: Duration.zero,
+    );
+
+    await teamRepository.archiveTeam(
+      teamId: 'team-technical',
+      actorPermissions: manager,
+    );
+
+    expect(
+      (await technicalRepository.getAllWorks()).single.assignedToTeamId,
+      'team-technical',
+    );
+  });
+
+  test('gerçek teknik iş guardı açık işi olan ekibi korur', () async {
+    const manager = {AppPermission.manageTeamPermissions};
+    final openWork = testWorks[1].copyWith(assignedToTeamId: 'team-technical');
+    late final FakeTechnicalWorkRepository technicalRepository;
+    final teamRepository = FakeTeamRepository(
+      delay: Duration.zero,
+      archiveGuard: TechnicalWorkTeamArchiveGuard(
+        repositoryProvider: () => technicalRepository,
+      ),
+    );
+    technicalRepository = FakeTechnicalWorkRepository(
+      works: [openWork],
+      delay: Duration.zero,
+    );
+
+    expect(
+      () => teamRepository.archiveTeam(
+        teamId: 'team-technical',
+        actorPermissions: manager,
+      ),
+      throwsStateError,
+    );
+  });
+
+  test(
+    'restore edilen pasif ekip aktifleştirilene kadar hedef olmaz',
+    () async {
+      const manager = {AppPermission.manageTeamPermissions};
+      final teamRepository = FakeTeamRepository(delay: Duration.zero);
+      final repository = FakeTechnicalWorkRepository(
+        works: [],
+        delay: Duration.zero,
+        teamAssignmentTargetSource: TeamAssignmentTargetAdapter(
+          repository: teamRepository,
+        ),
+      );
+      await teamRepository.archiveTeam(
+        teamId: 'team-technical',
+        actorPermissions: manager,
+      );
+      await teamRepository.restoreTeam(
+        teamId: 'team-technical',
+        actorPermissions: manager,
+      );
+
+      expect(
+        (await repository.getAssignmentTargets()).any(
+          (target) => target.id == 'team-technical',
+        ),
+        isFalse,
+      );
+
+      await teamRepository.setTeamActive(
+        teamId: 'team-technical',
+        isActive: true,
+        actorPermissions: manager,
+      );
+      expect(
+        (await repository.getAssignmentTargets()).any(
+          (target) => target.id == 'team-technical',
+        ),
+        isTrue,
+      );
     },
   );
 }

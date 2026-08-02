@@ -6,32 +6,26 @@ import '../../domain/enums/technical_work_status.dart';
 import '../../domain/models/create_field_report_request.dart';
 import '../../domain/enums/assignment_target_type.dart';
 import '../../domain/models/assignment_target.dart';
+import '../../domain/repositories/team_assignment_target_source.dart';
 
 class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
-  static const assignmentTargets = [
+  static const _individualAssignmentTargets = [
     AssignmentTarget(
       id: 'user-engineer-001',
       name: 'Zeynep Demir',
       type: AssignmentTargetType.engineer,
     ),
-    AssignmentTarget(
-      id: 'team-road-maintenance',
-      name: 'Yol Bakım Ekibi',
-      type: AssignmentTargetType.team,
-    ),
-    AssignmentTarget(
-      id: 'team-electrical',
-      name: 'Elektrik Ekibi',
-      type: AssignmentTargetType.team,
-    ),
   ];
   final List<TechnicalWork> _works;
+  final TeamAssignmentTargetSource? _teamAssignmentTargetSource;
   final Duration delay;
 
   FakeTechnicalWorkRepository({
     List<TechnicalWork>? works,
+    TeamAssignmentTargetSource? teamAssignmentTargetSource,
     this.delay = const Duration(milliseconds: 500),
-  }) : _works = List.of(works ?? FakeTechnicalWorkData.works);
+  }) : _works = List.of(works ?? FakeTechnicalWorkData.works),
+       _teamAssignmentTargetSource = teamAssignmentTargetSource;
 
   @override
   Future<List<TechnicalWork>> getAllWorks() async {
@@ -52,7 +46,15 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
   @override
   Future<List<AssignmentTarget>> getAssignmentTargets() async {
     await _simulateNetworkDelay();
-    return assignmentTargets;
+    final teamTargets =
+        await _teamAssignmentTargetSource?.getActiveTeamTargets() ?? const [];
+    return List.unmodifiable([..._individualAssignmentTargets, ...teamTargets]);
+  }
+
+  @override
+  Future<bool> hasOpenWorkAssignedToTeam(String teamId) async {
+    await _simulateNetworkDelay();
+    return _works.any((work) => work.assignedToTeamId == teamId && work.isOpen);
   }
 
   @override

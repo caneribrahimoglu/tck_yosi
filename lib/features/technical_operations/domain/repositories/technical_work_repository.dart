@@ -10,6 +10,8 @@ abstract interface class TechnicalWorkRepository {
 
   Future<List<AssignmentTarget>> getAssignmentTargets();
 
+  Future<bool> hasOpenWorkAssignedToTeam(String teamId);
+
   Future<TechnicalWork> assignWork({
     required String workId,
     required TechnicalWorkPriority priority,

@@ -4,6 +4,7 @@ import '../../../../shared/widgets/app_loading.dart';
 import '../../../dashboard/widgets/role_dashboard_resolver.dart';
 import '../../../technical_operations/presentation/controllers/field_report_controller.dart';
 import '../../../technical_operations/presentation/controllers/technical_work_controller.dart';
+import '../../../teams/presentation/controllers/team_controller.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/auth_status.dart';
 import '../pages/login_page.dart';
@@ -12,12 +13,14 @@ class AuthGate extends StatefulWidget {
   final AuthController authController;
   final TechnicalWorkController technicalWorkController;
   final FieldReportController fieldReportController;
+  final TeamController teamController;
 
   const AuthGate({
     super.key,
     required this.authController,
     required this.technicalWorkController,
     required this.fieldReportController,
+    required this.teamController,
   });
 
   @override
@@ -37,6 +40,10 @@ class _AuthGateState extends State<AuthGate> {
     return AnimatedBuilder(
       animation: widget.authController,
       builder: (context, child) {
+        final currentUser = widget.authController.currentUser;
+        if (currentUser != null) {
+          widget.teamController.updateActorPermissions(currentUser.permissions);
+        }
         return switch (widget.authController.status) {
           AuthStatus.initial || AuthStatus.checkingSession => const Scaffold(
             body: AppLoading(message: 'Oturum kontrol ediliyor...'),
@@ -49,6 +56,7 @@ class _AuthGateState extends State<AuthGate> {
             onLogout: widget.authController.logout,
             technicalWorkController: widget.technicalWorkController,
             fieldReportController: widget.fieldReportController,
+            teamController: widget.teamController,
           ),
         };
       },

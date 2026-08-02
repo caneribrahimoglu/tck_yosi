@@ -9,6 +9,9 @@ import 'package:tck_yosi/features/technical_operations/presentation/controllers/
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_controller.dart';
 import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_status.dart';
 import 'package:tck_yosi/shared/widgets/app_button.dart';
+import 'package:tck_yosi/features/teams/data/repositories/fake_team_repository.dart';
+import 'package:tck_yosi/features/teams/presentation/controllers/team_controller.dart';
+import 'package:tck_yosi/features/teams/data/adapters/team_assignment_target_adapter.dart';
 
 void main() {
   TechnicalWorkController createTechnicalWorkController() {
@@ -28,6 +31,20 @@ void main() {
 
     addTearDown(controller.dispose);
 
+    return controller;
+  }
+
+  TeamController createTeamController() {
+    final controller = TeamController(
+      repository: FakeTeamRepository(delay: Duration.zero),
+      actorPermissions: const {
+        AppPermission.managePersonnel,
+        AppPermission.viewReports,
+        AppPermission.createFieldReport,
+        AppPermission.manageTeamPermissions,
+      },
+    );
+    addTearDown(controller.dispose);
     return controller;
   }
 
@@ -55,6 +72,7 @@ void main() {
           onLogout: () async {},
           technicalWorkController: createTechnicalWorkController(),
           fieldReportController: createFieldReportController(),
+          teamController: createTeamController(),
         ),
       ),
     );
@@ -97,6 +115,7 @@ void main() {
           onLogout: () async {},
           technicalWorkController: createTechnicalWorkController(),
           fieldReportController: createFieldReportController(),
+          teamController: createTeamController(),
         ),
       ),
     );
@@ -143,11 +162,13 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(splashFactory: NoSplash.splashFactory),
         home: RoleDashboardResolver(
           currentUser: chief,
           onLogout: () async {},
           technicalWorkController: createTechnicalWorkController(),
           fieldReportController: createFieldReportController(),
+          teamController: createTeamController(),
         ),
       ),
     );
@@ -166,7 +187,87 @@ void main() {
     expect(find.text('Onay Bekleyenler'), findsOneWidget);
     expect(find.text('Yönetim Menüsü'), findsNothing);
     expect(find.text('Bugünkü Aracın'), findsNothing);
+
+    await tester.ensureVisible(find.text('Ekip Yönetimi'));
+    await tester.tap(find.text('Ekip Yönetimi'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ekipler ve Üyelikler'), findsOneWidget);
+    expect(find.text('Teknik Ekip'), findsWidgets);
   });
+
+  testWidgets(
+    'ekip yönetiminde oluşturulan ekip dönüşte atama dialogunda görünür',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      const chief = AppUser(
+        id: 'user-chief-001',
+        fullName: 'Test Şef',
+        username: 'test.sef',
+        role: UserRole.chief,
+        permissions: {
+          AppPermission.managePersonnel,
+          AppPermission.manageTeamPermissions,
+          AppPermission.assignTechnicalWork,
+        },
+      );
+      final teamRepository = FakeTeamRepository(delay: Duration.zero);
+      final teamController = TeamController(
+        repository: teamRepository,
+        actorPermissions: chief.permissions,
+      );
+      final technicalController = TechnicalWorkController(
+        repository: FakeTechnicalWorkRepository(
+          delay: Duration.zero,
+          teamAssignmentTargetSource: TeamAssignmentTargetAdapter(
+            repository: teamRepository,
+          ),
+        ),
+      );
+      addTearDown(teamController.dispose);
+      addTearDown(technicalController.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(splashFactory: NoSplash.splashFactory),
+          home: RoleDashboardResolver(
+            currentUser: chief,
+            onLogout: () async {},
+            technicalWorkController: technicalController,
+            fieldReportController: createFieldReportController(),
+            teamController: teamController,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Ekip Yönetimi'));
+      await tester.tap(find.text('Ekip Yönetimi'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Yeni Ekip'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        'Dinamik Saha Ekibi',
+      );
+      await tester.tap(find.text('Ekibi Oluştur'));
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('İncele ve Ata'));
+      await tester.tap(find.text('İncele ve Ata'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mühendis / Ekip'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dinamik Saha Ekibi (Ekip)'), findsOneWidget);
+    },
+  );
 
   testWidgets('şef atanmamış bildirimi inceleyip ekibe atayabilir', (
     WidgetTester tester,
@@ -185,12 +286,21 @@ void main() {
       role: UserRole.chief,
       permissions: {AppPermission.assignTechnicalWork},
     );
+    final teamRepository = FakeTeamRepository(delay: Duration.zero);
     final controller = TechnicalWorkController(
       repository: FakeTechnicalWorkRepository(
         delay: const Duration(milliseconds: 100),
+        teamAssignmentTargetSource: TeamAssignmentTargetAdapter(
+          repository: teamRepository,
+        ),
       ),
     );
     addTearDown(controller.dispose);
+    final teamController = TeamController(
+      repository: teamRepository,
+      actorPermissions: const {},
+    );
+    addTearDown(teamController.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -200,6 +310,7 @@ void main() {
           onLogout: () async {},
           technicalWorkController: controller,
           fieldReportController: createFieldReportController(),
+          teamController: teamController,
         ),
       ),
     );
@@ -214,7 +325,7 @@ void main() {
 
     await tester.tap(find.text('Mühendis / Ekip'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Yol Bakım Ekibi (Ekip)').last);
+    await tester.tap(find.text('Teknik Ekip (Ekip)').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Görevi Ata'));
     await tester.pump();
@@ -243,7 +354,7 @@ void main() {
       (work) => work.id == 'work-004',
     );
     expect(assignedWork.status, TechnicalWorkStatus.assigned);
-    expect(assignedWork.assignedToTeamId, 'team-road-maintenance');
+    expect(assignedWork.assignedToTeamId, 'team-technical');
     expect(find.text('İncele ve Ata'), findsNothing);
     expect(
       find.text('Bildirim önceliklendirildi ve başarıyla atandı.'),
@@ -272,6 +383,7 @@ void main() {
             onLogout: () async {},
             technicalWorkController: createTechnicalWorkController(),
             fieldReportController: createFieldReportController(),
+            teamController: createTeamController(),
           ),
         ),
       );
