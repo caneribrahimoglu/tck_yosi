@@ -4,6 +4,8 @@ import 'package:tck_yosi/features/technical_operations/domain/enums/technical_wo
 import 'package:tck_yosi/features/technical_operations/domain/models/create_field_report_request.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/technical_work.dart';
 import 'package:tck_yosi/features/technical_operations/domain/repositories/technical_work_repository.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/assignment_target.dart';
+import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_priority.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/field_report_controller.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/field_report_submission_status.dart';
 
@@ -81,6 +83,15 @@ void main() {
 
 class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
   @override
+  Future<TechnicalWork> assignWork({
+    required String workId,
+    required TechnicalWorkPriority priority,
+    required AssignmentTarget target,
+  }) async {
+    throw Exception('Repository error');
+  }
+
+  @override
   Future<TechnicalWork> createFieldReport({
     required CreateFieldReportRequest request,
     required String createdByUserId,
@@ -95,6 +106,11 @@ class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
 
   @override
   Future<List<TechnicalWork>> getAssignedWorks(String userId) async {
+    throw Exception('Repository error');
+  }
+
+  @override
+  Future<List<AssignmentTarget>> getAssignmentTargets() async {
     throw Exception('Repository error');
   }
 }

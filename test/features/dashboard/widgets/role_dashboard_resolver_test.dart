@@ -7,6 +7,8 @@ import 'package:tck_yosi/features/dashboard/widgets/role_dashboard_resolver.dart
 import 'package:tck_yosi/features/technical_operations/data/repositories/fake_technical_work_repository.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/field_report_controller.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_controller.dart';
+import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_status.dart';
+import 'package:tck_yosi/shared/widgets/app_button.dart';
 
 void main() {
   TechnicalWorkController createTechnicalWorkController() {
@@ -164,6 +166,89 @@ void main() {
     expect(find.text('Onay Bekleyenler'), findsOneWidget);
     expect(find.text('Yönetim Menüsü'), findsNothing);
     expect(find.text('Bugünkü Aracın'), findsNothing);
+  });
+
+  testWidgets('şef atanmamış bildirimi inceleyip ekibe atayabilir', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const chief = AppUser(
+      id: 'user-chief-001',
+      fullName: 'Test Şef',
+      username: 'test.sef',
+      role: UserRole.chief,
+      permissions: {AppPermission.assignTechnicalWork},
+    );
+    final controller = TechnicalWorkController(
+      repository: FakeTechnicalWorkRepository(
+        delay: const Duration(milliseconds: 100),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(splashFactory: NoSplash.splashFactory),
+        home: RoleDashboardResolver(
+          currentUser: chief,
+          onLogout: () async {},
+          technicalWorkController: controller,
+          fieldReportController: createFieldReportController(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('İncele ve Ata'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Saha Bildirimini İncele'), findsOneWidget);
+    expect(find.text('Yol yüzeyinde çökme'), findsWidgets);
+    expect(find.text('D-100 / Km 38+100'), findsWidgets);
+
+    await tester.tap(find.text('Mühendis / Ekip'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Yol Bakım Ekibi (Ekip)').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Görevi Ata'));
+    await tester.pump();
+
+    expect(find.text('Atanıyor...'), findsOneWidget);
+    expect(
+      tester
+          .widget<AppButton>(find.widgetWithText(AppButton, 'Atanıyor...'))
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<AppButton>(find.widgetWithText(AppButton, 'Vazgeç'))
+          .onPressed,
+      isNull,
+    );
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    expect(find.text('Saha Bildirimini İncele'), findsOneWidget);
+
+    await tester.pumpAndSettle();
+
+    final assignedWork = controller.allWorks.singleWhere(
+      (work) => work.id == 'work-004',
+    );
+    expect(assignedWork.status, TechnicalWorkStatus.assigned);
+    expect(assignedWork.assignedToTeamId, 'team-road-maintenance');
+    expect(find.text('İncele ve Ata'), findsNothing);
+    expect(
+      find.text('Bildirim önceliklendirildi ve başarıyla atandı.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets(

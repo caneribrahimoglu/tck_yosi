@@ -1,10 +1,20 @@
 import '../models/technical_work.dart';
 import '../models/create_field_report_request.dart';
+import '../models/assignment_target.dart';
+import '../enums/technical_work_priority.dart';
 
 abstract interface class TechnicalWorkRepository {
   Future<List<TechnicalWork>> getAllWorks();
 
   Future<List<TechnicalWork>> getAssignedWorks(String userId);
+
+  Future<List<AssignmentTarget>> getAssignmentTargets();
+
+  Future<TechnicalWork> assignWork({
+    required String workId,
+    required TechnicalWorkPriority priority,
+    required AssignmentTarget target,
+  });
 
   Future<TechnicalWork> createFieldReport({
     required CreateFieldReportRequest request,

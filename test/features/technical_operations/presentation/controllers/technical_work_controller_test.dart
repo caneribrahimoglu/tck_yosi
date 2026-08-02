@@ -5,6 +5,9 @@ import 'package:tck_yosi/features/technical_operations/domain/repositories/techn
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_controller.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_load_status.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/create_field_report_request.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/assignment_target.dart';
+import 'package:tck_yosi/features/technical_operations/domain/enums/assignment_target_type.dart';
+import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_priority.dart';
 
 void main() {
   test('yükleme başladığında loading durumuna geçer', () async {
@@ -59,9 +62,80 @@ void main() {
     expect(controller.assignedWorks, isEmpty);
     expect(controller.errorMessage, 'Teknik işler yüklenemedi.');
   });
+
+  test('atanmamış işi önceliklendirip ekibe atar', () async {
+    final controller = TechnicalWorkController(
+      repository: FakeTechnicalWorkRepository(delay: Duration.zero),
+    );
+    addTearDown(controller.dispose);
+    await controller.load('user-chief-001');
+
+    const target = AssignmentTarget(
+      id: 'team-road-maintenance',
+      name: 'Yol Bakım Ekibi',
+      type: AssignmentTargetType.team,
+    );
+    final succeeded = await controller.assignWork(
+      workId: 'work-004',
+      priority: TechnicalWorkPriority.high,
+      target: target,
+    );
+
+    expect(succeeded, isTrue);
+    expect(controller.unassignedWorkCount, 0);
+    final updated = controller.allWorks.singleWhere(
+      (work) => work.id == 'work-004',
+    );
+    expect(updated.priority, TechnicalWorkPriority.high);
+    expect(updated.assignedToTeamId, target.id);
+  });
+
+  test('atama sürerken ikinci atama isteğini reddeder', () async {
+    final controller = TechnicalWorkController(
+      repository: FakeTechnicalWorkRepository(
+        delay: const Duration(milliseconds: 50),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.load('user-chief-001');
+    const target = AssignmentTarget(
+      id: 'team-road-maintenance',
+      name: 'Yol Bakım Ekibi',
+      type: AssignmentTargetType.team,
+    );
+
+    final firstAssignment = controller.assignWork(
+      workId: 'work-004',
+      priority: TechnicalWorkPriority.high,
+      target: target,
+    );
+    final secondResult = await controller.assignWork(
+      workId: 'work-004',
+      priority: TechnicalWorkPriority.critical,
+      target: target,
+    );
+
+    expect(controller.isAssigning, isTrue);
+    expect(secondResult, isFalse);
+    expect(await firstAssignment, isTrue);
+    expect(controller.isAssigning, isFalse);
+    expect(
+      controller.allWorks.singleWhere((work) => work.id == 'work-004').priority,
+      TechnicalWorkPriority.high,
+    );
+  });
 }
 
 class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
+  @override
+  Future<TechnicalWork> assignWork({
+    required String workId,
+    required TechnicalWorkPriority priority,
+    required AssignmentTarget target,
+  }) {
+    throw Exception('Repository error');
+  }
+
   @override
   Future<List<TechnicalWork>> getAllWorks() {
     throw Exception('Repository error');
@@ -69,6 +143,11 @@ class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
 
   @override
   Future<List<TechnicalWork>> getAssignedWorks(String userId) {
+    throw Exception('Repository error');
+  }
+
+  @override
+  Future<List<AssignmentTarget>> getAssignmentTargets() {
     throw Exception('Repository error');
   }
 

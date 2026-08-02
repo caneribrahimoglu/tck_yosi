@@ -4,12 +4,17 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/enums/app_status_type.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/app_dropdown.dart';
 import '../../../shared/widgets/app_loading.dart';
 import '../../../shared/widgets/app_page_header.dart';
+import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/app_status_chip.dart';
+import '../../../core/enums/app_snackbar_type.dart';
 import '../../auth/domain/enums/app_permission.dart';
 import '../../auth/domain/models/app_user.dart';
 import '../../technical_operations/domain/enums/technical_work_priority.dart';
+import '../../technical_operations/domain/enums/assignment_target_type.dart';
+import '../../technical_operations/domain/models/assignment_target.dart';
 import '../../technical_operations/domain/models/technical_work.dart';
 import '../../technical_operations/presentation/controllers/technical_work_controller.dart';
 import '../../technical_operations/presentation/controllers/technical_work_load_status.dart';
@@ -248,9 +253,7 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
                 icon: Icons.fact_check_outlined,
                 onPressed: () {},
               ),
-            if (widget.currentUser.hasPermission(
-              AppPermission.managePersonnel,
-            ))
+            if (widget.currentUser.hasPermission(AppPermission.managePersonnel))
               AppButton.secondary(
                 label: 'Ekip Yönetimi',
                 icon: Icons.groups_outlined,
@@ -264,9 +267,7 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
                 icon: Icons.admin_panel_settings_outlined,
                 onPressed: () {},
               ),
-            if (widget.currentUser.hasPermission(
-              AppPermission.viewReports,
-            ))
+            if (widget.currentUser.hasPermission(AppPermission.viewReports))
               AppButton.secondary(
                 label: 'Operasyon Raporları',
                 icon: Icons.analytics_outlined,
@@ -352,10 +353,43 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
               return const SizedBox(height: AppSpacing.md);
             },
             itemBuilder: (context, index) {
-              return _ChiefWorkCard(work: priorityWorks[index]);
+              return _ChiefWorkCard(
+                work: priorityWorks[index],
+                onInspect:
+                    !priorityWorks[index].isAssigned &&
+                        widget.currentUser.hasPermission(
+                          AppPermission.assignTechnicalWork,
+                        )
+                    ? () => _openAssignmentDialog(priorityWorks[index])
+                    : null,
+              );
             },
           ),
       ],
+    );
+  }
+
+  Future<void> _openAssignmentDialog(TechnicalWork work) async {
+    final assigned = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _WorkAssignmentDialog(
+        work: work,
+        controller: widget.technicalWorkController,
+      ),
+    );
+
+    if (!mounted || assigned == null) {
+      return;
+    }
+
+    AppSnackbar.show(
+      context: context,
+      message: assigned
+          ? 'Bildirim önceliklendirildi ve başarıyla atandı.'
+          : widget.technicalWorkController.errorMessage ??
+                'Bildirim atanamadı.',
+      type: assigned ? AppSnackbarType.success : AppSnackbarType.error,
     );
   }
 
@@ -539,8 +573,9 @@ class _ChiefSummaryCard extends StatelessWidget {
 
 class _ChiefWorkCard extends StatelessWidget {
   final TechnicalWork work;
+  final VoidCallback? onInspect;
 
-  const _ChiefWorkCard({required this.work});
+  const _ChiefWorkCard({required this.work, this.onInspect});
 
   @override
   Widget build(BuildContext context) {
@@ -606,6 +641,12 @@ class _ChiefWorkCard extends StatelessWidget {
                 label: work.status.label,
                 type: work.status.statusType,
               ),
+              if (onInspect != null)
+                AppButton.primary(
+                  label: 'İncele ve Ata',
+                  icon: Icons.assignment_ind_outlined,
+                  onPressed: onInspect,
+                ),
             ],
           );
 
@@ -631,6 +672,185 @@ class _ChiefWorkCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _WorkAssignmentDialog extends StatefulWidget {
+  final TechnicalWork work;
+  final TechnicalWorkController controller;
+
+  const _WorkAssignmentDialog({required this.work, required this.controller});
+
+  @override
+  State<_WorkAssignmentDialog> createState() => _WorkAssignmentDialogState();
+}
+
+class _WorkAssignmentDialogState extends State<_WorkAssignmentDialog> {
+  late TechnicalWorkPriority _priority;
+  AssignmentTarget? _target;
+  String? _validationMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _priority = widget.work.priority;
+  }
+
+  Future<void> _assign() async {
+    if (_target == null) {
+      setState(() {
+        _validationMessage = 'Lütfen bir mühendis veya ekip seçin.';
+      });
+      return;
+    }
+
+    final succeeded = await widget.controller.assignWork(
+      workId: widget.work.id,
+      priority: _priority,
+      target: _target!,
+    );
+
+    if (mounted) {
+      Navigator.of(context).pop(succeeded);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: widget.controller,
+      builder: (context, child) {
+        final isAssigning = widget.controller.isAssigning;
+
+        return PopScope(
+          canPop: !isAssigning,
+          child: AlertDialog(
+            title: const Text('Saha Bildirimini İncele'),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.work.title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(widget.work.description),
+                    const SizedBox(height: AppSpacing.md),
+                    _AssignmentDetailRow(
+                      icon: Icons.location_on_outlined,
+                      text: widget.work.location,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _AssignmentDetailRow(
+                      icon: widget.work.category.icon,
+                      text: widget.work.category.label,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    AppDropdown<TechnicalWorkPriority>(
+                      value: _priority,
+                      label: 'Öncelik',
+                      prefixIcon: Icons.priority_high_rounded,
+                      items: TechnicalWorkPriority.values
+                          .map(
+                            (priority) => DropdownMenuItem(
+                              value: priority,
+                              child: Text(priority.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: isAssigning
+                          ? null
+                          : (priority) {
+                              if (priority != null) {
+                                setState(() => _priority = priority);
+                              }
+                            },
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    AppDropdown<AssignmentTarget>(
+                      value: _target,
+                      label: 'Mühendis / Ekip',
+                      prefixIcon: Icons.groups_outlined,
+                      items: widget.controller.assignmentTargets
+                          .map(
+                            (target) => DropdownMenuItem(
+                              value: target,
+                              child: Text(
+                                '${target.name} (${target.type.label})',
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: isAssigning
+                          ? null
+                          : (target) {
+                              setState(() {
+                                _target = target;
+                                _validationMessage = null;
+                              });
+                            },
+                    ),
+                    if (_validationMessage != null) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        _validationMessage!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              AppButton.secondary(
+                label: 'Vazgeç',
+                onPressed: isAssigning
+                    ? null
+                    : () => Navigator.of(context).pop(),
+              ),
+              AppButton.primary(
+                label: isAssigning ? 'Atanıyor...' : 'Görevi Ata',
+                icon: Icons.assignment_turned_in_outlined,
+                onPressed: isAssigning ? null : _assign,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AssignmentDetailRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _AssignmentDetailRow({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(child: Text(text)),
+      ],
+    );
+  }
+}
+
+extension on AssignmentTargetType {
+  String get label => switch (this) {
+    AssignmentTargetType.engineer => 'Mühendis',
+    AssignmentTargetType.team => 'Ekip',
+  };
 }
 
 class _MetricRow extends StatelessWidget {

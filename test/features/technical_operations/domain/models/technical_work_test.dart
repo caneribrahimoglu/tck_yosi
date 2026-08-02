@@ -36,6 +36,18 @@ void main() {
     expect(work.isAssigned, isFalse);
   });
 
+  test('copyWith kullanıcı atamasını temizleyip ekip ataması yapabilir', () {
+    final work = createWork(assignedToUserId: 'engineer-001');
+
+    final reassigned = work.copyWith(
+      assignedToUserId: null,
+      assignedToTeamId: 'team-001',
+    );
+
+    expect(reassigned.assignedToUserId, isNull);
+    expect(reassigned.assignedToTeamId, 'team-001');
+  });
+
   test('kritik öncelikli iş kritik kabul edilir', () {
     final work = createWork(priority: TechnicalWorkPriority.critical);
 

@@ -3,6 +3,8 @@ import '../enums/technical_work_priority.dart';
 import '../enums/technical_work_status.dart';
 
 class TechnicalWork {
+  static const Object _notProvided = Object();
+
   final String id;
   final String title;
   final String description;
@@ -12,6 +14,7 @@ class TechnicalWork {
   final TechnicalWorkStatus status;
   final String createdByUserId;
   final String? assignedToUserId;
+  final String? assignedToTeamId;
   final DateTime createdAt;
   final DateTime? plannedAt;
   final DateTime? completedAt;
@@ -27,11 +30,39 @@ class TechnicalWork {
     required this.createdByUserId,
     required this.createdAt,
     this.assignedToUserId,
+    this.assignedToTeamId,
     this.plannedAt,
     this.completedAt,
   });
 
-  bool get isAssigned => assignedToUserId != null;
+  bool get isAssigned => assignedToUserId != null || assignedToTeamId != null;
+
+  TechnicalWork copyWith({
+    TechnicalWorkPriority? priority,
+    TechnicalWorkStatus? status,
+    Object? assignedToUserId = _notProvided,
+    Object? assignedToTeamId = _notProvided,
+  }) {
+    return TechnicalWork(
+      id: id,
+      title: title,
+      description: description,
+      location: location,
+      category: category,
+      priority: priority ?? this.priority,
+      status: status ?? this.status,
+      createdByUserId: createdByUserId,
+      assignedToUserId: identical(assignedToUserId, _notProvided)
+          ? this.assignedToUserId
+          : assignedToUserId as String?,
+      assignedToTeamId: identical(assignedToTeamId, _notProvided)
+          ? this.assignedToTeamId
+          : assignedToTeamId as String?,
+      createdAt: createdAt,
+      plannedAt: plannedAt,
+      completedAt: completedAt,
+    );
+  }
 
   bool get isCritical {
     return priority == TechnicalWorkPriority.critical;

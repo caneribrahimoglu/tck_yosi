@@ -6,6 +6,26 @@ import '../domain/enums/technical_work_priority.dart';
 import '../domain/enums/technical_work_status.dart';
 
 extension TechnicalWorkCategoryPresentation on TechnicalWorkCategory {
+  String get label {
+    return switch (this) {
+      TechnicalWorkCategory.roadSurface => 'Yol yüzeyi',
+      TechnicalWorkCategory.trafficAccident => 'Trafik kazası',
+      TechnicalWorkCategory.lighting => 'Aydınlatma',
+      TechnicalWorkCategory.trafficSign => 'Trafik levhası',
+      TechnicalWorkCategory.roadMarking => 'Yol işaretleme',
+      TechnicalWorkCategory.barrier => 'Bariyer',
+      TechnicalWorkCategory.drainage => 'Drenaj',
+      TechnicalWorkCategory.bridgeAndViaduct => 'Köprü ve viyadük',
+      TechnicalWorkCategory.tunnel => 'Tünel',
+      TechnicalWorkCategory.landslide => 'Heyelan',
+      TechnicalWorkCategory.building => 'Bina',
+      TechnicalWorkCategory.electricalSystem => 'Elektrik sistemi',
+      TechnicalWorkCategory.vehicle => 'Araç',
+      TechnicalWorkCategory.workMachine => 'İş makinesi',
+      TechnicalWorkCategory.other => 'Diğer',
+    };
+  }
+
   IconData get icon {
     return switch (this) {
       TechnicalWorkCategory.roadSurface => Icons.add_road_rounded,

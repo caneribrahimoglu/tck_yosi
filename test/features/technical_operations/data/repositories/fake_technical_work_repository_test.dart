@@ -5,6 +5,8 @@ import 'package:tck_yosi/features/technical_operations/domain/enums/technical_wo
 import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_status.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/technical_work.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/create_field_report_request.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/assignment_target.dart';
+import 'package:tck_yosi/features/technical_operations/domain/enums/assignment_target_type.dart';
 
 void main() {
   final testWorks = [
@@ -97,4 +99,75 @@ void main() {
     expect(allWorks, hasLength(1));
     expect(allWorks.single.id, result.id);
   });
+
+  test('bildirimin önceliğini belirler ve mühendise atar', () async {
+    final repository = FakeTechnicalWorkRepository(
+      works: testWorks,
+      delay: Duration.zero,
+    );
+    const engineer = AssignmentTarget(
+      id: 'engineer-002',
+      name: 'Test Mühendis',
+      type: AssignmentTargetType.engineer,
+    );
+
+    final result = await repository.assignWork(
+      workId: 'work-002',
+      priority: TechnicalWorkPriority.critical,
+      target: engineer,
+    );
+
+    expect(result.priority, TechnicalWorkPriority.critical);
+    expect(result.status, TechnicalWorkStatus.assigned);
+    expect(result.assignedToUserId, engineer.id);
+    expect(result.assignedToTeamId, isNull);
+  });
+
+  test('bildirimi ekibe atar', () async {
+    final repository = FakeTechnicalWorkRepository(
+      works: testWorks,
+      delay: Duration.zero,
+    );
+    const team = AssignmentTarget(
+      id: 'team-001',
+      name: 'Test Ekibi',
+      type: AssignmentTargetType.team,
+    );
+
+    final result = await repository.assignWork(
+      workId: 'work-001',
+      priority: TechnicalWorkPriority.high,
+      target: team,
+    );
+
+    expect(result.assignedToTeamId, team.id);
+    expect(result.assignedToUserId, isNull);
+  });
+
+  test(
+    'ekibe atanmış bildirimi mühendise yeniden atarken ekibi temizler',
+    () async {
+      final teamAssignedWork = testWorks[1].copyWith(
+        assignedToTeamId: 'team-001',
+      );
+      final repository = FakeTechnicalWorkRepository(
+        works: [teamAssignedWork],
+        delay: Duration.zero,
+      );
+      const engineer = AssignmentTarget(
+        id: 'engineer-002',
+        name: 'Test Mühendis',
+        type: AssignmentTargetType.engineer,
+      );
+
+      final result = await repository.assignWork(
+        workId: teamAssignedWork.id,
+        priority: TechnicalWorkPriority.normal,
+        target: engineer,
+      );
+
+      expect(result.assignedToUserId, engineer.id);
+      expect(result.assignedToTeamId, isNull);
+    },
+  );
 }
