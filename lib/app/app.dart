@@ -5,6 +5,8 @@ import '../features/auth/data/services/fake_auth_service.dart';
 import '../features/auth/presentation/controllers/auth_controller.dart';
 import '../features/auth/presentation/widgets/auth_gate.dart';
 import '../features/technical_operations/data/repositories/fake_technical_work_repository.dart';
+import '../features/technical_operations/domain/repositories/technical_work_repository.dart';
+import '../features/technical_operations/presentation/controllers/field_report_controller.dart';
 import '../features/technical_operations/presentation/controllers/technical_work_controller.dart';
 
 class TckYosiApp extends StatefulWidget {
@@ -16,7 +18,9 @@ class TckYosiApp extends StatefulWidget {
 
 class _TckYosiAppState extends State<TckYosiApp> {
   late final AuthController _authController;
+  late final TechnicalWorkRepository _technicalWorkRepository;
   late final TechnicalWorkController _technicalWorkController;
+  late final FieldReportController _fieldReportController;
 
   @override
   void initState() {
@@ -24,8 +28,14 @@ class _TckYosiAppState extends State<TckYosiApp> {
 
     _authController = AuthController(authService: FakeAuthService());
 
+    _technicalWorkRepository = FakeTechnicalWorkRepository();
+
     _technicalWorkController = TechnicalWorkController(
-      repository: FakeTechnicalWorkRepository(),
+      repository: _technicalWorkRepository,
+    );
+
+    _fieldReportController = FieldReportController(
+      repository: _technicalWorkRepository,
     );
   }
 
@@ -33,6 +43,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
   void dispose() {
     _authController.dispose();
     _technicalWorkController.dispose();
+    _fieldReportController.dispose();
 
     super.dispose();
   }
@@ -46,6 +57,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
       home: AuthGate(
         authController: _authController,
         technicalWorkController: _technicalWorkController,
+        fieldReportController: _fieldReportController,
       ),
     );
   }

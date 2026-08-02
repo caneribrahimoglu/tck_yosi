@@ -1,5 +1,6 @@
 enum TechnicalWorkCategory {
   roadSurface,
+  trafficAccident,
   lighting,
   trafficSign,
   roadMarking,

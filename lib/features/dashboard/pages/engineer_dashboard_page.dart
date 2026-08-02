@@ -18,12 +18,14 @@ class EngineerDashboardPage extends StatefulWidget {
   final AppUser currentUser;
   final Future<void> Function() onLogout;
   final TechnicalWorkController technicalWorkController;
+  final Future<void> Function() onCreateFieldReport;
 
   const EngineerDashboardPage({
     super.key,
     required this.currentUser,
     required this.onLogout,
     required this.technicalWorkController,
+    required this.onCreateFieldReport,
   });
 
   @override
@@ -211,12 +213,12 @@ class _EngineerDashboardPageState extends State<EngineerDashboardPage> {
           runSpacing: AppSpacing.md,
           children: [
             if (widget.currentUser.hasPermission(
-              AppPermission.createFaultReport,
+              AppPermission.createFieldReport,
             ))
               AppButton.primary(
                 label: 'Saha Bildirimi Oluştur',
                 icon: Icons.add_location_alt_outlined,
-                onPressed: () {},
+                onPressed: widget.onCreateFieldReport,
               ),
             AppButton.secondary(
               label: 'Bana Atanan İşler',

@@ -9,6 +9,7 @@ extension TechnicalWorkCategoryPresentation on TechnicalWorkCategory {
   IconData get icon {
     return switch (this) {
       TechnicalWorkCategory.roadSurface => Icons.add_road_rounded,
+      TechnicalWorkCategory.trafficAccident => Icons.car_crash_outlined,
       TechnicalWorkCategory.lighting => Icons.lightbulb_outline_rounded,
       TechnicalWorkCategory.trafficSign => Icons.signpost_outlined,
       TechnicalWorkCategory.roadMarking => Icons.route_outlined,

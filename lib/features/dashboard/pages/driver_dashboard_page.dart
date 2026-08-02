@@ -10,11 +10,13 @@ import '../../auth/domain/enums/app_permission.dart';
 class DriverDashboardPage extends StatelessWidget {
   final AppUser currentUser;
   final Future<void> Function() onLogout;
+  final Future<void> Function() onCreateFieldReport;
 
   const DriverDashboardPage({
     super.key,
     required this.currentUser,
     required this.onLogout,
+    required this.onCreateFieldReport,
   });
 
   @override
@@ -80,11 +82,11 @@ class DriverDashboardPage extends StatelessWidget {
                     icon: Icons.local_gas_station_outlined,
                     onPressed: () {},
                   ),
-                if (currentUser.hasPermission(AppPermission.createFaultReport))
-                  AppButton.danger(
-                    label: 'Arıza Bildir',
-                    icon: Icons.warning_amber_rounded,
-                    onPressed: () {},
+                if (currentUser.hasPermission(AppPermission.createFieldReport))
+                  AppButton.secondary(
+                    label: 'Saha Bildirimi Oluştur',
+                    icon: Icons.add_location_alt_outlined,
+                    onPressed: onCreateFieldReport,
                   ),
               ],
             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../shared/widgets/app_loading.dart';
 import '../../../dashboard/widgets/role_dashboard_resolver.dart';
+import '../../../technical_operations/presentation/controllers/field_report_controller.dart';
 import '../../../technical_operations/presentation/controllers/technical_work_controller.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/auth_status.dart';
@@ -10,11 +11,13 @@ import '../pages/login_page.dart';
 class AuthGate extends StatefulWidget {
   final AuthController authController;
   final TechnicalWorkController technicalWorkController;
+  final FieldReportController fieldReportController;
 
   const AuthGate({
     super.key,
     required this.authController,
     required this.technicalWorkController,
+    required this.fieldReportController,
   });
 
   @override
@@ -45,6 +48,7 @@ class _AuthGateState extends State<AuthGate> {
             currentUser: widget.authController.currentUser!,
             onLogout: widget.authController.logout,
             technicalWorkController: widget.technicalWorkController,
+            fieldReportController: widget.fieldReportController,
           ),
         };
       },

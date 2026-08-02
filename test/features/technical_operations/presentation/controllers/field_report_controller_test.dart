@@ -17,10 +17,7 @@ void main() {
 
   test('saha bildirimi başarıyla gönderilir', () async {
     final controller = FieldReportController(
-      repository: FakeTechnicalWorkRepository(
-        works: [],
-        delay: Duration.zero,
-      ),
+      repository: FakeTechnicalWorkRepository(works: [], delay: Duration.zero),
     );
 
     addTearDown(controller.dispose);

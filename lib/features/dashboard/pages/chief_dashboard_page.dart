@@ -19,12 +19,14 @@ class ChiefDashboardPage extends StatefulWidget {
   final AppUser currentUser;
   final Future<void> Function() onLogout;
   final TechnicalWorkController technicalWorkController;
+  final Future<void> Function() onCreateFieldReport;
 
   const ChiefDashboardPage({
     super.key,
     required this.currentUser,
     required this.onLogout,
     required this.technicalWorkController,
+    required this.onCreateFieldReport,
   });
 
   @override
@@ -231,6 +233,14 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
                 onPressed: () {},
               ),
             if (widget.currentUser.hasPermission(
+              AppPermission.createFieldReport,
+            ))
+              AppButton.secondary(
+                label: 'Saha Bildirimi Oluştur',
+                icon: Icons.add_location_alt_outlined,
+                onPressed: widget.onCreateFieldReport,
+              ),
+            if (widget.currentUser.hasPermission(
               AppPermission.approveOperations,
             ))
               AppButton.secondary(
@@ -238,7 +248,9 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
                 icon: Icons.fact_check_outlined,
                 onPressed: () {},
               ),
-            if (widget.currentUser.hasPermission(AppPermission.managePersonnel))
+            if (widget.currentUser.hasPermission(
+              AppPermission.managePersonnel,
+            ))
               AppButton.secondary(
                 label: 'Ekip Yönetimi',
                 icon: Icons.groups_outlined,
@@ -252,7 +264,9 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
                 icon: Icons.admin_panel_settings_outlined,
                 onPressed: () {},
               ),
-            if (widget.currentUser.hasPermission(AppPermission.viewReports))
+            if (widget.currentUser.hasPermission(
+              AppPermission.viewReports,
+            ))
               AppButton.secondary(
                 label: 'Operasyon Raporları',
                 icon: Icons.analytics_outlined,

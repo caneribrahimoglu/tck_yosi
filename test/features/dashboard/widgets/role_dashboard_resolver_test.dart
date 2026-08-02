@@ -5,12 +5,23 @@ import 'package:tck_yosi/features/auth/domain/enums/user_role.dart';
 import 'package:tck_yosi/features/auth/domain/models/app_user.dart';
 import 'package:tck_yosi/features/dashboard/widgets/role_dashboard_resolver.dart';
 import 'package:tck_yosi/features/technical_operations/data/repositories/fake_technical_work_repository.dart';
+import 'package:tck_yosi/features/technical_operations/presentation/controllers/field_report_controller.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_controller.dart';
 
 void main() {
   TechnicalWorkController createTechnicalWorkController() {
     final controller = TechnicalWorkController(
       repository: FakeTechnicalWorkRepository(delay: Duration.zero),
+    );
+
+    addTearDown(controller.dispose);
+
+    return controller;
+  }
+
+  FieldReportController createFieldReportController() {
+    final controller = FieldReportController(
+      repository: FakeTechnicalWorkRepository(works: [], delay: Duration.zero),
     );
 
     addTearDown(controller.dispose);
@@ -31,7 +42,7 @@ void main() {
         AppPermission.receiveVehicle,
         AppPermission.updateMileage,
         AppPermission.createFuelRecord,
-        AppPermission.createFaultReport,
+        AppPermission.createFieldReport,
       },
     );
 
@@ -41,6 +52,7 @@ void main() {
           currentUser: driver,
           onLogout: () async {},
           technicalWorkController: createTechnicalWorkController(),
+          fieldReportController: createFieldReportController(),
         ),
       ),
     );
@@ -49,6 +61,7 @@ void main() {
     expect(find.text('Bugünkü Aracın'), findsOneWidget);
     expect(find.text('Aracı Teslim Al'), findsOneWidget);
     expect(find.text('Yakıt Kaydı'), findsOneWidget);
+    expect(find.text('Saha Bildirimi Oluştur'), findsOneWidget);
     expect(find.text('Yönetim Menüsü'), findsNothing);
   });
 
@@ -69,7 +82,7 @@ void main() {
       username: 'test.muhendis',
       role: UserRole.engineer,
       permissions: {
-        AppPermission.createFaultReport,
+        AppPermission.createFieldReport,
         AppPermission.viewReports,
         AppPermission.approveOperations,
       },
@@ -81,6 +94,7 @@ void main() {
           currentUser: engineer,
           onLogout: () async {},
           technicalWorkController: createTechnicalWorkController(),
+          fieldReportController: createFieldReportController(),
         ),
       ),
     );
@@ -115,6 +129,7 @@ void main() {
       username: 'test.sef',
       role: UserRole.chief,
       permissions: {
+        AppPermission.createFieldReport,
         AppPermission.viewPersonnel,
         AppPermission.managePersonnel,
         AppPermission.viewReports,
@@ -130,6 +145,7 @@ void main() {
           currentUser: chief,
           onLogout: () async {},
           technicalWorkController: createTechnicalWorkController(),
+          fieldReportController: createFieldReportController(),
         ),
       ),
     );
@@ -140,6 +156,7 @@ void main() {
     expect(find.text('Açık Operasyonlar'), findsOneWidget);
     expect(find.text('Kritik Olaylar'), findsOneWidget);
     expect(find.text('Atanmamış İşler'), findsOneWidget);
+    expect(find.text('Saha Bildirimi Oluştur'), findsOneWidget);
     expect(find.text('Görev ve İş Ata'), findsOneWidget);
     expect(find.text('Yetki Yönetimi'), findsOneWidget);
     expect(find.text('Yol yüzeyinde çökme'), findsNWidgets(2));
@@ -149,34 +166,36 @@ void main() {
     expect(find.text('Bugünkü Aracın'), findsNothing);
   });
 
-  testWidgets('yetkisi olmayan şoför yakıt ve arıza butonlarını göremez', (
-    WidgetTester tester,
-  ) async {
-    const driverWithoutFuelPermission = AppUser(
-      id: 'driver-without-fuel',
-      fullName: 'Yetkisiz Şoför',
-      username: 'yetkisiz.sofor',
-      role: UserRole.driver,
-      permissions: {
-        AppPermission.viewAssignedVehicle,
-        AppPermission.receiveVehicle,
-      },
-    );
+  testWidgets(
+    'yetkisi olmayan şoför yakıt ve saha bildirimi butonlarını göremez',
+    (WidgetTester tester) async {
+      const driverWithoutPermissions = AppUser(
+        id: 'driver-without-permissions',
+        fullName: 'Yetkisiz Şoför',
+        username: 'yetkisiz.sofor',
+        role: UserRole.driver,
+        permissions: {
+          AppPermission.viewAssignedVehicle,
+          AppPermission.receiveVehicle,
+        },
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: RoleDashboardResolver(
-          currentUser: driverWithoutFuelPermission,
-          onLogout: () async {},
-          technicalWorkController: createTechnicalWorkController(),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RoleDashboardResolver(
+            currentUser: driverWithoutPermissions,
+            onLogout: () async {},
+            technicalWorkController: createTechnicalWorkController(),
+            fieldReportController: createFieldReportController(),
+          ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text('Hoş geldin, Yetkisiz Şoför'), findsOneWidget);
-    expect(find.text('Aracı Teslim Al'), findsOneWidget);
-    expect(find.text('Kilometre Gir'), findsNothing);
-    expect(find.text('Yakıt Kaydı'), findsNothing);
-    expect(find.text('Arıza Bildir'), findsNothing);
-  });
+      expect(find.text('Hoş geldin, Yetkisiz Şoför'), findsOneWidget);
+      expect(find.text('Aracı Teslim Al'), findsOneWidget);
+      expect(find.text('Kilometre Gir'), findsNothing);
+      expect(find.text('Yakıt Kaydı'), findsNothing);
+      expect(find.text('Saha Bildirimi Oluştur'), findsNothing);
+    },
+  );
 }

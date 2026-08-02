@@ -4,7 +4,7 @@ enum AppPermission {
   returnVehicle,
   updateMileage,
   createFuelRecord,
-  createFaultReport,
+  createFieldReport,
   viewPersonnel,
   managePersonnel,
   viewReports,

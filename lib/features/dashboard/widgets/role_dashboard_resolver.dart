@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../auth/domain/enums/user_role.dart';
 import '../../auth/domain/models/app_user.dart';
+import '../../technical_operations/domain/models/technical_work.dart';
+import '../../technical_operations/presentation/controllers/field_report_controller.dart';
 import '../../technical_operations/presentation/controllers/technical_work_controller.dart';
+import '../../technical_operations/presentation/pages/field_report_page.dart';
 import '../pages/chief_dashboard_page.dart';
 import '../pages/dashboard_page.dart';
 import '../pages/driver_dashboard_page.dart';
@@ -12,13 +15,34 @@ class RoleDashboardResolver extends StatelessWidget {
   final AppUser currentUser;
   final Future<void> Function() onLogout;
   final TechnicalWorkController technicalWorkController;
+  final FieldReportController fieldReportController;
 
   const RoleDashboardResolver({
     super.key,
     required this.currentUser,
     required this.onLogout,
     required this.technicalWorkController,
+    required this.fieldReportController,
   });
+
+  Future<void> _openFieldReport(BuildContext context) async {
+    final createdWork = await Navigator.of(context).push<TechnicalWork>(
+      MaterialPageRoute(
+        builder: (context) {
+          return FieldReportPage(
+            controller: fieldReportController,
+            currentUserId: currentUser.id,
+          );
+        },
+      ),
+    );
+
+    if (createdWork == null) {
+      return;
+    }
+
+    await technicalWorkController.load(currentUser.id);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,16 +50,19 @@ class RoleDashboardResolver extends StatelessWidget {
       UserRole.driver => DriverDashboardPage(
         currentUser: currentUser,
         onLogout: onLogout,
+        onCreateFieldReport: () => _openFieldReport(context),
       ),
       UserRole.engineer => EngineerDashboardPage(
         currentUser: currentUser,
         onLogout: onLogout,
         technicalWorkController: technicalWorkController,
+        onCreateFieldReport: () => _openFieldReport(context),
       ),
       UserRole.chief => ChiefDashboardPage(
         currentUser: currentUser,
         onLogout: onLogout,
         technicalWorkController: technicalWorkController,
+        onCreateFieldReport: () => _openFieldReport(context),
       ),
       UserRole.cleaningStaff ||
       UserRole.technician ||
