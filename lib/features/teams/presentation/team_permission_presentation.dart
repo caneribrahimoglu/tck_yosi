@@ -17,6 +17,10 @@ extension TeamPermissionPresentation on AppPermission {
     AppPermission.startTechnicalWork => 'Teknik işi başlatma',
     AppPermission.addTechnicalWorkProgress =>
       'Teknik işe ilerleme kaydı ekleme',
+    AppPermission.requestTechnicalWorkCompletion =>
+      'Teknik iş tamamlama talebi gönderme',
+    AppPermission.reviewTechnicalWorkCompletion =>
+      'Teknik iş tamamlama talebi inceleme',
     AppPermission.viewAllTechnicalWork => 'Tüm teknik işleri görüntüleme',
     AppPermission.manageTeamPermissions => 'Ekip yetkisi yönetimi',
   };

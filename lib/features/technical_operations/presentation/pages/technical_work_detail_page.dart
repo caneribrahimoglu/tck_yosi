@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_spacing.dart';
 import '../../../../core/enums/app_snackbar_type.dart';
+import '../../../../core/enums/app_button_size.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_loading.dart';
@@ -11,19 +12,25 @@ import '../../../../shared/widgets/app_text_field.dart';
 import '../../../auth/domain/models/app_user.dart';
 import '../../domain/models/technical_work_progress_note.dart';
 import '../controllers/technical_work_detail_controller.dart';
+import '../controllers/technical_work_completion_controller.dart';
+import '../controllers/technical_work_completion_status.dart';
 import '../controllers/technical_work_load_status.dart';
 import '../technical_work_presentation.dart';
+import '../../domain/enums/technical_work_completion_decision.dart';
+import '../../domain/models/technical_work_completion_request.dart';
 
 class TechnicalWorkDetailPage extends StatefulWidget {
   final String workId;
   final AppUser currentUser;
   final TechnicalWorkDetailController controller;
+  final TechnicalWorkCompletionController? completionController;
 
   const TechnicalWorkDetailPage({
     super.key,
     required this.workId,
     required this.currentUser,
     required this.controller,
+    this.completionController,
   });
 
   @override
@@ -33,7 +40,9 @@ class TechnicalWorkDetailPage extends StatefulWidget {
 
 class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
   final _formKey = GlobalKey<FormState>();
+  final _completionFormKey = GlobalKey<FormState>();
   final _noteController = TextEditingController();
+  final _completionSummaryController = TextEditingController();
 
   @override
   void initState() {
@@ -42,12 +51,56 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
       workId: widget.workId,
       userId: widget.currentUser.id,
     );
+    widget.completionController?.loadForWork(
+      workId: widget.workId,
+      userId: widget.currentUser.id,
+    );
   }
 
   @override
   void dispose() {
     _noteController.dispose();
+    _completionSummaryController.dispose();
     super.dispose();
+  }
+
+  Future<void> _submitCompletionRequest() async {
+    if (!(_completionFormKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    final completionController = widget.completionController;
+    if (completionController == null) {
+      return;
+    }
+    final succeeded = await completionController.submit(
+      _completionSummaryController.text,
+    );
+    if (!mounted) {
+      return;
+    }
+    if (succeeded) {
+      _completionSummaryController.clear();
+      await widget.controller.load(
+        workId: widget.workId,
+        userId: widget.currentUser.id,
+      );
+      if (!mounted) {
+        return;
+      }
+      AppSnackbar.show(
+        context: context,
+        type: AppSnackbarType.success,
+        message: 'Tamamlama talebi onaya gönderildi.',
+      );
+    } else {
+      AppSnackbar.show(
+        context: context,
+        type: AppSnackbarType.error,
+        message:
+            completionController.errorMessage ??
+            'Tamamlama talebi gönderilemedi.',
+      );
+    }
   }
 
   Future<void> _submitProgress() async {
@@ -79,7 +132,10 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Teknik İş Detayı')),
       body: AnimatedBuilder(
-        animation: widget.controller,
+        animation: Listenable.merge([
+          widget.controller,
+          if (widget.completionController != null) widget.completionController!,
+        ]),
         builder: (context, child) {
           return switch (widget.controller.loadStatus) {
             TechnicalWorkLoadStatus.initial ||
@@ -213,6 +269,10 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 _buildProgressSection(context),
+                if (widget.completionController != null) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  _buildCompletionSection(context),
+                ],
               ],
             ),
           ),
@@ -279,9 +339,6 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
                       label: isSubmitting
                           ? 'Kaydediliyor...'
                           : 'İlerleme Kaydı Ekle',
-                      icon: isSubmitting
-                          ? Icons.hourglass_top_rounded
-                          : Icons.add_comment_outlined,
                       onPressed: isSubmitting ? null : _submitProgress,
                     ),
                   ),
@@ -291,6 +348,133 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildCompletionSection(BuildContext context) {
+    final controller = widget.completionController!;
+    final isLoading =
+        controller.detailStatus == TechnicalWorkCompletionStatus.loading;
+    final isSubmitting = controller.isSubmittingRequest;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Tamamlama Talepleri',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (isLoading)
+            const AppLoading(message: 'Tamamlama geçmişi yükleniyor...')
+          else if (controller.history.isEmpty)
+            const Text('Henüz tamamlama talebi yok.')
+          else
+            for (var index = 0; index < controller.history.length; index++) ...[
+              _CompletionRequestRow(
+                request: controller.history[index],
+                requesterName:
+                    controller.userName(
+                      controller.history[index].requestedByUserId,
+                    ) ??
+                    'Kullanıcı',
+                reviewerName: controller.history[index].reviewedByUserId == null
+                    ? null
+                    : controller.userName(
+                        controller.history[index].reviewedByUserId!,
+                      ),
+              ),
+              if (index != controller.history.length - 1)
+                const Divider(height: AppSpacing.xl),
+            ],
+          if (controller.canRequestCompletion) ...[
+            const SizedBox(height: AppSpacing.xl),
+            Form(
+              key: _completionFormKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppTextField(
+                    controller: _completionSummaryController,
+                    label: 'Tamamlama özeti',
+                    hint: 'Tamamlanan çalışmayı ve sonucu açıklayın.',
+                    prefixIcon: Icons.task_alt_rounded,
+                    enabled: !isSubmitting,
+                    minLines: 3,
+                    maxLines: 5,
+                    maxLength: 1000,
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Tamamlama özeti boş olamaz.'
+                        : null,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: AppButton.primary(
+                      label: isSubmitting
+                          ? 'Gönderiliyor...'
+                          : 'Tamamlanmak Üzere Gönder',
+                      size: AppButtonSize.small,
+                      onPressed: isSubmitting ? null : _submitCompletionRequest,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CompletionRequestRow extends StatelessWidget {
+  final TechnicalWorkCompletionRequest request;
+  final String requesterName;
+  final String? reviewerName;
+
+  const _CompletionRequestRow({
+    required this.request,
+    required this.requesterName,
+    required this.reviewerName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final decisionLabel = switch (request.decision) {
+      TechnicalWorkCompletionDecision.pending => 'Onay Bekliyor',
+      TechnicalWorkCompletionDecision.approved => 'Onaylandı',
+      TechnicalWorkCompletionDecision.rejected => 'Reddedildi',
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.xs,
+          children: [
+            Text(
+              requesterName,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            Text(_formatDateTime(request.requestedAt)),
+            Text(decisionLabel),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(request.summary),
+        if (request.reviewedAt != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'İnceleyen: ${reviewerName ?? 'Kullanıcı'} · '
+            '${_formatDateTime(request.reviewedAt!)}',
+          ),
+        ],
+        if (request.rejectionReason != null)
+          Text('Ret nedeni: ${request.rejectionReason}'),
+      ],
     );
   }
 }

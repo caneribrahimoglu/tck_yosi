@@ -6,7 +6,9 @@ import '../../technical_operations/domain/models/technical_work.dart';
 import '../../technical_operations/presentation/controllers/field_report_controller.dart';
 import '../../technical_operations/presentation/controllers/technical_work_controller.dart';
 import '../../technical_operations/presentation/controllers/technical_work_detail_controller.dart';
+import '../../technical_operations/presentation/controllers/technical_work_completion_controller.dart';
 import '../../technical_operations/presentation/pages/technical_work_detail_page.dart';
+import '../../technical_operations/presentation/pages/technical_work_completion_queue_page.dart';
 import '../../technical_operations/presentation/pages/field_report_page.dart';
 import '../../teams/presentation/controllers/team_controller.dart';
 import '../../teams/presentation/pages/team_management_page.dart';
@@ -20,6 +22,7 @@ class RoleDashboardResolver extends StatelessWidget {
   final Future<void> Function() onLogout;
   final TechnicalWorkController technicalWorkController;
   final TechnicalWorkDetailController? technicalWorkDetailController;
+  final TechnicalWorkCompletionController? technicalWorkCompletionController;
   final FieldReportController fieldReportController;
   final TeamController teamController;
 
@@ -29,6 +32,7 @@ class RoleDashboardResolver extends StatelessWidget {
     required this.onLogout,
     required this.technicalWorkController,
     this.technicalWorkDetailController,
+    this.technicalWorkCompletionController,
     required this.fieldReportController,
     required this.teamController,
   });
@@ -75,9 +79,34 @@ class RoleDashboardResolver extends StatelessWidget {
           workId: work.id,
           currentUser: currentUser,
           controller: detailController,
+          completionController: technicalWorkCompletionController,
         ),
       ),
     );
+    await technicalWorkController.load(currentUser.id);
+    if (currentUser.role == UserRole.chief) {
+      await technicalWorkCompletionController?.loadPending(currentUser.id);
+    }
+  }
+
+  Future<void> _openCompletionQueue(BuildContext context) async {
+    final controller = technicalWorkCompletionController;
+    if (controller == null) {
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => TechnicalWorkCompletionQueuePage(
+          currentUser: currentUser,
+          controller: controller,
+          onViewDetail: technicalWorkDetailController == null
+              ? null
+              : (work) => _openTechnicalWorkDetail(context, work),
+        ),
+      ),
+    );
+    await technicalWorkController.load(currentUser.id);
+    await controller.loadPending(currentUser.id);
   }
 
   @override
@@ -106,6 +135,10 @@ class RoleDashboardResolver extends StatelessWidget {
         onViewDetail: technicalWorkDetailController == null
             ? null
             : (work) => _openTechnicalWorkDetail(context, work),
+        completionController: technicalWorkCompletionController,
+        onOpenCompletionQueue: technicalWorkCompletionController == null
+            ? null
+            : () => _openCompletionQueue(context),
       ),
       UserRole.cleaningStaff ||
       UserRole.technician ||

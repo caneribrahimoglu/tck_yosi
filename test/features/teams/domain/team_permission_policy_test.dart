@@ -12,9 +12,14 @@ void main() {
       AppPermission.manageUsers,
       AppPermission.manageTeamPermissions,
       AppPermission.viewAllTechnicalWork,
+      AppPermission.reviewTechnicalWorkCompletion,
+      AppPermission.requestTechnicalWorkCompletion,
     });
 
-    expect(grantable, {AppPermission.viewReports});
+    expect(grantable, {
+      AppPermission.viewReports,
+      AppPermission.requestTechnicalWorkCompletion,
+    });
   });
 
   test('ekip yetkisi yönetme yetkisi olmayan kullanıcı grant yapamaz', () {

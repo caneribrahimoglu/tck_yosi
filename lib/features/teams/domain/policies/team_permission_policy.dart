@@ -7,6 +7,7 @@ class TeamPermissionPolicy {
     AppPermission.manageUsers,
     AppPermission.manageTeamPermissions,
     AppPermission.viewAllTechnicalWork,
+    AppPermission.reviewTechnicalWorkCompletion,
   };
 
   static bool canManageTeams(Set<AppPermission> actorPermissions) {

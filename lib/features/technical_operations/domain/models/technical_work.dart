@@ -48,6 +48,7 @@ class TechnicalWork {
     Object? assignedToTeamId = _notProvided,
     Object? startedByUserId = _notProvided,
     Object? startedAt = _notProvided,
+    Object? completedAt = _notProvided,
   }) {
     return TechnicalWork(
       id: id,
@@ -66,7 +67,9 @@ class TechnicalWork {
           : assignedToTeamId as String?,
       createdAt: createdAt,
       plannedAt: plannedAt,
-      completedAt: completedAt,
+      completedAt: identical(completedAt, _notProvided)
+          ? this.completedAt
+          : completedAt as DateTime?,
       startedByUserId: identical(startedByUserId, _notProvided)
           ? this.startedByUserId
           : startedByUserId as String?,

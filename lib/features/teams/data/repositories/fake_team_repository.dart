@@ -41,6 +41,7 @@ class FakeTeamRepository implements TeamRepository {
         AppPermission.viewReports,
         AppPermission.startTechnicalWork,
         AppPermission.addTechnicalWorkProgress,
+        AppPermission.requestTechnicalWorkCompletion,
       },
     ),
   ];

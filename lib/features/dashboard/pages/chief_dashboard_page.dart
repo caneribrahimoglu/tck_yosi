@@ -17,6 +17,7 @@ import '../../technical_operations/domain/enums/assignment_target_type.dart';
 import '../../technical_operations/domain/models/assignment_target.dart';
 import '../../technical_operations/domain/models/technical_work.dart';
 import '../../technical_operations/presentation/controllers/technical_work_controller.dart';
+import '../../technical_operations/presentation/controllers/technical_work_completion_controller.dart';
 import '../../technical_operations/presentation/controllers/technical_work_load_status.dart';
 import '../../technical_operations/presentation/technical_work_presentation.dart';
 
@@ -27,6 +28,8 @@ class ChiefDashboardPage extends StatefulWidget {
   final Future<void> Function() onCreateFieldReport;
   final Future<void> Function() onManageTeams;
   final Future<void> Function(TechnicalWork work)? onViewDetail;
+  final TechnicalWorkCompletionController? completionController;
+  final Future<void> Function()? onOpenCompletionQueue;
 
   const ChiefDashboardPage({
     super.key,
@@ -36,6 +39,8 @@ class ChiefDashboardPage extends StatefulWidget {
     required this.onCreateFieldReport,
     required this.onManageTeams,
     this.onViewDetail,
+    this.completionController,
+    this.onOpenCompletionQueue,
   });
 
   @override
@@ -50,6 +55,7 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
     super.initState();
 
     widget.technicalWorkController.load(widget.currentUser.id);
+    widget.completionController?.loadPending(widget.currentUser.id);
   }
 
   @override
@@ -58,6 +64,7 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
 
     if (oldWidget.currentUser.id != widget.currentUser.id) {
       widget.technicalWorkController.load(widget.currentUser.id);
+      widget.completionController?.loadPending(widget.currentUser.id);
     }
   }
 
@@ -84,7 +91,10 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
         ],
       ),
       body: AnimatedBuilder(
-        animation: widget.technicalWorkController,
+        animation: Listenable.merge([
+          widget.technicalWorkController,
+          if (widget.completionController != null) widget.completionController!,
+        ]),
         builder: (context, child) {
           return switch (widget.technicalWorkController.status) {
             TechnicalWorkLoadStatus.initial ||
@@ -250,12 +260,12 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
                 onPressed: widget.onCreateFieldReport,
               ),
             if (widget.currentUser.hasPermission(
-              AppPermission.approveOperations,
+              AppPermission.reviewTechnicalWorkCompletion,
             ))
               AppButton.secondary(
                 label: 'Onay Kuyruğu',
                 icon: Icons.fact_check_outlined,
-                onPressed: () {},
+                onPressed: widget.onOpenCompletionQueue,
               ),
             if (widget.currentUser.hasPermission(AppPermission.managePersonnel))
               AppButton.secondary(
@@ -455,7 +465,11 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: AppSpacing.lg),
-          const _ApprovalRow(label: 'İş tamamlama onayı', count: 2),
+          _ApprovalRow(
+            label: 'İş tamamlama onayı',
+            count: widget.completionController?.pendingCount ?? 0,
+            onTap: widget.onOpenCompletionQueue,
+          ),
           const SizedBox(height: AppSpacing.md),
           const _ApprovalRow(label: 'Planlı çalışma onayı', count: 1),
           const SizedBox(height: AppSpacing.md),
@@ -937,22 +951,34 @@ class _MetricRow extends StatelessWidget {
 class _ApprovalRow extends StatelessWidget {
   final String label;
   final int count;
+  final VoidCallback? onTap;
 
-  const _ApprovalRow({required this.label, required this.count});
+  const _ApprovalRow({required this.label, required this.count, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(Icons.pending_actions_outlined, color: Colors.orange),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(child: Text(label)),
-        AppStatusChip(
-          label: count.toString(),
-          type: AppStatusType.warning,
-          showIcon: false,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: Row(
+          children: [
+            const Icon(Icons.pending_actions_outlined, color: Colors.orange),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(child: Text(label)),
+            AppStatusChip(
+              label: count.toString(),
+              type: AppStatusType.warning,
+              showIcon: false,
+            ),
+            if (onTap != null) ...[
+              const SizedBox(width: AppSpacing.xs),
+              const Icon(Icons.chevron_right_rounded),
+            ],
+          ],
         ),
-      ],
+      ),
     );
   }
 }

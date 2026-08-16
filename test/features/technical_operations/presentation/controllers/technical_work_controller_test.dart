@@ -15,6 +15,9 @@ import 'package:tck_yosi/features/technical_operations/domain/models/technical_w
 import 'package:tck_yosi/features/technical_operations/domain/repositories/technical_work_access_source.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/add_technical_work_progress_request.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/technical_work_progress_note.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/submit_technical_work_completion_request.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/technical_work_completion_request.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/technical_work_completion_review_item.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_start_status.dart';
 
 void main() {
@@ -238,6 +241,42 @@ class _AllowedAccessSource implements TechnicalWorkAccessSource {
 }
 
 class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
+  @override
+  Future<TechnicalWorkCompletionRequest> approveCompletionRequest({
+    required String requestId,
+    required String actorUserId,
+  }) => throw Exception('Repository error');
+
+  @override
+  Future<bool> canUserRequestCompletion({
+    required String workId,
+    required String userId,
+  }) => throw Exception('Repository error');
+
+  @override
+  Future<List<TechnicalWorkCompletionRequest>> getCompletionRequests({
+    required String workId,
+    required String actorUserId,
+  }) => throw Exception('Repository error');
+
+  @override
+  Future<List<TechnicalWorkCompletionReviewItem>> getPendingCompletionReviews({
+    required String actorUserId,
+  }) => throw Exception('Repository error');
+
+  @override
+  Future<TechnicalWorkCompletionRequest> rejectCompletionRequest({
+    required String requestId,
+    required String actorUserId,
+    required String rejectionReason,
+  }) => throw Exception('Repository error');
+
+  @override
+  Future<TechnicalWorkCompletionRequest> submitCompletionRequest({
+    required SubmitTechnicalWorkCompletionRequest request,
+    required String actorUserId,
+  }) => throw Exception('Repository error');
+
   @override
   Future<TechnicalWorkProgressNote> addProgressNote({
     required AddTechnicalWorkProgressRequest request,

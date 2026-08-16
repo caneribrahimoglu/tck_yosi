@@ -3,6 +3,7 @@ enum TechnicalWorkStatus {
   awaitingInspection,
   assigned,
   inProgress,
+  awaitingCompletionApproval,
   onHold,
   completed,
   cancelled,

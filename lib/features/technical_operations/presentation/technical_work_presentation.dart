@@ -75,6 +75,8 @@ extension TechnicalWorkStatusPresentation on TechnicalWorkStatus {
       TechnicalWorkStatus.awaitingInspection => 'İnceleme Bekliyor',
       TechnicalWorkStatus.assigned => 'Ekibe Atandı',
       TechnicalWorkStatus.inProgress => 'Devam Ediyor',
+      TechnicalWorkStatus.awaitingCompletionApproval =>
+        'Tamamlama Onayı Bekliyor',
       TechnicalWorkStatus.onHold => 'Beklemeye Alındı',
       TechnicalWorkStatus.completed => 'Tamamlandı',
       TechnicalWorkStatus.cancelled => 'İptal Edildi',
@@ -87,6 +89,7 @@ extension TechnicalWorkStatusPresentation on TechnicalWorkStatus {
       TechnicalWorkStatus.awaitingInspection => AppStatusType.warning,
       TechnicalWorkStatus.assigned => AppStatusType.info,
       TechnicalWorkStatus.inProgress => AppStatusType.info,
+      TechnicalWorkStatus.awaitingCompletionApproval => AppStatusType.warning,
       TechnicalWorkStatus.onHold => AppStatusType.warning,
       TechnicalWorkStatus.completed => AppStatusType.success,
       TechnicalWorkStatus.cancelled => AppStatusType.neutral,

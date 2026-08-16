@@ -13,6 +13,11 @@ import '../../domain/errors/technical_work_progress_exception.dart';
 import '../../domain/models/add_technical_work_progress_request.dart';
 import '../../domain/models/technical_work_progress_note.dart';
 import '../../domain/errors/technical_work_detail_read_exception.dart';
+import '../../domain/enums/technical_work_completion_decision.dart';
+import '../../domain/errors/technical_work_completion_exception.dart';
+import '../../domain/models/submit_technical_work_completion_request.dart';
+import '../../domain/models/technical_work_completion_request.dart';
+import '../../domain/models/technical_work_completion_review_item.dart';
 
 class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
   static const _individualAssignmentTargets = [
@@ -30,6 +35,10 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
   final List<TechnicalWorkProgressNote> _progressNotes;
   final Set<String> _progressSubmissionsInFlight = {};
   int _nextProgressNoteNumber;
+  final List<TechnicalWorkCompletionRequest> _completionRequests;
+  final Set<String> _completionRequestWorkIdsInFlight = {};
+  final Set<String> _completionReviewRequestIdsInFlight = {};
+  int _nextCompletionRequestNumber;
   final Duration delay;
 
   FakeTechnicalWorkRepository({
@@ -37,6 +46,7 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
     TeamAssignmentTargetSource? teamAssignmentTargetSource,
     TechnicalWorkAccessSource? technicalWorkAccessSource,
     List<TechnicalWorkProgressNote>? progressNotes,
+    List<TechnicalWorkCompletionRequest>? completionRequests,
     DateTime Function()? now,
     this.delay = const Duration(milliseconds: 500),
   }) : _works = List.of(works ?? FakeTechnicalWorkData.works),
@@ -44,6 +54,9 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
        _technicalWorkAccessSource = technicalWorkAccessSource,
        _progressNotes = List.of(progressNotes ?? const []),
        _nextProgressNoteNumber = (progressNotes ?? const []).length + 1,
+       _completionRequests = List.of(completionRequests ?? const []),
+       _nextCompletionRequestNumber =
+           (completionRequests ?? const []).length + 1,
        _now = now ?? DateTime.now;
 
   @override
@@ -118,6 +131,68 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
     return access.canAddTechnicalWorkProgress &&
         actorMatchesAssignment &&
         work.status == TechnicalWorkStatus.inProgress;
+  }
+
+  @override
+  Future<bool> canUserRequestCompletion({
+    required String workId,
+    required String userId,
+  }) async {
+    await _simulateNetworkDelay();
+    try {
+      final work = await _authorizeCompletionRequest(
+        workId: workId,
+        actorUserId: userId,
+      );
+      return work.status == TechnicalWorkStatus.inProgress;
+    } on TechnicalWorkCompletionNotAllowedException {
+      return false;
+    }
+  }
+
+  @override
+  Future<List<TechnicalWorkCompletionRequest>> getCompletionRequests({
+    required String workId,
+    required String actorUserId,
+  }) async {
+    await _simulateNetworkDelay();
+    await _authorizeDetailRead(workId: workId, actorUserId: actorUserId);
+    final requests =
+        _completionRequests
+            .where((request) => request.workId == workId)
+            .toList(growable: false)
+          ..sort(
+            (first, second) => first.requestedAt.compareTo(second.requestedAt),
+          );
+    return List.unmodifiable(requests);
+  }
+
+  @override
+  Future<List<TechnicalWorkCompletionReviewItem>> getPendingCompletionReviews({
+    required String actorUserId,
+  }) async {
+    await _simulateNetworkDelay();
+    await _ensureActorCanReviewCompletion(actorUserId);
+    final items = <TechnicalWorkCompletionReviewItem>[];
+    for (final request in _completionRequests) {
+      if (request.decision != TechnicalWorkCompletionDecision.pending) {
+        continue;
+      }
+      final workIndex = _works.indexWhere((work) => work.id == request.workId);
+      if (workIndex != -1) {
+        items.add(
+          TechnicalWorkCompletionReviewItem(
+            work: _works[workIndex],
+            request: request,
+          ),
+        );
+      }
+    }
+    items.sort(
+      (first, second) =>
+          first.request.requestedAt.compareTo(second.request.requestedAt),
+    );
+    return List.unmodifiable(items);
   }
 
   @override
@@ -255,6 +330,151 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
     }
   }
 
+  @override
+  Future<TechnicalWorkCompletionRequest> submitCompletionRequest({
+    required SubmitTechnicalWorkCompletionRequest request,
+    required String actorUserId,
+  }) async {
+    await _simulateNetworkDelay();
+    var work = await _authorizeCompletionRequest(
+      workId: request.workId,
+      actorUserId: actorUserId,
+    );
+    final summary = request.summary.trim();
+    if (summary.isEmpty) {
+      throw const TechnicalWorkCompletionInvalidInputException();
+    }
+    if (work.status != TechnicalWorkStatus.inProgress) {
+      throw const TechnicalWorkCompletionInvalidStateException();
+    }
+    if (!_completionRequestWorkIdsInFlight.add(request.workId)) {
+      throw const TechnicalWorkCompletionSubmissionInFlightException();
+    }
+    try {
+      work = await _authorizeCompletionRequest(
+        workId: request.workId,
+        actorUserId: actorUserId,
+      );
+      if (work.status != TechnicalWorkStatus.inProgress ||
+          _completionRequests.any(
+            (candidate) =>
+                candidate.workId == work.id &&
+                candidate.decision == TechnicalWorkCompletionDecision.pending,
+          )) {
+        throw const TechnicalWorkCompletionInvalidStateException();
+      }
+      final requestedAt = _now();
+      final completionRequest = TechnicalWorkCompletionRequest(
+        id: 'completion-${_nextCompletionRequestNumber++}',
+        workId: work.id,
+        requestedByUserId: actorUserId,
+        summary: summary,
+        requestedAt: requestedAt,
+      );
+      _completionRequests.add(completionRequest);
+      final workIndex = _works.indexWhere(
+        (candidate) => candidate.id == work.id,
+      );
+      _works[workIndex] = work.copyWith(
+        status: TechnicalWorkStatus.awaitingCompletionApproval,
+      );
+      return completionRequest;
+    } finally {
+      _completionRequestWorkIdsInFlight.remove(request.workId);
+    }
+  }
+
+  @override
+  Future<TechnicalWorkCompletionRequest> approveCompletionRequest({
+    required String requestId,
+    required String actorUserId,
+  }) {
+    return _reviewCompletionRequest(
+      requestId: requestId,
+      actorUserId: actorUserId,
+      decision: TechnicalWorkCompletionDecision.approved,
+    );
+  }
+
+  @override
+  Future<TechnicalWorkCompletionRequest> rejectCompletionRequest({
+    required String requestId,
+    required String actorUserId,
+    required String rejectionReason,
+  }) {
+    return _reviewCompletionRequest(
+      requestId: requestId,
+      actorUserId: actorUserId,
+      decision: TechnicalWorkCompletionDecision.rejected,
+      rejectionReason: rejectionReason,
+    );
+  }
+
+  Future<TechnicalWorkCompletionRequest> _reviewCompletionRequest({
+    required String requestId,
+    required String actorUserId,
+    required TechnicalWorkCompletionDecision decision,
+    String? rejectionReason,
+  }) async {
+    await _simulateNetworkDelay();
+    await _ensureActorCanReviewCompletion(actorUserId);
+    final trimmedReason = rejectionReason?.trim();
+    if (decision == TechnicalWorkCompletionDecision.rejected &&
+        (trimmedReason == null || trimmedReason.isEmpty)) {
+      throw const TechnicalWorkCompletionInvalidInputException();
+    }
+    var requestIndex = _completionRequests.indexWhere(
+      (request) => request.id == requestId,
+    );
+    if (requestIndex == -1) {
+      throw StateError('Tamamlama talebi bulunamadı.');
+    }
+    if (_completionRequests[requestIndex].decision !=
+        TechnicalWorkCompletionDecision.pending) {
+      throw const TechnicalWorkCompletionAlreadyDecidedException();
+    }
+    if (!_completionReviewRequestIdsInFlight.add(requestId)) {
+      throw const TechnicalWorkCompletionAlreadyDecidedException();
+    }
+    try {
+      await _ensureActorCanReviewCompletion(actorUserId);
+      requestIndex = _completionRequests.indexWhere(
+        (request) => request.id == requestId,
+      );
+      if (requestIndex == -1 ||
+          _completionRequests[requestIndex].decision !=
+              TechnicalWorkCompletionDecision.pending) {
+        throw const TechnicalWorkCompletionAlreadyDecidedException();
+      }
+      final request = _completionRequests[requestIndex];
+      final workIndex = _works.indexWhere((work) => work.id == request.workId);
+      if (workIndex == -1 ||
+          _works[workIndex].status !=
+              TechnicalWorkStatus.awaitingCompletionApproval) {
+        throw const TechnicalWorkCompletionInvalidStateException();
+      }
+      final reviewedAt = _now();
+      final decidedRequest = request.decided(
+        decision: decision,
+        reviewedByUserId: actorUserId,
+        reviewedAt: reviewedAt,
+        rejectionReason: trimmedReason,
+      );
+      _completionRequests[requestIndex] = decidedRequest;
+      _works[workIndex] = _works[workIndex].copyWith(
+        status: decision == TechnicalWorkCompletionDecision.approved
+            ? TechnicalWorkStatus.completed
+            : TechnicalWorkStatus.inProgress,
+        completedAt: decision == TechnicalWorkCompletionDecision.approved
+            ? reviewedAt
+            : null,
+      );
+      return decidedRequest;
+    } finally {
+      _completionReviewRequestIdsInFlight.remove(requestId);
+    }
+  }
+
   Future<void> _ensureActorCanStartWork({
     required TechnicalWork work,
     required String actorUserId,
@@ -297,6 +517,42 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
         !access.canAddTechnicalWorkProgress ||
         !actorMatchesAssignment) {
       throw const TechnicalWorkProgressNotAllowedException();
+    }
+  }
+
+  Future<TechnicalWork> _authorizeCompletionRequest({
+    required String workId,
+    required String actorUserId,
+  }) async {
+    final access = await _technicalWorkAccessSource?.getActorAccess(
+      actorUserId,
+    );
+    final workIndex = _works.indexWhere((work) => work.id == workId);
+    if (access == null ||
+        !access.isActive ||
+        !access.canRequestTechnicalWorkCompletion ||
+        workIndex == -1) {
+      throw const TechnicalWorkCompletionNotAllowedException();
+    }
+    final work = _works[workIndex];
+    final actorMatchesAssignment =
+        work.assignedToUserId == actorUserId ||
+        (work.assignedToTeamId != null &&
+            access.activeTeamIds.contains(work.assignedToTeamId));
+    if (!actorMatchesAssignment) {
+      throw const TechnicalWorkCompletionNotAllowedException();
+    }
+    return work;
+  }
+
+  Future<void> _ensureActorCanReviewCompletion(String actorUserId) async {
+    final access = await _technicalWorkAccessSource?.getActorAccess(
+      actorUserId,
+    );
+    if (access == null ||
+        !access.isActive ||
+        !access.canReviewTechnicalWorkCompletion) {
+      throw const TechnicalWorkCompletionReviewNotAllowedException();
     }
   }
 
