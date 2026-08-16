@@ -8,6 +8,12 @@ import 'package:tck_yosi/features/technical_operations/domain/models/create_fiel
 import 'package:tck_yosi/features/technical_operations/domain/models/assignment_target.dart';
 import 'package:tck_yosi/features/technical_operations/domain/enums/assignment_target_type.dart';
 import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_priority.dart';
+import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_category.dart';
+import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_status.dart';
+import 'package:tck_yosi/features/technical_operations/domain/errors/technical_work_start_exception.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/technical_work_actor_access.dart';
+import 'package:tck_yosi/features/technical_operations/domain/repositories/technical_work_access_source.dart';
+import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_start_status.dart';
 
 void main() {
   test('yükleme başladığında loading durumuna geçer', () async {
@@ -124,9 +130,117 @@ void main() {
       TechnicalWorkPriority.high,
     );
   });
+
+  test('iş başlatırken loading ve success durumlarını yayınlar', () async {
+    final repository = FakeTechnicalWorkRepository(
+      works: [_assignedWork()],
+      delay: const Duration(milliseconds: 20),
+      technicalWorkAccessSource: const _AllowedAccessSource(),
+    );
+    final controller = TechnicalWorkController(repository: repository);
+    addTearDown(controller.dispose);
+    await controller.load('user-engineer-001');
+
+    final startFuture = controller.startWork(
+      workId: 'work-start',
+      actorUserId: 'user-engineer-001',
+    );
+
+    expect(controller.startStatus, TechnicalWorkStartStatus.starting);
+    expect(controller.isStarting('work-start'), isTrue);
+    expect(await startFuture, isTrue);
+    expect(controller.startStatus, TechnicalWorkStartStatus.success);
+    expect(controller.isStartingWork, isFalse);
+    expect(
+      controller.assignedWorks.single.status,
+      TechnicalWorkStatus.inProgress,
+    );
+    expect(controller.inProgressWorkCount, 1);
+  });
+
+  test('controller aynı anda ikinci başlatma isteğini göndermez', () async {
+    final controller = TechnicalWorkController(
+      repository: FakeTechnicalWorkRepository(
+        works: [_assignedWork()],
+        delay: const Duration(milliseconds: 20),
+        technicalWorkAccessSource: const _AllowedAccessSource(),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.load('user-engineer-001');
+
+    final first = controller.startWork(
+      workId: 'work-start',
+      actorUserId: 'user-engineer-001',
+    );
+    final second = await controller.startWork(
+      workId: 'work-start',
+      actorUserId: 'user-engineer-001',
+    );
+
+    expect(second, isFalse);
+    expect(await first, isTrue);
+  });
+
+  test('zaten başlatılmış işi ayrı kullanıcı mesajına dönüştürür', () async {
+    final started = _assignedWork().copyWith(
+      status: TechnicalWorkStatus.inProgress,
+      startedByUserId: 'user-engineer-001',
+      startedAt: DateTime(2026, 8, 16, 9),
+    );
+    final controller = TechnicalWorkController(
+      repository: FakeTechnicalWorkRepository(
+        works: [started],
+        delay: Duration.zero,
+        technicalWorkAccessSource: const _AllowedAccessSource(),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.load('user-engineer-001');
+
+    final result = await controller.startWork(
+      workId: started.id,
+      actorUserId: 'user-engineer-001',
+    );
+
+    expect(result, isFalse);
+    expect(controller.startStatus, TechnicalWorkStartStatus.alreadyStarted);
+    expect(controller.errorMessage, 'İş zaten başlatıldı.');
+    expect(controller.assignedWorks.single.startedAt, started.startedAt);
+  });
+}
+
+TechnicalWork _assignedWork() => TechnicalWork(
+  id: 'work-start',
+  title: 'Başlatılacak iş',
+  description: 'Test işi',
+  location: 'D-100',
+  category: TechnicalWorkCategory.lighting,
+  priority: TechnicalWorkPriority.high,
+  status: TechnicalWorkStatus.assigned,
+  createdByUserId: 'user-chief-001',
+  assignedToUserId: 'user-engineer-001',
+  createdAt: DateTime(2026, 8, 16),
+);
+
+class _AllowedAccessSource implements TechnicalWorkAccessSource {
+  const _AllowedAccessSource();
+
+  @override
+  Future<TechnicalWorkActorAccess> getActorAccess(String userId) async {
+    return const TechnicalWorkActorAccess(
+      activeTeamIds: {'team-technical'},
+      canStartTechnicalWork: true,
+    );
+  }
 }
 
 class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
+  @override
+  Future<bool> canUserStartTechnicalWork(String userId) {
+    throw Exception('Repository error');
+  }
+
   @override
   Future<bool> hasOpenWorkAssignedToTeam(String teamId) {
     throw Exception('Repository error');
@@ -162,5 +276,13 @@ class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
     required String createdByUserId,
   }) {
     throw Exception('Repository error');
+  }
+
+  @override
+  Future<TechnicalWork> startWork({
+    required String workId,
+    required String actorUserId,
+  }) {
+    throw const TechnicalWorkStartNotAllowedException();
   }
 }

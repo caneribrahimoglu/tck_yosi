@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/enums/app_snackbar_type.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_loading.dart';
 import '../../../shared/widgets/app_page_header.dart';
 import '../../../shared/widgets/app_status_chip.dart';
+import '../../../shared/widgets/app_snackbar.dart';
 import '../../auth/domain/enums/app_permission.dart';
 import '../../auth/domain/models/app_user.dart';
 import '../../technical_operations/domain/enums/technical_work_priority.dart';
+import '../../technical_operations/domain/enums/technical_work_status.dart';
 import '../../technical_operations/domain/models/technical_work.dart';
 import '../../technical_operations/presentation/controllers/technical_work_controller.dart';
 import '../../technical_operations/presentation/controllers/technical_work_load_status.dart';
+import '../../technical_operations/presentation/controllers/technical_work_start_status.dart';
 import '../../technical_operations/presentation/technical_work_presentation.dart';
 
 class EngineerDashboardPage extends StatefulWidget {
@@ -35,6 +39,37 @@ class EngineerDashboardPage extends StatefulWidget {
 }
 
 class _EngineerDashboardPageState extends State<EngineerDashboardPage> {
+  Future<void> _startWork(TechnicalWork work) async {
+    final succeeded = await widget.technicalWorkController.startWork(
+      workId: work.id,
+      actorUserId: widget.currentUser.id,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    if (succeeded) {
+      AppSnackbar.show(
+        context: context,
+        type: AppSnackbarType.success,
+        message: 'İş başlatıldı.',
+      );
+      return;
+    }
+    final controller = widget.technicalWorkController;
+    AppSnackbar.show(
+      context: context,
+      type: controller.startStatus == TechnicalWorkStartStatus.alreadyStarted
+          ? AppSnackbarType.warning
+          : AppSnackbarType.error,
+      message: controller.errorMessage ?? 'Teknik iş başlatılamadı.',
+      duration:
+          controller.startStatus == TechnicalWorkStartStatus.alreadyStarted
+          ? const Duration(seconds: 6)
+          : null,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -273,7 +308,18 @@ class _EngineerDashboardPageState extends State<EngineerDashboardPage> {
             itemBuilder: (context, index) {
               final work = assignedWorks[index];
 
-              return _TechnicalWorkCard(work: work);
+              final controller = widget.technicalWorkController;
+              return _TechnicalWorkCard(
+                work: work,
+                currentUser: widget.currentUser,
+                isStarting: controller.isStarting(work.id),
+                onStart:
+                    work.status == TechnicalWorkStatus.assigned &&
+                        controller.canCurrentUserStartTechnicalWork &&
+                        !controller.isStartingWork
+                    ? () => _startWork(work)
+                    : null,
+              );
             },
           ),
       ],
@@ -360,8 +406,16 @@ class _SummaryCard extends StatelessWidget {
 
 class _TechnicalWorkCard extends StatelessWidget {
   final TechnicalWork work;
+  final AppUser currentUser;
+  final bool isStarting;
+  final VoidCallback? onStart;
 
-  const _TechnicalWorkCard({required this.work});
+  const _TechnicalWorkCard({
+    required this.work,
+    required this.currentUser,
+    required this.isStarting,
+    required this.onStart,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -402,6 +456,18 @@ class _TechnicalWorkCard extends StatelessWidget {
                       work.description,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
+                    if (work.startedAt != null &&
+                        work.startedByUserId != null) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'Başlatan: '
+                        '${work.startedByUserId == currentUser.id ? currentUser.fullName : work.startedByUserId} '
+                        '• ${_formatStartedAt(work.startedAt!)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -424,6 +490,17 @@ class _TechnicalWorkCard extends StatelessWidget {
               ),
             ],
           );
+          final startButton =
+              work.status == TechnicalWorkStatus.assigned &&
+                  (onStart != null || isStarting)
+              ? AppButton.primary(
+                  label: isStarting ? 'Başlatılıyor...' : 'İşi Başlat',
+                  icon: isStarting
+                      ? Icons.hourglass_top_rounded
+                      : Icons.play_arrow_rounded,
+                  onPressed: isStarting ? null : onStart,
+                )
+              : null;
 
           if (isNarrow) {
             return Column(
@@ -432,6 +509,10 @@ class _TechnicalWorkCard extends StatelessWidget {
                 workDetails,
                 const SizedBox(height: AppSpacing.md),
                 statusChips,
+                if (startButton != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  startButton,
+                ],
               ],
             );
           }
@@ -440,11 +521,26 @@ class _TechnicalWorkCard extends StatelessWidget {
             children: [
               Expanded(child: workDetails),
               const SizedBox(width: AppSpacing.lg),
-              statusChips,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  statusChips,
+                  if (startButton != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    startButton,
+                  ],
+                ],
+              ),
             ],
           );
         },
       ),
     );
+  }
+
+  String _formatStartedAt(DateTime value) {
+    String twoDigits(int number) => number.toString().padLeft(2, '0');
+    return '${twoDigits(value.day)}.${twoDigits(value.month)}.${value.year} '
+        '${twoDigits(value.hour)}:${twoDigits(value.minute)}';
   }
 }

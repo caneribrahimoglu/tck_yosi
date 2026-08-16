@@ -36,7 +36,11 @@ class FakeTeamRepository implements TeamRepository {
       name: 'Teknik Ekip',
       description: 'Teknik saha operasyonlarını yürüten ekip.',
       isActive: true,
-      permissions: {AppPermission.createFieldReport, AppPermission.viewReports},
+      permissions: {
+        AppPermission.createFieldReport,
+        AppPermission.viewReports,
+        AppPermission.startTechnicalWork,
+      },
     ),
   ];
 

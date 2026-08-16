@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tck_yosi/features/technical_operations/data/repositories/fake_technical_work_repository.dart';
 import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_category.dart';
@@ -11,6 +13,13 @@ import 'package:tck_yosi/features/auth/domain/enums/app_permission.dart';
 import 'package:tck_yosi/features/teams/data/adapters/team_assignment_target_adapter.dart';
 import 'package:tck_yosi/features/teams/data/repositories/fake_team_repository.dart';
 import 'package:tck_yosi/features/technical_operations/data/adapters/technical_work_team_archive_guard.dart';
+import 'package:tck_yosi/features/auth/data/services/fake_auth_service.dart';
+import 'package:tck_yosi/features/teams/data/adapters/team_technical_work_access_adapter.dart';
+import 'package:tck_yosi/features/teams/domain/models/team.dart';
+import 'package:tck_yosi/features/teams/domain/models/team_membership.dart';
+import 'package:tck_yosi/features/technical_operations/domain/errors/technical_work_start_exception.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/technical_work_actor_access.dart';
+import 'package:tck_yosi/features/technical_operations/domain/repositories/technical_work_access_source.dart';
 
 void main() {
   final testWorks = [
@@ -72,6 +81,74 @@ void main() {
     final result = await repository.getAssignedWorks('engineer-without-work');
 
     expect(result, isEmpty);
+  });
+
+  test('aktif ekip üyesi ekibe atanmış açık işi görür', () async {
+    final teamRepository = FakeTeamRepository(delay: Duration.zero);
+    final teamWork = testWorks[1].copyWith(
+      status: TechnicalWorkStatus.assigned,
+      assignedToTeamId: 'team-technical',
+    );
+    final repository = _createRepositoryWithTeamAccess(
+      works: [teamWork],
+      teamRepository: teamRepository,
+    );
+
+    final result = await repository.getAssignedWorks('user-engineer-001');
+
+    expect(result, hasLength(1));
+    expect(result.single.id, teamWork.id);
+  });
+
+  test('pasif üyelik üzerinden ekibe atanmış iş görünmez', () async {
+    final teamRepository = FakeTeamRepository(
+      teams: const [_technicalTeam],
+      memberships: const [
+        TeamMembership(
+          id: 'membership-passive',
+          teamId: 'team-technical',
+          userId: 'user-engineer-001',
+          isActive: false,
+        ),
+      ],
+      delay: Duration.zero,
+    );
+    final repository = _createRepositoryWithTeamAccess(
+      works: [_teamAssignedWork()],
+      teamRepository: teamRepository,
+    );
+
+    expect(await repository.getAssignedWorks('user-engineer-001'), isEmpty);
+  });
+
+  test('pasif veya arşivli ekip üzerinden atanmış iş görünmez', () async {
+    for (final team in [
+      _technicalTeam.copyWith(isActive: false),
+      _technicalTeam.copyWith(isArchived: true),
+    ]) {
+      final teamRepository = FakeTeamRepository(
+        teams: [team],
+        memberships: const [_technicalMembership],
+        delay: Duration.zero,
+      );
+      final repository = _createRepositoryWithTeamAccess(
+        works: [_teamAssignedWork()],
+        teamRepository: teamRepository,
+      );
+
+      expect(await repository.getAssignedWorks('user-engineer-001'), isEmpty);
+    }
+  });
+
+  test('doğrudan ve ekip yoluyla eşleşen iş yalnız bir kez görünür', () async {
+    final work = _teamAssignedWork().copyWith(
+      assignedToUserId: 'user-engineer-001',
+    );
+    final repository = _createRepositoryWithTeamAccess(works: [work]);
+
+    final result = await repository.getAssignedWorks('user-engineer-001');
+
+    expect(result.map((item) => item.id), [work.id]);
   });
 
   test('yeni bir saha raporu oluşturur', () async {
@@ -146,6 +223,229 @@ void main() {
 
     expect(result.assignedToTeamId, team.id);
     expect(result.assignedToUserId, isNull);
+  });
+
+  test(
+    'yetkili aktif ekip üyesi işi başlatır ve ekip atamasını korur',
+    () async {
+      final startedAt = DateTime(2026, 8, 16, 10, 30);
+      final repository = _createRepositoryWithTeamAccess(
+        works: [_teamAssignedWork()],
+        now: () => startedAt,
+      );
+
+      final result = await repository.startWork(
+        workId: 'work-team',
+        actorUserId: 'user-engineer-001',
+      );
+
+      expect(result.status, TechnicalWorkStatus.inProgress);
+      expect(result.assignedToTeamId, 'team-technical');
+      expect(result.assignedToUserId, isNull);
+      expect(result.startedByUserId, 'user-engineer-001');
+      expect(identical(result.startedAt, startedAt), isTrue);
+    },
+  );
+
+  test('doğrudan atanmış yetkili kullanıcı işi başlatabilir', () async {
+    final directWork = _teamAssignedWork().copyWith(
+      assignedToTeamId: null,
+      assignedToUserId: 'user-engineer-001',
+    );
+    final repository = _createRepositoryWithTeamAccess(works: [directWork]);
+
+    final result = await repository.startWork(
+      workId: directWork.id,
+      actorUserId: 'user-engineer-001',
+    );
+
+    expect(result.status, TechnicalWorkStatus.inProgress);
+    expect(result.assignedToUserId, 'user-engineer-001');
+  });
+
+  test('üye olmayan veya yetkisiz kullanıcı işi başlatamaz', () async {
+    final repository = _createRepositoryWithTeamAccess(
+      works: [_teamAssignedWork()],
+    );
+
+    expect(
+      () => repository.startWork(
+        workId: 'work-team',
+        actorUserId: 'user-driver-001',
+      ),
+      throwsA(isA<TechnicalWorkStartNotAllowedException>()),
+    );
+  });
+
+  test(
+    'yetkisiz istek kilit tutup yetkili isteği alreadyStarted yapamaz',
+    () async {
+      final accessSource = _CoordinatedAccessSource();
+      final repository = FakeTechnicalWorkRepository(
+        works: [_teamAssignedWork()],
+        delay: Duration.zero,
+        technicalWorkAccessSource: accessSource,
+      );
+
+      final unauthorizedStart = repository.startWork(
+        workId: 'work-team',
+        actorUserId: 'unauthorized-user',
+      );
+      await accessSource.unauthorizedCheckStarted.future;
+
+      final authorizedResult = await repository.startWork(
+        workId: 'work-team',
+        actorUserId: 'user-engineer-001',
+      );
+      accessSource.releaseUnauthorizedCheck.complete();
+
+      expect(authorizedResult.status, TechnicalWorkStatus.inProgress);
+      await expectLater(
+        unauthorizedStart,
+        throwsA(isA<TechnicalWorkStartNotAllowedException>()),
+      );
+    },
+  );
+
+  test('yetkisiz aktör devam eden işte status bilgisi alamaz', () async {
+    final work = _teamAssignedWork().copyWith(
+      status: TechnicalWorkStatus.inProgress,
+      startedByUserId: 'user-engineer-001',
+      startedAt: DateTime(2026, 8, 16, 9),
+    );
+    final repository = FakeTechnicalWorkRepository(
+      works: [work],
+      delay: Duration.zero,
+      technicalWorkAccessSource: const _AccessSourceWithoutStartPermission(),
+    );
+
+    expect(
+      () => repository.startWork(
+        workId: work.id,
+        actorUserId: 'unauthorized-user',
+      ),
+      throwsA(isA<TechnicalWorkStartNotAllowedException>()),
+    );
+  });
+
+  test('aktif üye etkin başlatma yetkisi yoksa işi başlatamaz', () async {
+    final repository = FakeTechnicalWorkRepository(
+      works: [_teamAssignedWork()],
+      delay: Duration.zero,
+      technicalWorkAccessSource: const _AccessSourceWithoutStartPermission(),
+    );
+
+    expect(
+      () => repository.startWork(
+        workId: 'work-team',
+        actorUserId: 'user-engineer-001',
+      ),
+      throwsA(isA<TechnicalWorkStartNotAllowedException>()),
+    );
+  });
+
+  test(
+    'pasif üyelik işi başlatma yetkisi verse bile erişimi reddeder',
+    () async {
+      final teamRepository = FakeTeamRepository(
+        teams: const [_technicalTeam],
+        memberships: const [
+          TeamMembership(
+            id: 'membership-passive',
+            teamId: 'team-technical',
+            userId: 'user-engineer-001',
+            isActive: false,
+          ),
+        ],
+        delay: Duration.zero,
+      );
+      final repository = _createRepositoryWithTeamAccess(
+        works: [_teamAssignedWork()],
+        teamRepository: teamRepository,
+      );
+
+      expect(
+        () => repository.startWork(
+          workId: 'work-team',
+          actorUserId: 'user-engineer-001',
+        ),
+        throwsA(isA<TechnicalWorkStartNotAllowedException>()),
+      );
+    },
+  );
+
+  test('pasif veya arşivli ekibin aktif üyesi işi başlatamaz', () async {
+    for (final team in [
+      _technicalTeam.copyWith(isActive: false),
+      _technicalTeam.copyWith(isArchived: true),
+    ]) {
+      final teamRepository = FakeTeamRepository(
+        teams: [team],
+        memberships: const [_technicalMembership],
+        delay: Duration.zero,
+      );
+      final repository = _createRepositoryWithTeamAccess(
+        works: [_teamAssignedWork()],
+        teamRepository: teamRepository,
+      );
+
+      expect(
+        () => repository.startWork(
+          workId: 'work-team',
+          actorUserId: 'user-engineer-001',
+        ),
+        throwsA(isA<TechnicalWorkStartNotAllowedException>()),
+      );
+    }
+  });
+
+  test('zaten başlatılmış iş typed hata verir ve metadata değişmez', () async {
+    final originalStartedAt = DateTime(2026, 8, 15, 9);
+    final work = _teamAssignedWork().copyWith(
+      status: TechnicalWorkStatus.inProgress,
+      startedByUserId: 'user-engineer-001',
+      startedAt: originalStartedAt,
+    );
+    final repository = _createRepositoryWithTeamAccess(works: [work]);
+
+    expect(
+      () => repository.startWork(
+        workId: work.id,
+        actorUserId: 'user-engineer-001',
+      ),
+      throwsA(isA<TechnicalWorkAlreadyStartedException>()),
+    );
+    final unchanged = (await repository.getAllWorks()).single;
+    expect(unchanged.startedByUserId, 'user-engineer-001');
+    expect(identical(unchanged.startedAt, originalStartedAt), isTrue);
+  });
+
+  test('eşzamanlı iki start çağrısından yalnız biri başarılı olur', () async {
+    final repository = _createRepositoryWithTeamAccess(
+      works: [_teamAssignedWork()],
+      delay: const Duration(milliseconds: 20),
+    );
+
+    Future<Object> start() async {
+      try {
+        return await repository.startWork(
+          workId: 'work-team',
+          actorUserId: 'user-engineer-001',
+        );
+      } catch (error) {
+        return error;
+      }
+    }
+
+    final results = await Future.wait([start(), start()]);
+
+    expect(results.whereType<TechnicalWork>(), hasLength(1));
+    expect(
+      results.whereType<TechnicalWorkAlreadyStartedException>(),
+      hasLength(1),
+    );
+    final stored = (await repository.getAllWorks()).single;
+    expect(stored.status, TechnicalWorkStatus.inProgress);
   });
 
   test(
@@ -326,4 +626,82 @@ void main() {
       );
     },
   );
+}
+
+const _technicalTeam = Team(
+  id: 'team-technical',
+  name: 'Teknik Ekip',
+  description: '',
+  isActive: true,
+  permissions: {AppPermission.startTechnicalWork},
+);
+
+const _technicalMembership = TeamMembership(
+  id: 'membership-technical',
+  teamId: 'team-technical',
+  userId: 'user-engineer-001',
+);
+
+TechnicalWork _teamAssignedWork() => TechnicalWork(
+  id: 'work-team',
+  title: 'Ekip işi',
+  description: 'Teknik ekip tarafından yürütülecek iş.',
+  location: 'D-100 / Km 30+000',
+  category: TechnicalWorkCategory.lighting,
+  priority: TechnicalWorkPriority.high,
+  status: TechnicalWorkStatus.assigned,
+  createdByUserId: 'user-chief-001',
+  assignedToTeamId: 'team-technical',
+  createdAt: DateTime(2026, 8, 16),
+);
+
+FakeTechnicalWorkRepository _createRepositoryWithTeamAccess({
+  required List<TechnicalWork> works,
+  FakeTeamRepository? teamRepository,
+  Duration delay = Duration.zero,
+  DateTime Function()? now,
+}) {
+  final teams = teamRepository ?? FakeTeamRepository(delay: Duration.zero);
+  return FakeTechnicalWorkRepository(
+    works: works,
+    delay: delay,
+    now: now,
+    technicalWorkAccessSource: TeamTechnicalWorkAccessAdapter(
+      teamRepository: teams,
+      userDirectory: FakeAuthService(),
+    ),
+  );
+}
+
+class _AccessSourceWithoutStartPermission implements TechnicalWorkAccessSource {
+  const _AccessSourceWithoutStartPermission();
+
+  @override
+  Future<TechnicalWorkActorAccess> getActorAccess(String userId) async {
+    return const TechnicalWorkActorAccess(
+      activeTeamIds: {'team-technical'},
+      canStartTechnicalWork: false,
+    );
+  }
+}
+
+class _CoordinatedAccessSource implements TechnicalWorkAccessSource {
+  final unauthorizedCheckStarted = Completer<void>();
+  final releaseUnauthorizedCheck = Completer<void>();
+
+  @override
+  Future<TechnicalWorkActorAccess> getActorAccess(String userId) async {
+    if (userId == 'unauthorized-user') {
+      unauthorizedCheckStarted.complete();
+      await releaseUnauthorizedCheck.future;
+      return const TechnicalWorkActorAccess(
+        activeTeamIds: {},
+        canStartTechnicalWork: false,
+      );
+    }
+    return const TechnicalWorkActorAccess(
+      activeTeamIds: {'team-technical'},
+      canStartTechnicalWork: true,
+    );
+  }
 }

@@ -357,6 +357,12 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
             itemBuilder: (context, index) {
               return _ChiefWorkCard(
                 work: priorityWorks[index],
+                assignedToName: widget.technicalWorkController.assignedToName(
+                  priorityWorks[index],
+                ),
+                startedByName: widget.technicalWorkController.startedByName(
+                  priorityWorks[index],
+                ),
                 onInspect:
                     !priorityWorks[index].isAssigned &&
                         widget.currentUser.hasPermission(
@@ -474,7 +480,15 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
           child: Column(
             children: [
               for (var index = 0; index < displayedWorks.length; index++) ...[
-                _RecentOperationRow(work: displayedWorks[index]),
+                _RecentOperationRow(
+                  work: displayedWorks[index],
+                  assignedToName: widget.technicalWorkController.assignedToName(
+                    displayedWorks[index],
+                  ),
+                  startedByName: widget.technicalWorkController.startedByName(
+                    displayedWorks[index],
+                  ),
+                ),
                 if (index != displayedWorks.length - 1)
                   const Divider(height: AppSpacing.xl),
               ],
@@ -575,9 +589,16 @@ class _ChiefSummaryCard extends StatelessWidget {
 
 class _ChiefWorkCard extends StatelessWidget {
   final TechnicalWork work;
+  final String? assignedToName;
+  final String? startedByName;
   final VoidCallback? onInspect;
 
-  const _ChiefWorkCard({required this.work, this.onInspect});
+  const _ChiefWorkCard({
+    required this.work,
+    required this.assignedToName,
+    required this.startedByName,
+    this.onInspect,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -618,6 +639,16 @@ class _ChiefWorkCard extends StatelessWidget {
                       work.description,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
+                    if (assignedToName != null ||
+                        startedByName != null ||
+                        work.startedAt != null) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      _WorkTraceMetadata(
+                        assignedToName: assignedToName,
+                        startedByName: startedByName,
+                        startedAt: work.startedAt,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -912,8 +943,14 @@ class _ApprovalRow extends StatelessWidget {
 
 class _RecentOperationRow extends StatelessWidget {
   final TechnicalWork work;
+  final String? assignedToName;
+  final String? startedByName;
 
-  const _RecentOperationRow({required this.work});
+  const _RecentOperationRow({
+    required this.work,
+    required this.assignedToName,
+    required this.startedByName,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -933,6 +970,16 @@ class _RecentOperationRow extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(work.location, style: Theme.of(context).textTheme.bodySmall),
+              if (assignedToName != null ||
+                  startedByName != null ||
+                  work.startedAt != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _WorkTraceMetadata(
+                  assignedToName: assignedToName,
+                  startedByName: startedByName,
+                  startedAt: work.startedAt,
+                ),
+              ],
             ],
           ),
         ),
@@ -941,4 +988,41 @@ class _RecentOperationRow extends StatelessWidget {
       ],
     );
   }
+}
+
+class _WorkTraceMetadata extends StatelessWidget {
+  final String? assignedToName;
+  final String? startedByName;
+  final DateTime? startedAt;
+
+  const _WorkTraceMetadata({
+    required this.assignedToName,
+    required this.startedByName,
+    required this.startedAt,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(
+      context,
+    ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600);
+    return Wrap(
+      spacing: AppSpacing.md,
+      runSpacing: AppSpacing.xs,
+      children: [
+        if (assignedToName != null)
+          Text('Atanan: $assignedToName', style: style),
+        if (startedByName != null)
+          Text('Başlatan: $startedByName', style: style),
+        if (startedAt != null)
+          Text('Başlangıç: ${_formatDateTime(startedAt!)}', style: style),
+      ],
+    );
+  }
+}
+
+String _formatDateTime(DateTime value) {
+  String twoDigits(int number) => number.toString().padLeft(2, '0');
+  return '${twoDigits(value.day)}.${twoDigits(value.month)}.${value.year} '
+      '${twoDigits(value.hour)}:${twoDigits(value.minute)}';
 }

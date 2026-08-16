@@ -3,9 +3,10 @@ import '../../domain/enums/auth_failure.dart';
 import '../../domain/enums/user_role.dart';
 import '../../domain/models/app_user.dart';
 import '../../domain/models/auth_result.dart';
+import '../../domain/services/app_user_directory.dart';
 import '../../domain/services/auth_service.dart';
 
-class FakeAuthService implements AuthService {
+class FakeAuthService implements AuthService, AppUserDirectory {
   AppUser? _currentUser;
 
   static const List<_FakeAccount> _accounts = [
@@ -40,6 +41,7 @@ class FakeAuthService implements AuthService {
           AppPermission.viewReports,
           AppPermission.approveOperations,
           AppPermission.assignTechnicalWork,
+          AppPermission.startTechnicalWork,
           AppPermission.manageTeamPermissions,
           AppPermission.createFieldReport,
         },
@@ -57,6 +59,7 @@ class FakeAuthService implements AuthService {
           AppPermission.createFieldReport,
           AppPermission.viewReports,
           AppPermission.approveOperations,
+          AppPermission.startTechnicalWork,
         },
       ),
     ),
@@ -117,6 +120,16 @@ class FakeAuthService implements AuthService {
   @override
   Future<AppUser?> getCurrentUser() async {
     return _currentUser;
+  }
+
+  @override
+  Future<AppUser?> findUserById(String userId) async {
+    for (final account in _accounts) {
+      if (account.user.id == userId) {
+        return account.user;
+      }
+    }
+    return null;
   }
 }
 

@@ -48,6 +48,22 @@ void main() {
     expect(reassigned.assignedToTeamId, 'team-001');
   });
 
+  test('copyWith başlangıç metadata alanlarını korur', () {
+    final startedAt = DateTime(2026, 8, 16, 11, 45);
+    final work = createWork(status: TechnicalWorkStatus.assigned).copyWith(
+      status: TechnicalWorkStatus.inProgress,
+      startedByUserId: 'engineer-001',
+      startedAt: startedAt,
+    );
+
+    final reprioritized = work.copyWith(
+      priority: TechnicalWorkPriority.critical,
+    );
+
+    expect(reprioritized.startedByUserId, 'engineer-001');
+    expect(identical(reprioritized.startedAt, startedAt), isTrue);
+  });
+
   test('kritik öncelikli iş kritik kabul edilir', () {
     final work = createWork(priority: TechnicalWorkPriority.critical);
 

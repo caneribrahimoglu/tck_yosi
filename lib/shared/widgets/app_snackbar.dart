@@ -13,6 +13,7 @@ class AppSnackbar {
     required String message,
     String? actionLabel,
     VoidCallback? onActionPressed,
+    Duration? duration,
   }) {
     final messenger = ScaffoldMessenger.of(context);
 
@@ -25,7 +26,7 @@ class AppSnackbar {
     messenger.showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        duration: AppSnackbarTheme.duration(type),
+        duration: duration ?? AppSnackbarTheme.duration(type),
         backgroundColor: backgroundColor,
         elevation: AppSnackbarTheme.elevation,
         margin: AppSnackbarTheme.margin,

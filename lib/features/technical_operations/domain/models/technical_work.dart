@@ -18,6 +18,8 @@ class TechnicalWork {
   final DateTime createdAt;
   final DateTime? plannedAt;
   final DateTime? completedAt;
+  final String? startedByUserId;
+  final DateTime? startedAt;
 
   const TechnicalWork({
     required this.id,
@@ -33,6 +35,8 @@ class TechnicalWork {
     this.assignedToTeamId,
     this.plannedAt,
     this.completedAt,
+    this.startedByUserId,
+    this.startedAt,
   });
 
   bool get isAssigned => assignedToUserId != null || assignedToTeamId != null;
@@ -42,6 +46,8 @@ class TechnicalWork {
     TechnicalWorkStatus? status,
     Object? assignedToUserId = _notProvided,
     Object? assignedToTeamId = _notProvided,
+    Object? startedByUserId = _notProvided,
+    Object? startedAt = _notProvided,
   }) {
     return TechnicalWork(
       id: id,
@@ -61,6 +67,12 @@ class TechnicalWork {
       createdAt: createdAt,
       plannedAt: plannedAt,
       completedAt: completedAt,
+      startedByUserId: identical(startedByUserId, _notProvided)
+          ? this.startedByUserId
+          : startedByUserId as String?,
+      startedAt: identical(startedAt, _notProvided)
+          ? this.startedAt
+          : startedAt as DateTime?,
     );
   }
 

@@ -83,6 +83,11 @@ void main() {
 
 class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
   @override
+  Future<bool> canUserStartTechnicalWork(String userId) async {
+    throw Exception('Repository error');
+  }
+
+  @override
   Future<bool> hasOpenWorkAssignedToTeam(String teamId) async {
     throw Exception('Repository error');
   }
@@ -116,6 +121,14 @@ class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
 
   @override
   Future<List<AssignmentTarget>> getAssignmentTargets() async {
+    throw Exception('Repository error');
+  }
+
+  @override
+  Future<TechnicalWork> startWork({
+    required String workId,
+    required String actorUserId,
+  }) async {
     throw Exception('Repository error');
   }
 }

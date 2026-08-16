@@ -14,6 +14,7 @@ extension TeamPermissionPresentation on AppPermission {
     AppPermission.approveOperations => 'Operasyon onaylama',
     AppPermission.manageUsers => 'Kullanıcı yönetimi',
     AppPermission.assignTechnicalWork => 'Teknik iş atama',
+    AppPermission.startTechnicalWork => 'Teknik işi başlatma',
     AppPermission.manageTeamPermissions => 'Ekip yetkisi yönetimi',
   };
 }

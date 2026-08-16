@@ -8,6 +8,8 @@ abstract interface class TechnicalWorkRepository {
 
   Future<List<TechnicalWork>> getAssignedWorks(String userId);
 
+  Future<bool> canUserStartTechnicalWork(String userId);
+
   Future<List<AssignmentTarget>> getAssignmentTargets();
 
   Future<bool> hasOpenWorkAssignedToTeam(String teamId);
@@ -16,6 +18,11 @@ abstract interface class TechnicalWorkRepository {
     required String workId,
     required TechnicalWorkPriority priority,
     required AssignmentTarget target,
+  });
+
+  Future<TechnicalWork> startWork({
+    required String workId,
+    required String actorUserId,
   });
 
   Future<TechnicalWork> createFieldReport({

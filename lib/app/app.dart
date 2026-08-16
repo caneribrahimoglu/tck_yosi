@@ -13,6 +13,8 @@ import '../features/teams/domain/repositories/team_repository.dart';
 import '../features/teams/presentation/controllers/team_controller.dart';
 import '../features/teams/data/adapters/team_assignment_target_adapter.dart';
 import '../features/technical_operations/data/adapters/technical_work_team_archive_guard.dart';
+import '../features/teams/data/adapters/team_technical_work_access_adapter.dart';
+import '../features/teams/data/adapters/technical_work_participant_name_adapter.dart';
 
 class TckYosiApp extends StatefulWidget {
   const TckYosiApp({super.key});
@@ -22,6 +24,7 @@ class TckYosiApp extends StatefulWidget {
 }
 
 class _TckYosiAppState extends State<TckYosiApp> {
+  late final FakeAuthService _authService;
   late final AuthController _authController;
   late final TechnicalWorkRepository _technicalWorkRepository;
   late final TechnicalWorkController _technicalWorkController;
@@ -33,7 +36,8 @@ class _TckYosiAppState extends State<TckYosiApp> {
   void initState() {
     super.initState();
 
-    _authController = AuthController(authService: FakeAuthService());
+    _authService = FakeAuthService();
+    _authController = AuthController(authService: _authService);
 
     _teamRepository = FakeTeamRepository(
       archiveGuard: TechnicalWorkTeamArchiveGuard(
@@ -45,10 +49,18 @@ class _TckYosiAppState extends State<TckYosiApp> {
       teamAssignmentTargetSource: TeamAssignmentTargetAdapter(
         repository: _teamRepository,
       ),
+      technicalWorkAccessSource: TeamTechnicalWorkAccessAdapter(
+        teamRepository: _teamRepository,
+        userDirectory: _authService,
+      ),
     );
 
     _technicalWorkController = TechnicalWorkController(
       repository: _technicalWorkRepository,
+      participantNameSource: TechnicalWorkParticipantNameAdapter(
+        teamRepository: _teamRepository,
+        userDirectory: _authService,
+      ),
     );
 
     _fieldReportController = FieldReportController(
