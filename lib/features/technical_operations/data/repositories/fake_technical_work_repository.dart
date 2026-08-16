@@ -9,6 +9,10 @@ import '../../domain/models/assignment_target.dart';
 import '../../domain/repositories/team_assignment_target_source.dart';
 import '../../domain/repositories/technical_work_access_source.dart';
 import '../../domain/errors/technical_work_start_exception.dart';
+import '../../domain/errors/technical_work_progress_exception.dart';
+import '../../domain/models/add_technical_work_progress_request.dart';
+import '../../domain/models/technical_work_progress_note.dart';
+import '../../domain/errors/technical_work_detail_read_exception.dart';
 
 class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
   static const _individualAssignmentTargets = [
@@ -23,17 +27,23 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
   final TechnicalWorkAccessSource? _technicalWorkAccessSource;
   final DateTime Function() _now;
   final Set<String> _startingWorkIds = {};
+  final List<TechnicalWorkProgressNote> _progressNotes;
+  final Set<String> _progressSubmissionsInFlight = {};
+  int _nextProgressNoteNumber;
   final Duration delay;
 
   FakeTechnicalWorkRepository({
     List<TechnicalWork>? works,
     TeamAssignmentTargetSource? teamAssignmentTargetSource,
     TechnicalWorkAccessSource? technicalWorkAccessSource,
+    List<TechnicalWorkProgressNote>? progressNotes,
     DateTime Function()? now,
     this.delay = const Duration(milliseconds: 500),
   }) : _works = List.of(works ?? FakeTechnicalWorkData.works),
        _teamAssignmentTargetSource = teamAssignmentTargetSource,
        _technicalWorkAccessSource = technicalWorkAccessSource,
+       _progressNotes = List.of(progressNotes ?? const []),
+       _nextProgressNoteNumber = (progressNotes ?? const []).length + 1,
        _now = now ?? DateTime.now;
 
   @override
@@ -61,6 +71,53 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
       }
     }
     return List.unmodifiable(matches.values);
+  }
+
+  @override
+  Future<TechnicalWork> getWorkById({
+    required String workId,
+    required String actorUserId,
+  }) async {
+    await _simulateNetworkDelay();
+    return _authorizeDetailRead(workId: workId, actorUserId: actorUserId);
+  }
+
+  @override
+  Future<List<TechnicalWorkProgressNote>> getProgressNotes({
+    required String workId,
+    required String actorUserId,
+  }) async {
+    await _simulateNetworkDelay();
+    await _authorizeDetailRead(workId: workId, actorUserId: actorUserId);
+    final notes =
+        _progressNotes
+            .where((note) => note.workId == workId)
+            .toList(growable: false)
+          ..sort(
+            (first, second) => first.createdAt.compareTo(second.createdAt),
+          );
+    return List.unmodifiable(notes);
+  }
+
+  @override
+  Future<bool> canUserAddProgress({
+    required String workId,
+    required String userId,
+  }) async {
+    await _simulateNetworkDelay();
+    final access = await _technicalWorkAccessSource?.getActorAccess(userId);
+    final workIndex = _works.indexWhere((work) => work.id == workId);
+    if (access == null || !access.isActive || workIndex == -1) {
+      return false;
+    }
+    final work = _works[workIndex];
+    final actorMatchesAssignment =
+        work.assignedToUserId == userId ||
+        (work.assignedToTeamId != null &&
+            access.activeTeamIds.contains(work.assignedToTeamId));
+    return access.canAddTechnicalWorkProgress &&
+        actorMatchesAssignment &&
+        work.status == TechnicalWorkStatus.inProgress;
   }
 
   @override
@@ -156,6 +213,48 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
     }
   }
 
+  @override
+  Future<TechnicalWorkProgressNote> addProgressNote({
+    required AddTechnicalWorkProgressRequest request,
+    required String actorUserId,
+  }) async {
+    await _simulateNetworkDelay();
+    var work = _findWork(request.workId);
+    await _ensureActorCanAddProgress(work: work, actorUserId: actorUserId);
+    final content = request.content.trim();
+    if (content.isEmpty) {
+      throw const TechnicalWorkProgressInvalidInputException();
+    }
+    if (work.status != TechnicalWorkStatus.inProgress) {
+      throw const TechnicalWorkProgressInvalidStateException();
+    }
+
+    final submissionKey = '${request.workId}:$actorUserId';
+    if (!_progressSubmissionsInFlight.add(submissionKey)) {
+      work = _findWork(request.workId);
+      await _ensureActorCanAddProgress(work: work, actorUserId: actorUserId);
+      throw const TechnicalWorkProgressSubmissionInFlightException();
+    }
+    try {
+      work = _findWork(request.workId);
+      await _ensureActorCanAddProgress(work: work, actorUserId: actorUserId);
+      if (work.status != TechnicalWorkStatus.inProgress) {
+        throw const TechnicalWorkProgressInvalidStateException();
+      }
+      final note = TechnicalWorkProgressNote(
+        id: 'progress-${_nextProgressNoteNumber++}',
+        workId: work.id,
+        authorUserId: actorUserId,
+        content: content,
+        createdAt: _now(),
+      );
+      _progressNotes.add(note);
+      return note;
+    } finally {
+      _progressSubmissionsInFlight.remove(submissionKey);
+    }
+  }
+
   Future<void> _ensureActorCanStartWork({
     required TechnicalWork work,
     required String actorUserId,
@@ -181,6 +280,59 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
     if (work.status != TechnicalWorkStatus.assigned) {
       throw const TechnicalWorkStartNotAllowedException();
     }
+  }
+
+  Future<void> _ensureActorCanAddProgress({
+    required TechnicalWork work,
+    required String actorUserId,
+  }) async {
+    final access = await _technicalWorkAccessSource?.getActorAccess(
+      actorUserId,
+    );
+    final actorMatchesAssignment =
+        work.assignedToUserId == actorUserId ||
+        (work.assignedToTeamId != null &&
+            (access?.activeTeamIds.contains(work.assignedToTeamId) ?? false));
+    if (access == null ||
+        !access.canAddTechnicalWorkProgress ||
+        !actorMatchesAssignment) {
+      throw const TechnicalWorkProgressNotAllowedException();
+    }
+  }
+
+  Future<TechnicalWork> _authorizeDetailRead({
+    required String workId,
+    required String actorUserId,
+  }) async {
+    final access = await _technicalWorkAccessSource?.getActorAccess(
+      actorUserId,
+    );
+    final workIndex = _works.indexWhere((work) => work.id == workId);
+    if (access == null || !access.isActive) {
+      throw const TechnicalWorkDetailReadNotAllowedException();
+    }
+    if (workIndex == -1) {
+      if (!access.canViewAllTechnicalWork) {
+        throw const TechnicalWorkDetailReadNotAllowedException();
+      }
+      throw StateError('Teknik iş bulunamadı.');
+    }
+    final work = _works[workIndex];
+    final actorMatchesAssignment =
+        work.assignedToUserId == actorUserId ||
+        (work.assignedToTeamId != null &&
+            access.activeTeamIds.contains(work.assignedToTeamId));
+    if (!access.canViewAllTechnicalWork && !actorMatchesAssignment) {
+      throw const TechnicalWorkDetailReadNotAllowedException();
+    }
+    return work;
+  }
+
+  TechnicalWork _findWork(String workId) {
+    return _works.firstWhere(
+      (work) => work.id == workId,
+      orElse: () => throw StateError('Teknik iş bulunamadı.'),
+    );
   }
 
   @override

@@ -6,6 +6,7 @@ class TeamPermissionPolicy {
   static const Set<AppPermission> protectedPermissions = {
     AppPermission.manageUsers,
     AppPermission.manageTeamPermissions,
+    AppPermission.viewAllTechnicalWork,
   };
 
   static bool canManageTeams(Set<AppPermission> actorPermissions) {

@@ -3,6 +3,8 @@ import 'package:tck_yosi/features/technical_operations/data/repositories/fake_te
 import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_category.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/create_field_report_request.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/technical_work.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/add_technical_work_progress_request.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/technical_work_progress_note.dart';
 import 'package:tck_yosi/features/technical_operations/domain/repositories/technical_work_repository.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/assignment_target.dart';
 import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_priority.dart';
@@ -83,6 +85,22 @@ void main() {
 
 class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
   @override
+  Future<TechnicalWorkProgressNote> addProgressNote({
+    required AddTechnicalWorkProgressRequest request,
+    required String actorUserId,
+  }) async {
+    throw Exception('Repository error');
+  }
+
+  @override
+  Future<bool> canUserAddProgress({
+    required String workId,
+    required String userId,
+  }) async {
+    throw Exception('Repository error');
+  }
+
+  @override
   Future<bool> canUserStartTechnicalWork(String userId) async {
     throw Exception('Repository error');
   }
@@ -116,6 +134,22 @@ class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
 
   @override
   Future<List<TechnicalWork>> getAssignedWorks(String userId) async {
+    throw Exception('Repository error');
+  }
+
+  @override
+  Future<List<TechnicalWorkProgressNote>> getProgressNotes({
+    required String workId,
+    required String actorUserId,
+  }) async {
+    throw Exception('Repository error');
+  }
+
+  @override
+  Future<TechnicalWork> getWorkById({
+    required String workId,
+    required String actorUserId,
+  }) async {
     throw Exception('Repository error');
   }
 

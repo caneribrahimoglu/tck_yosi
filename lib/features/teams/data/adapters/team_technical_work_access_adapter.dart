@@ -21,6 +21,9 @@ class TeamTechnicalWorkAccessAdapter implements TechnicalWorkAccessSource {
       return const TechnicalWorkActorAccess(
         activeTeamIds: {},
         canStartTechnicalWork: false,
+        canAddTechnicalWorkProgress: false,
+        isActive: false,
+        canViewAllTechnicalWork: false,
       );
     }
 
@@ -50,6 +53,13 @@ class TeamTechnicalWorkAccessAdapter implements TechnicalWorkAccessSource {
       ),
       canStartTechnicalWork: effectivePermissions.contains(
         AppPermission.startTechnicalWork,
+      ),
+      canAddTechnicalWorkProgress: effectivePermissions.contains(
+        AppPermission.addTechnicalWorkProgress,
+      ),
+      isActive: true,
+      canViewAllTechnicalWork: user.permissions.contains(
+        AppPermission.viewAllTechnicalWork,
       ),
     );
   }

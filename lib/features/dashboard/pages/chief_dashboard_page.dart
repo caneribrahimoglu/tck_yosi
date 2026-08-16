@@ -26,6 +26,7 @@ class ChiefDashboardPage extends StatefulWidget {
   final TechnicalWorkController technicalWorkController;
   final Future<void> Function() onCreateFieldReport;
   final Future<void> Function() onManageTeams;
+  final Future<void> Function(TechnicalWork work)? onViewDetail;
 
   const ChiefDashboardPage({
     super.key,
@@ -34,6 +35,7 @@ class ChiefDashboardPage extends StatefulWidget {
     required this.technicalWorkController,
     required this.onCreateFieldReport,
     required this.onManageTeams,
+    this.onViewDetail,
   });
 
   @override
@@ -363,6 +365,9 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
                 startedByName: widget.technicalWorkController.startedByName(
                   priorityWorks[index],
                 ),
+                onViewDetail: widget.onViewDetail == null
+                    ? null
+                    : () => widget.onViewDetail!(priorityWorks[index]),
                 onInspect:
                     !priorityWorks[index].isAssigned &&
                         widget.currentUser.hasPermission(
@@ -488,6 +493,9 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
                   startedByName: widget.technicalWorkController.startedByName(
                     displayedWorks[index],
                   ),
+                  onViewDetail: widget.onViewDetail == null
+                      ? null
+                      : () => widget.onViewDetail!(displayedWorks[index]),
                 ),
                 if (index != displayedWorks.length - 1)
                   const Divider(height: AppSpacing.xl),
@@ -592,12 +600,14 @@ class _ChiefWorkCard extends StatelessWidget {
   final String? assignedToName;
   final String? startedByName;
   final VoidCallback? onInspect;
+  final VoidCallback? onViewDetail;
 
   const _ChiefWorkCard({
     required this.work,
     required this.assignedToName,
     required this.startedByName,
     this.onInspect,
+    this.onViewDetail,
   });
 
   @override
@@ -674,6 +684,12 @@ class _ChiefWorkCard extends StatelessWidget {
                 label: work.status.label,
                 type: work.status.statusType,
               ),
+              if (onViewDetail != null)
+                AppButton.secondary(
+                  label: 'Detayı Gör',
+                  icon: Icons.open_in_new_rounded,
+                  onPressed: onViewDetail,
+                ),
               if (onInspect != null)
                 AppButton.primary(
                   label: 'İncele ve Ata',
@@ -945,16 +961,19 @@ class _RecentOperationRow extends StatelessWidget {
   final TechnicalWork work;
   final String? assignedToName;
   final String? startedByName;
+  final VoidCallback? onViewDetail;
 
   const _RecentOperationRow({
     required this.work,
     required this.assignedToName,
     required this.startedByName,
+    required this.onViewDetail,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final information = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(work.category.icon, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: AppSpacing.md),
@@ -983,9 +1002,42 @@ class _RecentOperationRow extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: AppSpacing.md),
-        AppStatusChip(label: work.status.label, type: work.status.statusType),
       ],
+    );
+    final actions = Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        AppStatusChip(label: work.status.label, type: work.status.statusType),
+        if (onViewDetail != null)
+          AppButton.secondary(
+            label: 'Detayı Gör',
+            icon: Icons.open_in_new_rounded,
+            onPressed: onViewDetail,
+          ),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 600) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              information,
+              const SizedBox(height: AppSpacing.md),
+              actions,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: information),
+            const SizedBox(width: AppSpacing.md),
+            actions,
+          ],
+        );
+      },
     );
   }
 }

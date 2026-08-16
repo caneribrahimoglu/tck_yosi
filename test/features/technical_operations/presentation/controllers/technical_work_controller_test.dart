@@ -13,6 +13,8 @@ import 'package:tck_yosi/features/technical_operations/domain/enums/technical_wo
 import 'package:tck_yosi/features/technical_operations/domain/errors/technical_work_start_exception.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/technical_work_actor_access.dart';
 import 'package:tck_yosi/features/technical_operations/domain/repositories/technical_work_access_source.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/add_technical_work_progress_request.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/technical_work_progress_note.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_start_status.dart';
 
 void main() {
@@ -237,6 +239,22 @@ class _AllowedAccessSource implements TechnicalWorkAccessSource {
 
 class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
   @override
+  Future<TechnicalWorkProgressNote> addProgressNote({
+    required AddTechnicalWorkProgressRequest request,
+    required String actorUserId,
+  }) {
+    throw Exception('Repository error');
+  }
+
+  @override
+  Future<bool> canUserAddProgress({
+    required String workId,
+    required String userId,
+  }) {
+    throw Exception('Repository error');
+  }
+
+  @override
   Future<bool> canUserStartTechnicalWork(String userId) {
     throw Exception('Repository error');
   }
@@ -262,6 +280,22 @@ class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
 
   @override
   Future<List<TechnicalWork>> getAssignedWorks(String userId) {
+    throw Exception('Repository error');
+  }
+
+  @override
+  Future<List<TechnicalWorkProgressNote>> getProgressNotes({
+    required String workId,
+    required String actorUserId,
+  }) {
+    throw Exception('Repository error');
+  }
+
+  @override
+  Future<TechnicalWork> getWorkById({
+    required String workId,
+    required String actorUserId,
+  }) {
     throw Exception('Repository error');
   }
 

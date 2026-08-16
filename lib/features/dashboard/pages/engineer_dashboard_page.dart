@@ -23,6 +23,7 @@ class EngineerDashboardPage extends StatefulWidget {
   final Future<void> Function() onLogout;
   final TechnicalWorkController technicalWorkController;
   final Future<void> Function() onCreateFieldReport;
+  final Future<void> Function(TechnicalWork work)? onViewDetail;
 
   const EngineerDashboardPage({
     super.key,
@@ -30,6 +31,7 @@ class EngineerDashboardPage extends StatefulWidget {
     required this.onLogout,
     required this.technicalWorkController,
     required this.onCreateFieldReport,
+    this.onViewDetail,
   });
 
   @override
@@ -313,6 +315,9 @@ class _EngineerDashboardPageState extends State<EngineerDashboardPage> {
                 work: work,
                 currentUser: widget.currentUser,
                 isStarting: controller.isStarting(work.id),
+                onViewDetail: widget.onViewDetail == null
+                    ? null
+                    : () => widget.onViewDetail!(work),
                 onStart:
                     work.status == TechnicalWorkStatus.assigned &&
                         controller.canCurrentUserStartTechnicalWork &&
@@ -409,12 +414,14 @@ class _TechnicalWorkCard extends StatelessWidget {
   final AppUser currentUser;
   final bool isStarting;
   final VoidCallback? onStart;
+  final VoidCallback? onViewDetail;
 
   const _TechnicalWorkCard({
     required this.work,
     required this.currentUser,
     required this.isStarting,
     required this.onStart,
+    required this.onViewDetail,
   });
 
   @override
@@ -501,6 +508,13 @@ class _TechnicalWorkCard extends StatelessWidget {
                   onPressed: isStarting ? null : onStart,
                 )
               : null;
+          final detailButton = onViewDetail == null
+              ? null
+              : AppButton.secondary(
+                  label: 'Detayı Gör',
+                  icon: Icons.open_in_new_rounded,
+                  onPressed: onViewDetail,
+                );
 
           if (isNarrow) {
             return Column(
@@ -509,9 +523,13 @@ class _TechnicalWorkCard extends StatelessWidget {
                 workDetails,
                 const SizedBox(height: AppSpacing.md),
                 statusChips,
-                if (startButton != null) ...[
+                if (startButton != null || detailButton != null) ...[
                   const SizedBox(height: AppSpacing.md),
-                  startButton,
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: [?detailButton, ?startButton],
+                  ),
                 ],
               ],
             );
@@ -525,9 +543,13 @@ class _TechnicalWorkCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   statusChips,
-                  if (startButton != null) ...[
+                  if (startButton != null || detailButton != null) ...[
                     const SizedBox(height: AppSpacing.md),
-                    startButton,
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: [?detailButton, ?startButton],
+                    ),
                   ],
                 ],
               ),

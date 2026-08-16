@@ -4,6 +4,7 @@ import '../../../../shared/widgets/app_loading.dart';
 import '../../../dashboard/widgets/role_dashboard_resolver.dart';
 import '../../../technical_operations/presentation/controllers/field_report_controller.dart';
 import '../../../technical_operations/presentation/controllers/technical_work_controller.dart';
+import '../../../technical_operations/presentation/controllers/technical_work_detail_controller.dart';
 import '../../../teams/presentation/controllers/team_controller.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/auth_status.dart';
@@ -12,6 +13,7 @@ import '../pages/login_page.dart';
 class AuthGate extends StatefulWidget {
   final AuthController authController;
   final TechnicalWorkController technicalWorkController;
+  final TechnicalWorkDetailController technicalWorkDetailController;
   final FieldReportController fieldReportController;
   final TeamController teamController;
 
@@ -19,6 +21,7 @@ class AuthGate extends StatefulWidget {
     super.key,
     required this.authController,
     required this.technicalWorkController,
+    required this.technicalWorkDetailController,
     required this.fieldReportController,
     required this.teamController,
   });
@@ -55,6 +58,7 @@ class _AuthGateState extends State<AuthGate> {
             currentUser: widget.authController.currentUser!,
             onLogout: widget.authController.logout,
             technicalWorkController: widget.technicalWorkController,
+            technicalWorkDetailController: widget.technicalWorkDetailController,
             fieldReportController: widget.fieldReportController,
             teamController: widget.teamController,
           ),

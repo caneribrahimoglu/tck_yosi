@@ -12,5 +12,7 @@ enum AppPermission {
   manageUsers,
   assignTechnicalWork,
   startTechnicalWork,
+  addTechnicalWorkProgress,
+  viewAllTechnicalWork,
   manageTeamPermissions,
 }

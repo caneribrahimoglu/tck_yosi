@@ -5,6 +5,8 @@ import '../../auth/domain/models/app_user.dart';
 import '../../technical_operations/domain/models/technical_work.dart';
 import '../../technical_operations/presentation/controllers/field_report_controller.dart';
 import '../../technical_operations/presentation/controllers/technical_work_controller.dart';
+import '../../technical_operations/presentation/controllers/technical_work_detail_controller.dart';
+import '../../technical_operations/presentation/pages/technical_work_detail_page.dart';
 import '../../technical_operations/presentation/pages/field_report_page.dart';
 import '../../teams/presentation/controllers/team_controller.dart';
 import '../../teams/presentation/pages/team_management_page.dart';
@@ -17,6 +19,7 @@ class RoleDashboardResolver extends StatelessWidget {
   final AppUser currentUser;
   final Future<void> Function() onLogout;
   final TechnicalWorkController technicalWorkController;
+  final TechnicalWorkDetailController? technicalWorkDetailController;
   final FieldReportController fieldReportController;
   final TeamController teamController;
 
@@ -25,6 +28,7 @@ class RoleDashboardResolver extends StatelessWidget {
     required this.currentUser,
     required this.onLogout,
     required this.technicalWorkController,
+    this.technicalWorkDetailController,
     required this.fieldReportController,
     required this.teamController,
   });
@@ -57,6 +61,25 @@ class RoleDashboardResolver extends StatelessWidget {
     await technicalWorkController.load(currentUser.id);
   }
 
+  Future<void> _openTechnicalWorkDetail(
+    BuildContext context,
+    TechnicalWork work,
+  ) async {
+    final detailController = technicalWorkDetailController;
+    if (detailController == null) {
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => TechnicalWorkDetailPage(
+          workId: work.id,
+          currentUser: currentUser,
+          controller: detailController,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return switch (currentUser.role) {
@@ -70,6 +93,9 @@ class RoleDashboardResolver extends StatelessWidget {
         onLogout: onLogout,
         technicalWorkController: technicalWorkController,
         onCreateFieldReport: () => _openFieldReport(context),
+        onViewDetail: technicalWorkDetailController == null
+            ? null
+            : (work) => _openTechnicalWorkDetail(context, work),
       ),
       UserRole.chief => ChiefDashboardPage(
         currentUser: currentUser,
@@ -77,6 +103,9 @@ class RoleDashboardResolver extends StatelessWidget {
         technicalWorkController: technicalWorkController,
         onCreateFieldReport: () => _openFieldReport(context),
         onManageTeams: () => _openTeamManagement(context),
+        onViewDetail: technicalWorkDetailController == null
+            ? null
+            : (work) => _openTechnicalWorkDetail(context, work),
       ),
       UserRole.cleaningStaff ||
       UserRole.technician ||

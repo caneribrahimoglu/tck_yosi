@@ -8,6 +8,7 @@ import '../features/technical_operations/data/repositories/fake_technical_work_r
 import '../features/technical_operations/domain/repositories/technical_work_repository.dart';
 import '../features/technical_operations/presentation/controllers/field_report_controller.dart';
 import '../features/technical_operations/presentation/controllers/technical_work_controller.dart';
+import '../features/technical_operations/presentation/controllers/technical_work_detail_controller.dart';
 import '../features/teams/data/repositories/fake_team_repository.dart';
 import '../features/teams/domain/repositories/team_repository.dart';
 import '../features/teams/presentation/controllers/team_controller.dart';
@@ -28,6 +29,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
   late final AuthController _authController;
   late final TechnicalWorkRepository _technicalWorkRepository;
   late final TechnicalWorkController _technicalWorkController;
+  late final TechnicalWorkDetailController _technicalWorkDetailController;
   late final FieldReportController _fieldReportController;
   late final TeamRepository _teamRepository;
   late final TeamController _teamController;
@@ -55,12 +57,17 @@ class _TckYosiAppState extends State<TckYosiApp> {
       ),
     );
 
+    final participantNameSource = TechnicalWorkParticipantNameAdapter(
+      teamRepository: _teamRepository,
+      userDirectory: _authService,
+    );
     _technicalWorkController = TechnicalWorkController(
       repository: _technicalWorkRepository,
-      participantNameSource: TechnicalWorkParticipantNameAdapter(
-        teamRepository: _teamRepository,
-        userDirectory: _authService,
-      ),
+      participantNameSource: participantNameSource,
+    );
+    _technicalWorkDetailController = TechnicalWorkDetailController(
+      repository: _technicalWorkRepository,
+      participantNameSource: participantNameSource,
     );
 
     _fieldReportController = FieldReportController(
@@ -77,6 +84,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
   void dispose() {
     _authController.dispose();
     _technicalWorkController.dispose();
+    _technicalWorkDetailController.dispose();
     _fieldReportController.dispose();
     _teamController.dispose();
 
@@ -92,6 +100,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
       home: AuthGate(
         authController: _authController,
         technicalWorkController: _technicalWorkController,
+        technicalWorkDetailController: _technicalWorkDetailController,
         fieldReportController: _fieldReportController,
         teamController: _teamController,
       ),

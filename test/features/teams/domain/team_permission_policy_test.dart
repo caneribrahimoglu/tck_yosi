@@ -11,6 +11,7 @@ void main() {
       AppPermission.viewReports,
       AppPermission.manageUsers,
       AppPermission.manageTeamPermissions,
+      AppPermission.viewAllTechnicalWork,
     });
 
     expect(grantable, {AppPermission.viewReports});

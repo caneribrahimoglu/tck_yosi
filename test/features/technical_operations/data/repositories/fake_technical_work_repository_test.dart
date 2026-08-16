@@ -20,6 +20,10 @@ import 'package:tck_yosi/features/teams/domain/models/team_membership.dart';
 import 'package:tck_yosi/features/technical_operations/domain/errors/technical_work_start_exception.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/technical_work_actor_access.dart';
 import 'package:tck_yosi/features/technical_operations/domain/repositories/technical_work_access_source.dart';
+import 'package:tck_yosi/features/technical_operations/domain/errors/technical_work_progress_exception.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/add_technical_work_progress_request.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/technical_work_progress_note.dart';
+import 'package:tck_yosi/features/technical_operations/domain/errors/technical_work_detail_read_exception.dart';
 
 void main() {
   final testWorks = [
@@ -448,6 +452,391 @@ void main() {
     expect(stored.status, TechnicalWorkStatus.inProgress);
   });
 
+  test('yetkili aktif ekip üyesi ilerleme kaydı ekler', () async {
+    final createdAt = DateTime(2026, 8, 17, 10, 15);
+    final repository = _createRepositoryWithTeamAccess(
+      works: [
+        _teamAssignedWork().copyWith(status: TechnicalWorkStatus.inProgress),
+      ],
+      now: () => createdAt,
+    );
+
+    final note = await repository.addProgressNote(
+      request: const AddTechnicalWorkProgressRequest(
+        workId: 'work-team',
+        content: '  Saha kontrolü tamamlandı.  ',
+      ),
+      actorUserId: 'user-engineer-001',
+    );
+
+    expect(note.content, 'Saha kontrolü tamamlandı.');
+    expect(note.authorUserId, 'user-engineer-001');
+    expect(note.createdAt, createdAt);
+    expect(note.id, isNotEmpty);
+  });
+
+  test('doğrudan atanmış yetkili kullanıcı ilerleme kaydı ekler', () async {
+    final work = _teamAssignedWork().copyWith(
+      status: TechnicalWorkStatus.inProgress,
+      assignedToTeamId: null,
+      assignedToUserId: 'user-engineer-001',
+    );
+    final repository = _createRepositoryWithTeamAccess(works: [work]);
+
+    final note = await repository.addProgressNote(
+      request: AddTechnicalWorkProgressRequest(
+        workId: work.id,
+        content: 'Malzeme değişimi yapıldı.',
+      ),
+      actorUserId: 'user-engineer-001',
+    );
+
+    expect(note.workId, work.id);
+  });
+
+  test('yetkisiz kullanıcı ilerleme kaydı ekleyemez', () async {
+    final repository = _createRepositoryWithTeamAccess(
+      works: [
+        _teamAssignedWork().copyWith(status: TechnicalWorkStatus.inProgress),
+      ],
+    );
+
+    expect(
+      () => repository.addProgressNote(
+        request: const AddTechnicalWorkProgressRequest(
+          workId: 'work-team',
+          content: 'Yetkisiz not',
+        ),
+        actorUserId: 'user-driver-001',
+      ),
+      throwsA(isA<TechnicalWorkProgressNotAllowedException>()),
+    );
+
+    final assignedRepository = _createRepositoryWithTeamAccess(
+      works: [_teamAssignedWork()],
+    );
+    expect(
+      () => assignedRepository.addProgressNote(
+        request: const AddTechnicalWorkProgressRequest(
+          workId: 'work-team',
+          content: 'Durum bilgisi sızmamalı',
+        ),
+        actorUserId: 'user-driver-001',
+      ),
+      throwsA(isA<TechnicalWorkProgressNotAllowedException>()),
+    );
+  });
+
+  test('pasif üyelik veya arşivli ekip üzerinden not eklenemez', () async {
+    final teams = [
+      (
+        team: _technicalTeam,
+        membership: const TeamMembership(
+          id: 'membership-passive-progress',
+          teamId: 'team-technical',
+          userId: 'user-engineer-001',
+          isActive: false,
+        ),
+      ),
+      (
+        team: _technicalTeam.copyWith(isArchived: true),
+        membership: _technicalMembership,
+      ),
+    ];
+    for (final item in teams) {
+      final teamRepository = FakeTeamRepository(
+        teams: [item.team],
+        memberships: [item.membership],
+        delay: Duration.zero,
+      );
+      final repository = _createRepositoryWithTeamAccess(
+        works: [
+          _teamAssignedWork().copyWith(status: TechnicalWorkStatus.inProgress),
+        ],
+        teamRepository: teamRepository,
+      );
+
+      expect(
+        () => repository.addProgressNote(
+          request: const AddTechnicalWorkProgressRequest(
+            workId: 'work-team',
+            content: 'Erişilemez not',
+          ),
+          actorUserId: 'user-engineer-001',
+        ),
+        throwsA(isA<TechnicalWorkProgressNotAllowedException>()),
+      );
+    }
+  });
+
+  test('etkin yetkisi olmayan aktif üye ilerleme kaydı ekleyemez', () async {
+    final repository = FakeTechnicalWorkRepository(
+      works: [
+        _teamAssignedWork().copyWith(status: TechnicalWorkStatus.inProgress),
+      ],
+      delay: Duration.zero,
+      technicalWorkAccessSource: const _AccessSourceWithoutStartPermission(),
+    );
+
+    expect(
+      () => repository.addProgressNote(
+        request: const AddTechnicalWorkProgressRequest(
+          workId: 'work-team',
+          content: 'Yetkisiz not',
+        ),
+        actorUserId: 'user-engineer-001',
+      ),
+      throwsA(isA<TechnicalWorkProgressNotAllowedException>()),
+    );
+  });
+
+  test('boş not ve yanlış iş durumu typed hata verir', () async {
+    final inProgressRepository = _createRepositoryWithTeamAccess(
+      works: [
+        _teamAssignedWork().copyWith(status: TechnicalWorkStatus.inProgress),
+      ],
+    );
+    expect(
+      () => inProgressRepository.addProgressNote(
+        request: const AddTechnicalWorkProgressRequest(
+          workId: 'work-team',
+          content: '   ',
+        ),
+        actorUserId: 'user-engineer-001',
+      ),
+      throwsA(isA<TechnicalWorkProgressInvalidInputException>()),
+    );
+
+    final assignedRepository = _createRepositoryWithTeamAccess(
+      works: [_teamAssignedWork()],
+    );
+    expect(
+      () => assignedRepository.addProgressNote(
+        request: const AddTechnicalWorkProgressRequest(
+          workId: 'work-team',
+          content: 'Erken not',
+        ),
+        actorUserId: 'user-engineer-001',
+      ),
+      throwsA(isA<TechnicalWorkProgressInvalidStateException>()),
+    );
+  });
+
+  test('eşzamanlı aynı ilerleme isteği yalnız bir kayıt oluşturur', () async {
+    final repository = FakeTechnicalWorkRepository(
+      works: [
+        _teamAssignedWork().copyWith(status: TechnicalWorkStatus.inProgress),
+      ],
+      delay: const Duration(milliseconds: 10),
+      technicalWorkAccessSource: _CoordinatedAccessSource(),
+    );
+
+    Future<Object> add() async {
+      try {
+        return await repository.addProgressNote(
+          request: const AddTechnicalWorkProgressRequest(
+            workId: 'work-team',
+            content: 'Tek kayıt',
+          ),
+          actorUserId: 'user-engineer-001',
+        );
+      } catch (error) {
+        return error;
+      }
+    }
+
+    final results = await Future.wait([add(), add()]);
+
+    expect(results.whereType<TechnicalWorkProgressNote>(), hasLength(1));
+    expect(
+      results.whereType<TechnicalWorkProgressSubmissionInFlightException>(),
+      hasLength(1),
+    );
+    expect(
+      await repository.getProgressNotes(
+        workId: 'work-team',
+        actorUserId: 'user-engineer-001',
+      ),
+      hasLength(1),
+    );
+  });
+
+  test(
+    'ilerleme listesi immutable, kalıcı ve eskiden yeniye sıralıdır',
+    () async {
+      final newer = TechnicalWorkProgressNote(
+        id: 'progress-new',
+        workId: 'work-team',
+        authorUserId: 'user-engineer-001',
+        content: 'İkinci kayıt',
+        createdAt: DateTime(2026, 8, 17, 11),
+      );
+      final older = TechnicalWorkProgressNote(
+        id: 'progress-old',
+        workId: 'work-team',
+        authorUserId: 'user-engineer-001',
+        content: 'İlk kayıt',
+        createdAt: DateTime(2026, 8, 17, 9),
+      );
+      final repository = FakeTechnicalWorkRepository(
+        works: [
+          _teamAssignedWork().copyWith(status: TechnicalWorkStatus.inProgress),
+        ],
+        progressNotes: [newer, older],
+        delay: Duration.zero,
+        technicalWorkAccessSource: _CoordinatedAccessSource(),
+      );
+
+      final notes = await repository.getProgressNotes(
+        workId: 'work-team',
+        actorUserId: 'user-engineer-001',
+      );
+
+      expect(notes.map((note) => note.id), ['progress-old', 'progress-new']);
+      expect(() => notes.add(older), throwsA(isA<UnsupportedError>()));
+      expect(
+        await repository.getProgressNotes(
+          workId: 'work-team',
+          actorUserId: 'user-engineer-001',
+        ),
+        hasLength(2),
+      );
+    },
+  );
+
+  test(
+    'global görüntüleme yetkili şef herhangi bir detay ve notu okur',
+    () async {
+      final repository = _createRepositoryWithTeamAccess(
+        works: [_teamAssignedWork()],
+      );
+
+      final work = await repository.getWorkById(
+        workId: 'work-team',
+        actorUserId: 'user-chief-001',
+      );
+      final notes = await repository.getProgressNotes(
+        workId: 'work-team',
+        actorUserId: 'user-chief-001',
+      );
+
+      expect(work.id, 'work-team');
+      expect(notes, isEmpty);
+    },
+  );
+
+  test('doğrudan atanmış kullanıcı ve aktif ekip üyesi detayı okur', () async {
+    final teamRepository = _createRepositoryWithTeamAccess(
+      works: [_teamAssignedWork()],
+    );
+    final directRepository = _createRepositoryWithTeamAccess(
+      works: [
+        _teamAssignedWork().copyWith(
+          assignedToTeamId: null,
+          assignedToUserId: 'user-engineer-001',
+        ),
+      ],
+    );
+
+    expect(
+      (await teamRepository.getWorkById(
+        workId: 'work-team',
+        actorUserId: 'user-engineer-001',
+      )).id,
+      'work-team',
+    );
+    expect(
+      (await directRepository.getWorkById(
+        workId: 'work-team',
+        actorUserId: 'user-engineer-001',
+      )).id,
+      'work-team',
+    );
+  });
+
+  test('ilgisiz, pasif ve bulunmayan kullanıcı detay okuyamaz', () async {
+    final repository = _createRepositoryWithTeamAccess(
+      works: [_teamAssignedWork()],
+    );
+
+    for (final actorUserId in [
+      'user-driver-001',
+      'user-inactive-001',
+      'missing-user',
+    ]) {
+      expect(
+        () => repository.getWorkById(
+          workId: 'work-team',
+          actorUserId: actorUserId,
+        ),
+        throwsA(isA<TechnicalWorkDetailReadNotAllowedException>()),
+      );
+    }
+  });
+
+  test(
+    'pasif üyelik, pasif ekip ve arşivli ekip detay erişimi vermez',
+    () async {
+      final cases = [
+        (
+          team: _technicalTeam,
+          membership: const TeamMembership(
+            id: 'membership-passive-read',
+            teamId: 'team-technical',
+            userId: 'user-engineer-001',
+            isActive: false,
+          ),
+        ),
+        (
+          team: _technicalTeam.copyWith(isActive: false),
+          membership: _technicalMembership,
+        ),
+        (
+          team: _technicalTeam.copyWith(isArchived: true),
+          membership: _technicalMembership,
+        ),
+      ];
+      for (final item in cases) {
+        final teamRepository = FakeTeamRepository(
+          teams: [item.team],
+          memberships: [item.membership],
+          delay: Duration.zero,
+        );
+        final repository = _createRepositoryWithTeamAccess(
+          works: [_teamAssignedWork()],
+          teamRepository: teamRepository,
+        );
+
+        expect(
+          () => repository.getProgressNotes(
+            workId: 'work-team',
+            actorUserId: 'user-engineer-001',
+          ),
+          throwsA(isA<TechnicalWorkDetailReadNotAllowedException>()),
+        );
+      }
+    },
+  );
+
+  test(
+    'yetkisiz aktör mevcut ve bilinmeyen işi aynı typed hata ile görür',
+    () async {
+      final repository = _createRepositoryWithTeamAccess(
+        works: [_teamAssignedWork()],
+      );
+
+      for (final workId in ['work-team', 'missing-work']) {
+        expect(
+          () => repository.getWorkById(
+            workId: workId,
+            actorUserId: 'user-driver-001',
+          ),
+          throwsA(isA<TechnicalWorkDetailReadNotAllowedException>()),
+        );
+      }
+    },
+  );
+
   test(
     'ekibe atanmış bildirimi mühendise yeniden atarken ekibi temizler',
     () async {
@@ -702,6 +1091,7 @@ class _CoordinatedAccessSource implements TechnicalWorkAccessSource {
     return const TechnicalWorkActorAccess(
       activeTeamIds: {'team-technical'},
       canStartTechnicalWork: true,
+      canAddTechnicalWorkProgress: true,
     );
   }
 }
