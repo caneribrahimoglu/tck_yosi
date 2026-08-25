@@ -11,6 +11,8 @@ import '../features/technical_operations/presentation/controllers/technical_work
 import '../features/technical_operations/presentation/controllers/technical_work_detail_controller.dart';
 import '../features/technical_operations/presentation/controllers/technical_work_completion_controller.dart';
 import '../features/technical_operations/presentation/controllers/technical_work_hold_controller.dart';
+import '../features/vehicles/data/repositories/fake_vehicle_repository.dart';
+import '../features/vehicles/presentation/controllers/vehicle_controller.dart';
 import '../features/teams/data/repositories/fake_team_repository.dart';
 import '../features/teams/domain/repositories/team_repository.dart';
 import '../features/teams/presentation/controllers/team_controller.dart';
@@ -38,6 +40,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
   late final FieldReportController _fieldReportController;
   late final TeamRepository _teamRepository;
   late final TeamController _teamController;
+  late final VehicleController _vehicleController;
 
   @override
   void initState() {
@@ -91,6 +94,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
       repository: _teamRepository,
       actorPermissions: const {},
     );
+    _vehicleController = VehicleController(repository: FakeVehicleRepository());
   }
 
   @override
@@ -102,6 +106,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
     _technicalWorkHoldController.dispose();
     _fieldReportController.dispose();
     _teamController.dispose();
+    _vehicleController.dispose();
 
     super.dispose();
   }
@@ -120,6 +125,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
         technicalWorkHoldController: _technicalWorkHoldController,
         fieldReportController: _fieldReportController,
         teamController: _teamController,
+        vehicleController: _vehicleController,
       ),
     );
   }

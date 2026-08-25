@@ -1,0 +1,1 @@
+enum VehicleOwnershipType { institutionOwned, contracted }

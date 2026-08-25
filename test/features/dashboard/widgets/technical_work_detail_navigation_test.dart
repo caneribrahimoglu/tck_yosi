@@ -17,6 +17,8 @@ import 'package:tck_yosi/features/technical_operations/domain/models/technical_w
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/field_report_controller.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_controller.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_detail_controller.dart';
+import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_repository.dart';
+import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 
 void main() {
   for (final user in [_engineer, _chief]) {
@@ -36,6 +38,7 @@ void main() {
             technicalWorkDetailController: fixture.detailController,
             fieldReportController: fixture.fieldReportController,
             teamController: fixture.teamController,
+            vehicleController: fixture.vehicleController,
           ),
         ),
       );
@@ -64,6 +67,7 @@ class _NavigationFixture {
   late final TechnicalWorkDetailController detailController;
   late final FieldReportController fieldReportController;
   late final TeamController teamController;
+  late final VehicleController vehicleController;
 
   _NavigationFixture() {
     final authService = FakeAuthService();
@@ -94,6 +98,9 @@ class _NavigationFixture {
       repository: teamRepository,
       actorPermissions: _chief.permissions,
     );
+    vehicleController = VehicleController(
+      repository: FakeVehicleRepository(delay: Duration.zero),
+    );
   }
 
   void dispose() {
@@ -101,6 +108,7 @@ class _NavigationFixture {
     detailController.dispose();
     fieldReportController.dispose();
     teamController.dispose();
+    vehicleController.dispose();
   }
 }
 

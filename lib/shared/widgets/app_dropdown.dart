@@ -30,6 +30,7 @@ class AppDropdown<T> extends StatelessWidget {
 
     return DropdownButtonFormField<T>(
       initialValue: value,
+      isExpanded: true,
       items: items,
       onChanged: enabled ? onChanged : null,
       validator: validator,

@@ -12,6 +12,8 @@ import 'package:tck_yosi/shared/widgets/app_button.dart';
 import 'package:tck_yosi/features/teams/data/repositories/fake_team_repository.dart';
 import 'package:tck_yosi/features/teams/presentation/controllers/team_controller.dart';
 import 'package:tck_yosi/features/teams/data/adapters/team_assignment_target_adapter.dart';
+import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_repository.dart';
+import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 
 void main() {
   TechnicalWorkController createTechnicalWorkController() {
@@ -48,6 +50,14 @@ void main() {
     return controller;
   }
 
+  VehicleController createVehicleController() {
+    final controller = VehicleController(
+      repository: FakeVehicleRepository(delay: Duration.zero),
+    );
+    addTearDown(controller.dispose);
+    return controller;
+  }
+
   testWidgets('şoför rolü şoför dashboardunu gösterir', (
     WidgetTester tester,
   ) async {
@@ -73,6 +83,7 @@ void main() {
           technicalWorkController: createTechnicalWorkController(),
           fieldReportController: createFieldReportController(),
           teamController: createTeamController(),
+          vehicleController: createVehicleController(),
         ),
       ),
     );
@@ -116,6 +127,7 @@ void main() {
           technicalWorkController: createTechnicalWorkController(),
           fieldReportController: createFieldReportController(),
           teamController: createTeamController(),
+          vehicleController: createVehicleController(),
         ),
       ),
     );
@@ -171,6 +183,7 @@ void main() {
           technicalWorkController: createTechnicalWorkController(),
           fieldReportController: createFieldReportController(),
           teamController: createTeamController(),
+          vehicleController: createVehicleController(),
         ),
       ),
     );
@@ -252,6 +265,7 @@ void main() {
             technicalWorkController: technicalController,
             fieldReportController: createFieldReportController(),
             teamController: teamController,
+            vehicleController: createVehicleController(),
           ),
         ),
       );
@@ -329,6 +343,7 @@ void main() {
           technicalWorkController: controller,
           fieldReportController: createFieldReportController(),
           teamController: teamController,
+          vehicleController: createVehicleController(),
         ),
       ),
     );
@@ -405,6 +420,7 @@ void main() {
             technicalWorkController: createTechnicalWorkController(),
             fieldReportController: createFieldReportController(),
             teamController: createTeamController(),
+            vehicleController: createVehicleController(),
           ),
         ),
       );

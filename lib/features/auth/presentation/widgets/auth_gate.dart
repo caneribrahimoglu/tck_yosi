@@ -8,6 +8,7 @@ import '../../../technical_operations/presentation/controllers/technical_work_de
 import '../../../technical_operations/presentation/controllers/technical_work_completion_controller.dart';
 import '../../../technical_operations/presentation/controllers/technical_work_hold_controller.dart';
 import '../../../teams/presentation/controllers/team_controller.dart';
+import '../../../vehicles/presentation/controllers/vehicle_controller.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/auth_status.dart';
 import '../pages/login_page.dart';
@@ -20,6 +21,7 @@ class AuthGate extends StatefulWidget {
   final TechnicalWorkHoldController technicalWorkHoldController;
   final FieldReportController fieldReportController;
   final TeamController teamController;
+  final VehicleController vehicleController;
 
   const AuthGate({
     super.key,
@@ -30,6 +32,7 @@ class AuthGate extends StatefulWidget {
     required this.technicalWorkHoldController,
     required this.fieldReportController,
     required this.teamController,
+    required this.vehicleController,
   });
 
   @override
@@ -102,6 +105,7 @@ class _AuthGateState extends State<AuthGate> {
             technicalWorkHoldController: widget.technicalWorkHoldController,
             fieldReportController: widget.fieldReportController,
             teamController: widget.teamController,
+            vehicleController: widget.vehicleController,
           ),
         };
       },

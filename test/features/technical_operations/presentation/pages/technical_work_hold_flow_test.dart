@@ -22,6 +22,8 @@ import 'package:tck_yosi/features/technical_operations/presentation/controllers/
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_hold_controller.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/pages/technical_work_detail_page.dart';
 import 'package:tck_yosi/shared/widgets/app_text_field.dart';
+import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_repository.dart';
+import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 
 void main() {
   testWidgets(
@@ -112,6 +114,10 @@ void main() {
     addTearDown(technicalController.dispose);
     addTearDown(fieldController.dispose);
     addTearDown(teamController.dispose);
+    final vehicleController = VehicleController(
+      repository: FakeVehicleRepository(delay: Duration.zero),
+    );
+    addTearDown(vehicleController.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -125,6 +131,7 @@ void main() {
           technicalWorkHoldController: fixture.holdController,
           fieldReportController: fieldController,
           teamController: teamController,
+          vehicleController: vehicleController,
         ),
       ),
     );

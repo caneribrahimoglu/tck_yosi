@@ -13,6 +13,9 @@ import 'package:tck_yosi/features/technical_operations/domain/enums/technical_wo
 import 'package:tck_yosi/features/technical_operations/domain/models/technical_work.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/field_report_controller.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_controller.dart';
+import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_repository.dart';
+import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
+import 'package:tck_yosi/shared/widgets/app_text_field.dart';
 
 void main() {
   testWidgets('izinli şef ana sayfadan gerçek modüllere gider ve geri döner', (
@@ -66,7 +69,25 @@ void main() {
 
     await tester.tap(find.text('Araç Yönetimi'));
     await tester.pumpAndSettle();
-    expect(find.text('Araç modülü hazırlanıyor'), findsOneWidget);
+    expect(find.text('Filo Listesi (4)'), findsOneWidget);
+    expect(find.text('81 KGM 101'), findsOneWidget);
+    final vehicleSearch = find.descendant(
+      of: find.byWidgetPredicate(
+        (widget) => widget is AppTextField && widget.label == 'Araç ara',
+      ),
+      matching: find.byType(EditableText),
+    );
+    await tester.enterText(vehicleSearch, 'Arocs');
+    await tester.pump();
+    expect(find.text('Filo Listesi (1)'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Araç Yönetimi'));
+    await tester.pumpAndSettle();
+    expect(find.text('Filo Listesi (1)'), findsOneWidget);
+    expect(find.text('81 DEM 303'), findsOneWidget);
+    expect(find.text('81 KGM 101'), findsNothing);
     await tester.pageBack();
     await tester.pumpAndSettle();
 
@@ -164,6 +185,7 @@ class _Fixture {
   late final TechnicalWorkController technicalWorkController;
   late final FieldReportController fieldReportController;
   late final TeamController teamController;
+  late final VehicleController vehicleController;
 
   _Fixture({this.currentUser = _chief}) {
     repository = FakeTechnicalWorkRepository(
@@ -176,6 +198,9 @@ class _Fixture {
       repository: FakeTeamRepository(delay: Duration.zero),
       actorPermissions: currentUser.permissions,
     );
+    vehicleController = VehicleController(
+      repository: FakeVehicleRepository(delay: Duration.zero),
+    );
   }
 
   RoleDashboardResolver resolver({required Future<void> Function() onLogout}) {
@@ -185,6 +210,7 @@ class _Fixture {
       technicalWorkController: technicalWorkController,
       fieldReportController: fieldReportController,
       teamController: teamController,
+      vehicleController: vehicleController,
     );
   }
 
@@ -192,6 +218,7 @@ class _Fixture {
     technicalWorkController.dispose();
     fieldReportController.dispose();
     teamController.dispose();
+    vehicleController.dispose();
   }
 }
 

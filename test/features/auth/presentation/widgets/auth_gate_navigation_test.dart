@@ -14,6 +14,8 @@ import 'package:tck_yosi/features/technical_operations/presentation/controllers/
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_controller.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_detail_controller.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_hold_controller.dart';
+import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_repository.dart';
+import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 
 void main() {
   testWidgets(
@@ -56,7 +58,7 @@ void main() {
   );
 
   for (final module in const [
-    ('Araç Yönetimi', 'Araç modülü hazırlanıyor'),
+    ('Araç Yönetimi', 'Filo Listesi (4)'),
     ('Personel Yönetimi', 'Personel modülü hazırlanıyor'),
   ]) {
     testWidgets('${module.$1} child routeundan çıkış login ekranını açar', (
@@ -123,6 +125,7 @@ class _AuthGateFixture {
   late final TechnicalWorkHoldController holdController;
   late final FieldReportController fieldReportController;
   late final TeamController teamController;
+  late final VehicleController vehicleController;
 
   _AuthGateFixture() {
     authService = FakeAuthService();
@@ -166,6 +169,9 @@ class _AuthGateFixture {
       repository: teamRepository,
       actorPermissions: const {},
     );
+    vehicleController = VehicleController(
+      repository: FakeVehicleRepository(delay: Duration.zero),
+    );
   }
 
   Widget get app => MaterialApp(
@@ -178,6 +184,7 @@ class _AuthGateFixture {
       technicalWorkHoldController: holdController,
       fieldReportController: fieldReportController,
       teamController: teamController,
+      vehicleController: vehicleController,
     ),
   );
 
@@ -189,6 +196,7 @@ class _AuthGateFixture {
     holdController.dispose();
     fieldReportController.dispose();
     teamController.dispose();
+    vehicleController.dispose();
   }
 }
 

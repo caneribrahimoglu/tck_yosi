@@ -111,8 +111,8 @@ class _ChiefHomePageState extends State<ChiefHomePage> {
           icon: Icons.directions_car_filled_outlined,
           title: 'Araç Yönetimi',
           description:
-              'Filo görünümü ve araç operasyonları için hazırlanan modüle geçin.',
-          statusLabel: 'Hazırlanıyor',
+              'Kurum ve sözleşmeli araçların güncel filo durumunu izleyin.',
+          statusLabel: 'Canlı',
           onTap: widget.onOpenVehicles!,
         ),
       if (widget.currentUser.hasPermission(AppPermission.viewPersonnel) &&
