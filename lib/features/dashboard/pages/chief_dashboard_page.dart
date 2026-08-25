@@ -50,12 +50,13 @@ class ChiefDashboardPage extends StatefulWidget {
 }
 
 class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
+  final _scrollController = ScrollController();
+  final _priorityOperationsKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
-
-    widget.technicalWorkController.load(widget.currentUser.id);
-    widget.completionController?.loadPending(widget.currentUser.id);
+    _scheduleLoad();
   }
 
   @override
@@ -63,9 +64,36 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.currentUser.id != widget.currentUser.id) {
+      _scheduleLoad();
+    }
+  }
+
+  void _scheduleLoad() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
       widget.technicalWorkController.load(widget.currentUser.id);
       widget.completionController?.loadPending(widget.currentUser.id);
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _scrollToPriorityOperations() async {
+    final targetContext = _priorityOperationsKey.currentContext;
+    if (targetContext == null) {
+      return;
     }
+    await Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -111,6 +139,7 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
 
   Widget _buildLoadedContent(BuildContext context) {
     return SingleChildScrollView(
+      controller: _scrollController,
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,7 +278,7 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
               AppButton.primary(
                 label: 'Görev ve İş Ata',
                 icon: Icons.assignment_add,
-                onPressed: () {},
+                onPressed: _scrollToPriorityOperations,
               ),
             if (widget.currentUser.hasPermission(
               AppPermission.createFieldReport,
@@ -279,13 +308,7 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
               AppButton.secondary(
                 label: 'Yetki Yönetimi',
                 icon: Icons.admin_panel_settings_outlined,
-                onPressed: () {},
-              ),
-            if (widget.currentUser.hasPermission(AppPermission.viewReports))
-              AppButton.secondary(
-                label: 'Operasyon Raporları',
-                icon: Icons.analytics_outlined,
-                onPressed: () {},
+                onPressed: widget.onManageTeams,
               ),
           ],
         ),
@@ -342,6 +365,7 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
     });
 
     return Column(
+      key: _priorityOperationsKey,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(

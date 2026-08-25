@@ -41,6 +41,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      if (user.role == UserRole.chief) {
+        await tester.tap(find.text('Operasyon Merkezi'));
+        await tester.pumpAndSettle();
+      }
+
       final detailButton = find.text('Detayı Gör').first;
       await tester.ensureVisible(detailButton);
       await tester.pumpAndSettle();
@@ -120,6 +125,7 @@ const _chief = AppUser(
     AppPermission.assignTechnicalWork,
     AppPermission.manageTeamPermissions,
     AppPermission.addTechnicalWorkProgress,
+    AppPermission.viewAllTechnicalWork,
   },
 );
 

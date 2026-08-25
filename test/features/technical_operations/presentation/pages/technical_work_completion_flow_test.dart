@@ -211,6 +211,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Operasyon Merkezi'));
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Onay Kuyruğu'));
     await tester.tap(find.text('Onay Kuyruğu'));
     await tester.pumpAndSettle();

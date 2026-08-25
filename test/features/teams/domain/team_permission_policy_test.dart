@@ -14,6 +14,7 @@ void main() {
       AppPermission.viewAllTechnicalWork,
       AppPermission.reviewTechnicalWorkCompletion,
       AppPermission.requestTechnicalWorkCompletion,
+      AppPermission.viewVehicleFleet,
     });
 
     expect(grantable, {

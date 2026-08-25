@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../auth/domain/enums/user_role.dart';
+import '../../auth/domain/enums/app_permission.dart';
 import '../../auth/domain/models/app_user.dart';
 import '../../technical_operations/domain/models/technical_work.dart';
 import '../../technical_operations/presentation/controllers/field_report_controller.dart';
@@ -13,6 +14,9 @@ import '../../technical_operations/presentation/pages/technical_work_completion_
 import '../../technical_operations/presentation/pages/field_report_page.dart';
 import '../../teams/presentation/controllers/team_controller.dart';
 import '../../teams/presentation/pages/team_management_page.dart';
+import '../../vehicles/presentation/pages/vehicle_module_page.dart';
+import '../../personnel/presentation/pages/personnel_module_page.dart';
+import '../pages/chief_home_page.dart';
 import '../pages/chief_dashboard_page.dart';
 import '../pages/dashboard_page.dart';
 import '../pages/driver_dashboard_page.dart';
@@ -52,7 +56,7 @@ class RoleDashboardResolver extends StatelessWidget {
       ),
     );
 
-    if (createdWork == null) {
+    if (createdWork == null || !context.mounted) {
       return;
     }
 
@@ -65,6 +69,9 @@ class RoleDashboardResolver extends StatelessWidget {
         builder: (context) => TeamManagementPage(controller: teamController),
       ),
     );
+    if (!context.mounted) {
+      return;
+    }
     await technicalWorkController.load(currentUser.id);
   }
 
@@ -87,6 +94,9 @@ class RoleDashboardResolver extends StatelessWidget {
         ),
       ),
     );
+    if (!context.mounted) {
+      return;
+    }
     await technicalWorkController.load(currentUser.id);
     if (currentUser.role == UserRole.chief) {
       await technicalWorkCompletionController?.loadPending(currentUser.id);
@@ -109,8 +119,64 @@ class RoleDashboardResolver extends StatelessWidget {
         ),
       ),
     );
+    if (!context.mounted) {
+      return;
+    }
     await technicalWorkController.load(currentUser.id);
     await controller.loadPending(currentUser.id);
+  }
+
+  Future<void> _openChiefOperations(BuildContext context) async {
+    if (!currentUser.hasPermission(AppPermission.viewAllTechnicalWork)) {
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (operationsContext) => ChiefDashboardPage(
+          currentUser: currentUser,
+          onLogout: onLogout,
+          technicalWorkController: technicalWorkController,
+          onCreateFieldReport: () => _openFieldReport(operationsContext),
+          onManageTeams: () => _openTeamManagement(operationsContext),
+          onViewDetail: technicalWorkDetailController == null
+              ? null
+              : (work) => _openTechnicalWorkDetail(operationsContext, work),
+          completionController: technicalWorkCompletionController,
+          onOpenCompletionQueue: technicalWorkCompletionController == null
+              ? null
+              : () => _openCompletionQueue(operationsContext),
+        ),
+      ),
+    );
+    if (!context.mounted) {
+      return;
+    }
+    await technicalWorkController.load(currentUser.id);
+    await technicalWorkCompletionController?.loadPending(currentUser.id);
+  }
+
+  Future<void> _openVehicleModule(BuildContext context) async {
+    if (!currentUser.hasPermission(AppPermission.viewVehicleFleet)) {
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) =>
+            VehicleModulePage(currentUser: currentUser, onLogout: onLogout),
+      ),
+    );
+  }
+
+  Future<void> _openPersonnelModule(BuildContext context) async {
+    if (!currentUser.hasPermission(AppPermission.viewPersonnel)) {
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) =>
+            PersonnelModulePage(currentUser: currentUser, onLogout: onLogout),
+      ),
+    );
   }
 
   @override
@@ -130,19 +196,22 @@ class RoleDashboardResolver extends StatelessWidget {
             ? null
             : (work) => _openTechnicalWorkDetail(context, work),
       ),
-      UserRole.chief => ChiefDashboardPage(
+      UserRole.chief => ChiefHomePage(
         currentUser: currentUser,
         onLogout: onLogout,
         technicalWorkController: technicalWorkController,
-        onCreateFieldReport: () => _openFieldReport(context),
-        onManageTeams: () => _openTeamManagement(context),
-        onViewDetail: technicalWorkDetailController == null
-            ? null
-            : (work) => _openTechnicalWorkDetail(context, work),
         completionController: technicalWorkCompletionController,
-        onOpenCompletionQueue: technicalWorkCompletionController == null
-            ? null
-            : () => _openCompletionQueue(context),
+        onOpenOperations:
+            currentUser.hasPermission(AppPermission.viewAllTechnicalWork)
+            ? () => _openChiefOperations(context)
+            : null,
+        onOpenVehicles:
+            currentUser.hasPermission(AppPermission.viewVehicleFleet)
+            ? () => _openVehicleModule(context)
+            : null,
+        onOpenPersonnel: currentUser.hasPermission(AppPermission.viewPersonnel)
+            ? () => _openPersonnelModule(context)
+            : null,
       ),
       UserRole.cleaningStaff ||
       UserRole.technician ||

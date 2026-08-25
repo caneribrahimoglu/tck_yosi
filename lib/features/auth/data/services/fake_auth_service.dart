@@ -36,6 +36,7 @@ class FakeAuthService implements AuthService, AppUserDirectory {
         role: UserRole.chief,
         permissions: {
           AppPermission.viewAssignedVehicle,
+          AppPermission.viewVehicleFleet,
           AppPermission.viewPersonnel,
           AppPermission.managePersonnel,
           AppPermission.viewReports,

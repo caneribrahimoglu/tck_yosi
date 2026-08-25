@@ -40,8 +40,40 @@ class _AuthGateState extends State<AuthGate> {
   @override
   void initState() {
     super.initState();
-
+    widget.authController.addListener(_handleAuthStateChanged);
     widget.authController.initialize();
+  }
+
+  @override
+  void didUpdateWidget(covariant AuthGate oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.authController == widget.authController) {
+      return;
+    }
+    oldWidget.authController.removeListener(_handleAuthStateChanged);
+    widget.authController.addListener(_handleAuthStateChanged);
+  }
+
+  void _handleAuthStateChanged() {
+    if (widget.authController.status != AuthStatus.unauthenticated) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          widget.authController.status != AuthStatus.unauthenticated) {
+        return;
+      }
+      Navigator.maybeOf(
+        context,
+        rootNavigator: true,
+      )?.popUntil((route) => route.isFirst);
+    });
+  }
+
+  @override
+  void dispose() {
+    widget.authController.removeListener(_handleAuthStateChanged);
+    super.dispose();
   }
 
   @override

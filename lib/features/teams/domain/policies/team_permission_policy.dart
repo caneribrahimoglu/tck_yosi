@@ -7,6 +7,7 @@ class TeamPermissionPolicy {
     AppPermission.manageUsers,
     AppPermission.manageTeamPermissions,
     AppPermission.viewAllTechnicalWork,
+    AppPermission.viewVehicleFleet,
     AppPermission.reviewTechnicalWorkCompletion,
   };
 

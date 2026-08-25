@@ -157,6 +157,8 @@ void main() {
         AppPermission.approveOperations,
         AppPermission.assignTechnicalWork,
         AppPermission.manageTeamPermissions,
+        AppPermission.viewAllTechnicalWork,
+        AppPermission.viewVehicleFleet,
       },
     );
 
@@ -173,6 +175,15 @@ void main() {
       ),
     );
 
+    await tester.pumpAndSettle();
+
+    expect(find.text('Şeflik Ana Sayfası'), findsOneWidget);
+    expect(find.text('Şeflik Operasyon Merkezi'), findsNothing);
+    expect(find.text('Operasyon Merkezi'), findsOneWidget);
+    expect(find.text('Araç Yönetimi'), findsOneWidget);
+    expect(find.text('Personel Yönetimi'), findsOneWidget);
+
+    await tester.tap(find.text('Operasyon Merkezi'));
     await tester.pumpAndSettle();
 
     expect(find.text('Şeflik Operasyon Merkezi'), findsOneWidget);
@@ -213,6 +224,7 @@ void main() {
           AppPermission.managePersonnel,
           AppPermission.manageTeamPermissions,
           AppPermission.assignTechnicalWork,
+          AppPermission.viewAllTechnicalWork,
         },
       );
       final teamRepository = FakeTeamRepository(delay: Duration.zero);
@@ -243,6 +255,9 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Operasyon Merkezi'));
       await tester.pumpAndSettle();
 
       await tester.ensureVisible(find.text('Ekip Yönetimi'));
@@ -284,7 +299,10 @@ void main() {
       fullName: 'Test Şef',
       username: 'test.sef',
       role: UserRole.chief,
-      permissions: {AppPermission.assignTechnicalWork},
+      permissions: {
+        AppPermission.assignTechnicalWork,
+        AppPermission.viewAllTechnicalWork,
+      },
     );
     final teamRepository = FakeTeamRepository(delay: Duration.zero);
     final controller = TechnicalWorkController(
@@ -314,6 +332,9 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Operasyon Merkezi'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('İncele ve Ata'));
