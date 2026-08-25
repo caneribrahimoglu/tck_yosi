@@ -6,6 +6,8 @@ class TechnicalWorkActorAccess {
   final bool canViewAllTechnicalWork;
   final bool canRequestTechnicalWorkCompletion;
   final bool canReviewTechnicalWorkCompletion;
+  final bool canPauseTechnicalWork;
+  final bool canResumeTechnicalWork;
 
   const TechnicalWorkActorAccess({
     required this.activeTeamIds,
@@ -15,5 +17,7 @@ class TechnicalWorkActorAccess {
     this.canViewAllTechnicalWork = false,
     this.canRequestTechnicalWorkCompletion = false,
     this.canReviewTechnicalWorkCompletion = false,
+    this.canPauseTechnicalWork = false,
+    this.canResumeTechnicalWork = false,
   });
 }

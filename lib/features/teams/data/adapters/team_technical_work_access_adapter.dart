@@ -26,6 +26,8 @@ class TeamTechnicalWorkAccessAdapter implements TechnicalWorkAccessSource {
         canViewAllTechnicalWork: false,
         canRequestTechnicalWorkCompletion: false,
         canReviewTechnicalWorkCompletion: false,
+        canPauseTechnicalWork: false,
+        canResumeTechnicalWork: false,
       );
     }
 
@@ -68,6 +70,12 @@ class TeamTechnicalWorkAccessAdapter implements TechnicalWorkAccessSource {
       ),
       canReviewTechnicalWorkCompletion: user.permissions.contains(
         AppPermission.reviewTechnicalWorkCompletion,
+      ),
+      canPauseTechnicalWork: effectivePermissions.contains(
+        AppPermission.pauseTechnicalWork,
+      ),
+      canResumeTechnicalWork: effectivePermissions.contains(
+        AppPermission.resumeTechnicalWork,
       ),
     );
   }

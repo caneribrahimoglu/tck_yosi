@@ -10,6 +10,7 @@ import '../features/technical_operations/presentation/controllers/field_report_c
 import '../features/technical_operations/presentation/controllers/technical_work_controller.dart';
 import '../features/technical_operations/presentation/controllers/technical_work_detail_controller.dart';
 import '../features/technical_operations/presentation/controllers/technical_work_completion_controller.dart';
+import '../features/technical_operations/presentation/controllers/technical_work_hold_controller.dart';
 import '../features/teams/data/repositories/fake_team_repository.dart';
 import '../features/teams/domain/repositories/team_repository.dart';
 import '../features/teams/presentation/controllers/team_controller.dart';
@@ -33,6 +34,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
   late final TechnicalWorkDetailController _technicalWorkDetailController;
   late final TechnicalWorkCompletionController
   _technicalWorkCompletionController;
+  late final TechnicalWorkHoldController _technicalWorkHoldController;
   late final FieldReportController _fieldReportController;
   late final TeamRepository _teamRepository;
   late final TeamController _teamController;
@@ -76,6 +78,10 @@ class _TckYosiAppState extends State<TckYosiApp> {
       repository: _technicalWorkRepository,
       participantNameSource: participantNameSource,
     );
+    _technicalWorkHoldController = TechnicalWorkHoldController(
+      repository: _technicalWorkRepository,
+      participantNameSource: participantNameSource,
+    );
 
     _fieldReportController = FieldReportController(
       repository: _technicalWorkRepository,
@@ -93,6 +99,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
     _technicalWorkController.dispose();
     _technicalWorkDetailController.dispose();
     _technicalWorkCompletionController.dispose();
+    _technicalWorkHoldController.dispose();
     _fieldReportController.dispose();
     _teamController.dispose();
 
@@ -110,6 +117,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
         technicalWorkController: _technicalWorkController,
         technicalWorkDetailController: _technicalWorkDetailController,
         technicalWorkCompletionController: _technicalWorkCompletionController,
+        technicalWorkHoldController: _technicalWorkHoldController,
         fieldReportController: _fieldReportController,
         teamController: _teamController,
       ),

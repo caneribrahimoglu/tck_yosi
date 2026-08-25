@@ -7,6 +7,7 @@ import '../../technical_operations/presentation/controllers/field_report_control
 import '../../technical_operations/presentation/controllers/technical_work_controller.dart';
 import '../../technical_operations/presentation/controllers/technical_work_detail_controller.dart';
 import '../../technical_operations/presentation/controllers/technical_work_completion_controller.dart';
+import '../../technical_operations/presentation/controllers/technical_work_hold_controller.dart';
 import '../../technical_operations/presentation/pages/technical_work_detail_page.dart';
 import '../../technical_operations/presentation/pages/technical_work_completion_queue_page.dart';
 import '../../technical_operations/presentation/pages/field_report_page.dart';
@@ -23,6 +24,7 @@ class RoleDashboardResolver extends StatelessWidget {
   final TechnicalWorkController technicalWorkController;
   final TechnicalWorkDetailController? technicalWorkDetailController;
   final TechnicalWorkCompletionController? technicalWorkCompletionController;
+  final TechnicalWorkHoldController? technicalWorkHoldController;
   final FieldReportController fieldReportController;
   final TeamController teamController;
 
@@ -33,6 +35,7 @@ class RoleDashboardResolver extends StatelessWidget {
     required this.technicalWorkController,
     this.technicalWorkDetailController,
     this.technicalWorkCompletionController,
+    this.technicalWorkHoldController,
     required this.fieldReportController,
     required this.teamController,
   });
@@ -80,6 +83,7 @@ class RoleDashboardResolver extends StatelessWidget {
           currentUser: currentUser,
           controller: detailController,
           completionController: technicalWorkCompletionController,
+          holdController: technicalWorkHoldController,
         ),
       ),
     );

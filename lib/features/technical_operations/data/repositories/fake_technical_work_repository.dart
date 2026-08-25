@@ -18,6 +18,9 @@ import '../../domain/errors/technical_work_completion_exception.dart';
 import '../../domain/models/submit_technical_work_completion_request.dart';
 import '../../domain/models/technical_work_completion_request.dart';
 import '../../domain/models/technical_work_completion_review_item.dart';
+import '../../domain/errors/technical_work_hold_exception.dart';
+import '../../domain/models/put_technical_work_on_hold_request.dart';
+import '../../domain/models/technical_work_hold_record.dart';
 
 class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
   static const _individualAssignmentTargets = [
@@ -39,6 +42,9 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
   final Set<String> _completionRequestWorkIdsInFlight = {};
   final Set<String> _completionReviewRequestIdsInFlight = {};
   int _nextCompletionRequestNumber;
+  final List<TechnicalWorkHoldRecord> _holdRecords;
+  final Set<String> _holdTransitionWorkIdsInFlight = {};
+  int _nextHoldRecordNumber;
   final Duration delay;
 
   FakeTechnicalWorkRepository({
@@ -47,6 +53,7 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
     TechnicalWorkAccessSource? technicalWorkAccessSource,
     List<TechnicalWorkProgressNote>? progressNotes,
     List<TechnicalWorkCompletionRequest>? completionRequests,
+    List<TechnicalWorkHoldRecord>? holdRecords,
     DateTime Function()? now,
     this.delay = const Duration(milliseconds: 500),
   }) : _works = List.of(works ?? FakeTechnicalWorkData.works),
@@ -57,6 +64,8 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
        _completionRequests = List.of(completionRequests ?? const []),
        _nextCompletionRequestNumber =
            (completionRequests ?? const []).length + 1,
+       _holdRecords = List.of(holdRecords ?? const []),
+       _nextHoldRecordNumber = (holdRecords ?? const []).length + 1,
        _now = now ?? DateTime.now;
 
   @override
@@ -193,6 +202,57 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
           first.request.requestedAt.compareTo(second.request.requestedAt),
     );
     return List.unmodifiable(items);
+  }
+
+  @override
+  Future<List<TechnicalWorkHoldRecord>> getHoldHistory({
+    required String workId,
+    required String actorUserId,
+  }) async {
+    await _simulateNetworkDelay();
+    await _authorizeDetailRead(workId: workId, actorUserId: actorUserId);
+    final records =
+        _holdRecords
+            .where((record) => record.workId == workId)
+            .toList(growable: false)
+          ..sort((first, second) => first.heldAt.compareTo(second.heldAt));
+    return List.unmodifiable(records);
+  }
+
+  @override
+  Future<bool> canUserPauseWork({
+    required String workId,
+    required String userId,
+  }) async {
+    await _simulateNetworkDelay();
+    try {
+      final work = await _authorizeHoldMutation(
+        workId: workId,
+        actorUserId: userId,
+        isResume: false,
+      );
+      return work.status == TechnicalWorkStatus.inProgress;
+    } on TechnicalWorkHoldNotAllowedException {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> canUserResumeWork({
+    required String workId,
+    required String userId,
+  }) async {
+    await _simulateNetworkDelay();
+    try {
+      final work = await _authorizeHoldMutation(
+        workId: workId,
+        actorUserId: userId,
+        isResume: true,
+      );
+      return work.status == TechnicalWorkStatus.onHold;
+    } on TechnicalWorkHoldNotAllowedException {
+      return false;
+    }
   }
 
   @override
@@ -475,6 +535,111 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
     }
   }
 
+  @override
+  Future<TechnicalWorkHoldRecord> putWorkOnHold({
+    required PutTechnicalWorkOnHoldRequest request,
+    required String actorUserId,
+  }) async {
+    await _simulateNetworkDelay();
+    final observedWorkIndex = _works.indexWhere(
+      (work) => work.id == request.workId,
+    );
+    final observedStatus = observedWorkIndex == -1
+        ? null
+        : _works[observedWorkIndex].status;
+    var work = await _authorizeHoldMutation(
+      workId: request.workId,
+      actorUserId: actorUserId,
+      isResume: false,
+    );
+    final reason = request.reason.trim();
+    if (reason.isEmpty) {
+      throw const TechnicalWorkHoldInvalidInputException();
+    }
+    if (observedStatus != TechnicalWorkStatus.inProgress) {
+      throw const TechnicalWorkHoldInvalidStateException();
+    }
+    if (!_holdTransitionWorkIdsInFlight.add(request.workId)) {
+      throw const TechnicalWorkHoldTransitionInFlightException();
+    }
+    try {
+      work = await _authorizeHoldMutation(
+        workId: request.workId,
+        actorUserId: actorUserId,
+        isResume: false,
+      );
+      if (work.status != TechnicalWorkStatus.inProgress) {
+        throw const TechnicalWorkHoldInvalidStateException();
+      }
+      final record = TechnicalWorkHoldRecord(
+        id: 'hold-${_nextHoldRecordNumber++}',
+        workId: work.id,
+        heldByUserId: actorUserId,
+        heldAt: _now(),
+        reason: reason,
+      );
+      _holdRecords.add(record);
+      final workIndex = _works.indexWhere(
+        (candidate) => candidate.id == work.id,
+      );
+      _works[workIndex] = work.copyWith(status: TechnicalWorkStatus.onHold);
+      return record;
+    } finally {
+      _holdTransitionWorkIdsInFlight.remove(request.workId);
+    }
+  }
+
+  @override
+  Future<TechnicalWorkHoldRecord> resumeWork({
+    required String workId,
+    required String actorUserId,
+  }) async {
+    await _simulateNetworkDelay();
+    final observedWorkIndex = _works.indexWhere((work) => work.id == workId);
+    final observedStatus = observedWorkIndex == -1
+        ? null
+        : _works[observedWorkIndex].status;
+    var work = await _authorizeHoldMutation(
+      workId: workId,
+      actorUserId: actorUserId,
+      isResume: true,
+    );
+    if (observedStatus != TechnicalWorkStatus.onHold) {
+      throw const TechnicalWorkHoldInvalidStateException();
+    }
+    if (!_holdTransitionWorkIdsInFlight.add(workId)) {
+      throw const TechnicalWorkHoldTransitionInFlightException();
+    }
+    try {
+      work = await _authorizeHoldMutation(
+        workId: workId,
+        actorUserId: actorUserId,
+        isResume: true,
+      );
+      if (work.status != TechnicalWorkStatus.onHold) {
+        throw const TechnicalWorkHoldInvalidStateException();
+      }
+      final recordIndex = _holdRecords.lastIndexWhere(
+        (record) => record.workId == workId && !record.isResumed,
+      );
+      if (recordIndex == -1) {
+        throw const TechnicalWorkHoldInvalidStateException();
+      }
+      final resumedRecord = _holdRecords[recordIndex].resumed(
+        resumedByUserId: actorUserId,
+        resumedAt: _now(),
+      );
+      _holdRecords[recordIndex] = resumedRecord;
+      final workIndex = _works.indexWhere(
+        (candidate) => candidate.id == work.id,
+      );
+      _works[workIndex] = work.copyWith(status: TechnicalWorkStatus.inProgress);
+      return resumedRecord;
+    } finally {
+      _holdTransitionWorkIdsInFlight.remove(workId);
+    }
+  }
+
   Future<void> _ensureActorCanStartWork({
     required TechnicalWork work,
     required String actorUserId,
@@ -554,6 +719,35 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
         !access.canReviewTechnicalWorkCompletion) {
       throw const TechnicalWorkCompletionReviewNotAllowedException();
     }
+  }
+
+  Future<TechnicalWork> _authorizeHoldMutation({
+    required String workId,
+    required String actorUserId,
+    required bool isResume,
+  }) async {
+    final access = await _technicalWorkAccessSource?.getActorAccess(
+      actorUserId,
+    );
+    final workIndex = _works.indexWhere((work) => work.id == workId);
+    final hasPermission = isResume
+        ? access?.canResumeTechnicalWork ?? false
+        : access?.canPauseTechnicalWork ?? false;
+    if (access == null ||
+        !access.isActive ||
+        !hasPermission ||
+        workIndex == -1) {
+      throw const TechnicalWorkHoldNotAllowedException();
+    }
+    final work = _works[workIndex];
+    final actorMatchesAssignment =
+        work.assignedToUserId == actorUserId ||
+        (work.assignedToTeamId != null &&
+            access.activeTeamIds.contains(work.assignedToTeamId));
+    if (!actorMatchesAssignment) {
+      throw const TechnicalWorkHoldNotAllowedException();
+    }
+    return work;
   }
 
   Future<TechnicalWork> _authorizeDetailRead({

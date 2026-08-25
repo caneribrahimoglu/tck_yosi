@@ -7,6 +7,8 @@ import '../models/technical_work_progress_note.dart';
 import '../models/submit_technical_work_completion_request.dart';
 import '../models/technical_work_completion_request.dart';
 import '../models/technical_work_completion_review_item.dart';
+import '../models/put_technical_work_on_hold_request.dart';
+import '../models/technical_work_hold_record.dart';
 
 abstract interface class TechnicalWorkRepository {
   Future<List<TechnicalWork>> getAllWorks();
@@ -40,6 +42,21 @@ abstract interface class TechnicalWorkRepository {
 
   Future<List<TechnicalWorkCompletionReviewItem>> getPendingCompletionReviews({
     required String actorUserId,
+  });
+
+  Future<List<TechnicalWorkHoldRecord>> getHoldHistory({
+    required String workId,
+    required String actorUserId,
+  });
+
+  Future<bool> canUserPauseWork({
+    required String workId,
+    required String userId,
+  });
+
+  Future<bool> canUserResumeWork({
+    required String workId,
+    required String userId,
   });
 
   Future<bool> canUserStartTechnicalWork(String userId);
@@ -78,6 +95,16 @@ abstract interface class TechnicalWorkRepository {
     required String requestId,
     required String actorUserId,
     required String rejectionReason,
+  });
+
+  Future<TechnicalWorkHoldRecord> putWorkOnHold({
+    required PutTechnicalWorkOnHoldRequest request,
+    required String actorUserId,
+  });
+
+  Future<TechnicalWorkHoldRecord> resumeWork({
+    required String workId,
+    required String actorUserId,
   });
 
   Future<TechnicalWork> createFieldReport({

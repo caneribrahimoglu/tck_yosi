@@ -18,6 +18,8 @@ import 'package:tck_yosi/features/technical_operations/domain/models/technical_w
 import 'package:tck_yosi/features/technical_operations/domain/models/submit_technical_work_completion_request.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/technical_work_completion_request.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/technical_work_completion_review_item.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/put_technical_work_on_hold_request.dart';
+import 'package:tck_yosi/features/technical_operations/domain/models/technical_work_hold_record.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_start_status.dart';
 
 void main() {
@@ -241,6 +243,36 @@ class _AllowedAccessSource implements TechnicalWorkAccessSource {
 }
 
 class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
+  @override
+  Future<bool> canUserPauseWork({
+    required String workId,
+    required String userId,
+  }) => throw Exception('Repository error');
+
+  @override
+  Future<bool> canUserResumeWork({
+    required String workId,
+    required String userId,
+  }) => throw Exception('Repository error');
+
+  @override
+  Future<List<TechnicalWorkHoldRecord>> getHoldHistory({
+    required String workId,
+    required String actorUserId,
+  }) => throw Exception('Repository error');
+
+  @override
+  Future<TechnicalWorkHoldRecord> putWorkOnHold({
+    required PutTechnicalWorkOnHoldRequest request,
+    required String actorUserId,
+  }) => throw Exception('Repository error');
+
+  @override
+  Future<TechnicalWorkHoldRecord> resumeWork({
+    required String workId,
+    required String actorUserId,
+  }) => throw Exception('Repository error');
+
   @override
   Future<TechnicalWorkCompletionRequest> approveCompletionRequest({
     required String requestId,

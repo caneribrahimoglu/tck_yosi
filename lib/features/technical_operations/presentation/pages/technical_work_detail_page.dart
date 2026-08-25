@@ -14,16 +14,20 @@ import '../../domain/models/technical_work_progress_note.dart';
 import '../controllers/technical_work_detail_controller.dart';
 import '../controllers/technical_work_completion_controller.dart';
 import '../controllers/technical_work_completion_status.dart';
+import '../controllers/technical_work_hold_controller.dart';
+import '../controllers/technical_work_hold_status.dart';
 import '../controllers/technical_work_load_status.dart';
 import '../technical_work_presentation.dart';
 import '../../domain/enums/technical_work_completion_decision.dart';
 import '../../domain/models/technical_work_completion_request.dart';
+import '../../domain/models/technical_work_hold_record.dart';
 
 class TechnicalWorkDetailPage extends StatefulWidget {
   final String workId;
   final AppUser currentUser;
   final TechnicalWorkDetailController controller;
   final TechnicalWorkCompletionController? completionController;
+  final TechnicalWorkHoldController? holdController;
 
   const TechnicalWorkDetailPage({
     super.key,
@@ -31,6 +35,7 @@ class TechnicalWorkDetailPage extends StatefulWidget {
     required this.currentUser,
     required this.controller,
     this.completionController,
+    this.holdController,
   });
 
   @override
@@ -52,6 +57,10 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
       userId: widget.currentUser.id,
     );
     widget.completionController?.loadForWork(
+      workId: widget.workId,
+      userId: widget.currentUser.id,
+    );
+    widget.holdController?.load(
       workId: widget.workId,
       userId: widget.currentUser.id,
     );
@@ -103,6 +112,63 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
     }
   }
 
+  Future<void> _putOnHold() async {
+    final controller = widget.holdController;
+    if (controller == null || controller.isSubmitting) {
+      return;
+    }
+    final reason = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const _HoldReasonDialog(),
+    );
+    if (reason == null || !mounted) {
+      return;
+    }
+    final succeeded = await controller.putOnHold(reason);
+    await _refreshAfterHoldTransition();
+    if (!mounted) {
+      return;
+    }
+    AppSnackbar.show(
+      context: context,
+      type: succeeded ? AppSnackbarType.success : AppSnackbarType.error,
+      message: succeeded
+          ? 'İş beklemeye alındı.'
+          : controller.errorMessage ?? 'İş beklemeye alınamadı.',
+    );
+  }
+
+  Future<void> _resumeWork() async {
+    final controller = widget.holdController;
+    if (controller == null || controller.isSubmitting) {
+      return;
+    }
+    final succeeded = await controller.resume();
+    await _refreshAfterHoldTransition();
+    if (!mounted) {
+      return;
+    }
+    AppSnackbar.show(
+      context: context,
+      type: succeeded ? AppSnackbarType.success : AppSnackbarType.error,
+      message: succeeded
+          ? 'Çalışmaya devam edildi.'
+          : controller.errorMessage ?? 'İşe devam edilemedi.',
+    );
+  }
+
+  Future<void> _refreshAfterHoldTransition() async {
+    await widget.controller.load(
+      workId: widget.workId,
+      userId: widget.currentUser.id,
+    );
+    await widget.completionController?.loadForWork(
+      workId: widget.workId,
+      userId: widget.currentUser.id,
+    );
+  }
+
   Future<void> _submitProgress() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
@@ -135,6 +201,7 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
         animation: Listenable.merge([
           widget.controller,
           if (widget.completionController != null) widget.completionController!,
+          if (widget.holdController != null) widget.holdController!,
         ]),
         builder: (context, child) {
           return switch (widget.controller.loadStatus) {
@@ -268,6 +335,10 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
+                if (widget.holdController != null) ...[
+                  _buildHoldSection(context),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
                 _buildProgressSection(context),
                 if (widget.completionController != null) ...[
                   const SizedBox(height: AppSpacing.lg),
@@ -277,6 +348,67 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildHoldSection(BuildContext context) {
+    final controller = widget.holdController!;
+    final isLoading = controller.status == TechnicalWorkHoldStatus.loading;
+    final isSubmitting = controller.isSubmitting;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Bekleme Geçmişi',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (isLoading)
+            const AppLoading(message: 'Bekleme geçmişi yükleniyor...')
+          else if (controller.history.isEmpty)
+            const Text('Bu iş daha önce beklemeye alınmadı.')
+          else
+            for (var index = 0; index < controller.history.length; index++) ...[
+              _HoldRecordRow(
+                record: controller.history[index],
+                heldByName:
+                    controller.userName(
+                      controller.history[index].heldByUserId,
+                    ) ??
+                    'Kullanıcı',
+                resumedByName: controller.history[index].resumedByUserId == null
+                    ? null
+                    : controller.userName(
+                        controller.history[index].resumedByUserId!,
+                      ),
+              ),
+              if (index != controller.history.length - 1)
+                const Divider(height: AppSpacing.xl),
+            ],
+          if (controller.canPause || controller.canResume) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Align(
+              alignment: Alignment.centerRight,
+              child: controller.canPause
+                  ? AppButton.secondary(
+                      label: isSubmitting ? 'İşleniyor...' : 'Beklemeye Al',
+                      icon: Icons.pause_circle_outline_rounded,
+                      onPressed: isSubmitting ? null : _putOnHold,
+                    )
+                  : AppButton.primary(
+                      label: isSubmitting
+                          ? 'İşleniyor...'
+                          : 'Çalışmaya Devam Et',
+                      icon: Icons.play_circle_outline_rounded,
+                      onPressed: isSubmitting ? null : _resumeWork,
+                    ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -426,6 +558,104 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _HoldReasonDialog extends StatefulWidget {
+  const _HoldReasonDialog();
+
+  @override
+  State<_HoldReasonDialog> createState() => _HoldReasonDialogState();
+}
+
+class _HoldReasonDialogState extends State<_HoldReasonDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    Navigator.of(context).pop(_controller.text.trim());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('İşi Beklemeye Al'),
+      content: Form(
+        key: _formKey,
+        child: AppTextField(
+          controller: _controller,
+          label: 'Bekleme nedeni',
+          hint: 'Çalışmanın neden durdurulduğunu açıklayın.',
+          prefixIcon: Icons.pause_circle_outline_rounded,
+          minLines: 3,
+          maxLines: 5,
+          maxLength: 1000,
+          validator: (value) => value == null || value.trim().isEmpty
+              ? 'Bekleme nedeni boş olamaz.'
+              : null,
+        ),
+      ),
+      actions: [
+        AppButton.secondary(
+          label: 'Vazgeç',
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        AppButton.primary(label: 'Beklemeye Al', onPressed: _submit),
+      ],
+    );
+  }
+}
+
+class _HoldRecordRow extends StatelessWidget {
+  final TechnicalWorkHoldRecord record;
+  final String heldByName;
+  final String? resumedByName;
+
+  const _HoldRecordRow({
+    required this.record,
+    required this.heldByName,
+    required this.resumedByName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.xs,
+          children: [
+            Text(
+              'Beklemeye alan: $heldByName',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            Text(_formatDateTime(record.heldAt)),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text('Neden: ${record.reason}'),
+        if (record.resumedAt != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Devam eden: ${resumedByName ?? 'Kullanıcı'} · '
+            '${_formatDateTime(record.resumedAt!)}',
+          ),
+        ] else ...[
+          const SizedBox(height: AppSpacing.sm),
+          const Text('Çalışma şu anda beklemede.'),
+        ],
+      ],
     );
   }
 }
