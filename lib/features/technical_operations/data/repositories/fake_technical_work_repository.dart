@@ -353,26 +353,18 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
     required AddTechnicalWorkProgressRequest request,
     required String actorUserId,
   }) async {
-    await _simulateNetworkDelay();
-    var work = _findWork(request.workId);
-    await _ensureActorCanAddProgress(work: work, actorUserId: actorUserId);
-    final content = request.content.trim();
-    if (content.isEmpty) {
-      throw const TechnicalWorkProgressInvalidInputException();
-    }
-    if (work.status != TechnicalWorkStatus.inProgress) {
-      throw const TechnicalWorkProgressInvalidStateException();
-    }
-
     final submissionKey = '${request.workId}:$actorUserId';
     if (!_progressSubmissionsInFlight.add(submissionKey)) {
-      work = _findWork(request.workId);
-      await _ensureActorCanAddProgress(work: work, actorUserId: actorUserId);
       throw const TechnicalWorkProgressSubmissionInFlightException();
     }
     try {
-      work = _findWork(request.workId);
+      await _simulateNetworkDelay();
+      final work = _findWork(request.workId);
       await _ensureActorCanAddProgress(work: work, actorUserId: actorUserId);
+      final content = request.content.trim();
+      if (content.isEmpty) {
+        throw const TechnicalWorkProgressInvalidInputException();
+      }
       if (work.status != TechnicalWorkStatus.inProgress) {
         throw const TechnicalWorkProgressInvalidStateException();
       }
