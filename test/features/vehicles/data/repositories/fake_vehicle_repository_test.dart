@@ -5,6 +5,7 @@ import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_ownership_type.d
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/update_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository_exception.dart';
 
 void main() {
@@ -93,6 +94,44 @@ void main() {
       ),
     );
   });
+
+  test('araç bilgileri ve operasyon durumu güncellenir', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicle('existing')],
+      delay: Duration.zero,
+    );
+
+    final updated = await repository.updateVehicle(
+      vehicleId: 'existing',
+      request: _updateRequest(
+        licensePlate: '81 GNC 001',
+        status: VehicleOperationalStatus.maintenance,
+      ),
+    );
+
+    expect(updated.id, 'existing');
+    expect(updated.licensePlate, '81 GNC 001');
+    expect(updated.operationalStatus, VehicleOperationalStatus.maintenance);
+    expect((await repository.getAllVehicles()).single, same(updated));
+  });
+
+  test('güncellemede başka araca ait plaka kullanılamaz', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [
+        _vehicle('first'),
+        _vehicle('second', plate: '81 TST 002'),
+      ],
+      delay: Duration.zero,
+    );
+
+    expect(
+      () => repository.updateVehicle(
+        vehicleId: 'second',
+        request: _updateRequest(licensePlate: '81 tst 001'),
+      ),
+      throwsA(isA<VehicleRepositoryException>()),
+    );
+  });
 }
 
 CreateVehicleRequest _request({String licensePlate = '81 YEN 001'}) =>
@@ -108,9 +147,24 @@ CreateVehicleRequest _request({String licensePlate = '81 YEN 001'}) =>
       type: VehicleType.pickup,
     );
 
-Vehicle _vehicle(String id) => Vehicle(
+UpdateVehicleRequest _updateRequest({
+  String licensePlate = '81 TST 001',
+  VehicleOperationalStatus status = VehicleOperationalStatus.active,
+}) => UpdateVehicleRequest(
+  licensePlate: licensePlate,
+  brand: 'Ford',
+  model: 'Ranger',
+  modelYear: 2024,
+  currentMileage: 2000,
+  ownershipType: VehicleOwnershipType.institutionOwned,
+  operationalStatus: status,
+  contractorName: null,
+  type: VehicleType.pickup,
+);
+
+Vehicle _vehicle(String id, {String plate = '81 TST 001'}) => Vehicle(
   id: id,
-  licensePlate: '81 TST 001',
+  licensePlate: plate,
   brand: 'Demo',
   model: 'Model',
   modelYear: 2022,

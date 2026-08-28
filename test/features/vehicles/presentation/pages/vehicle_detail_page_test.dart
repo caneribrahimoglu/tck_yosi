@@ -4,6 +4,7 @@ import 'package:tck_yosi/features/auth/domain/enums/app_permission.dart';
 import 'package:tck_yosi/features/auth/domain/enums/user_role.dart';
 import 'package:tck_yosi/features/auth/domain/models/app_user.dart';
 import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_repository.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_detail_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/pages/vehicle_detail_page.dart';
 
@@ -60,9 +61,36 @@ void main() {
     expect(find.text('Araç Bilgileri'), findsOneWidget);
     expect(find.text('Mülkiyet Bilgileri'), findsOneWidget);
   });
+
+  testWidgets('düzenleme callbacki varsa düzenle aksiyonu aracı iletir', (
+    tester,
+  ) async {
+    final controller = VehicleDetailController(
+      repository: FakeVehicleRepository(delay: Duration.zero),
+    );
+    addTearDown(controller.dispose);
+    Vehicle? selectedVehicle;
+
+    await tester.pumpWidget(
+      _app(
+        controller,
+        'vehicle-demo-001',
+        onEditVehicle: (vehicle) async => selectedVehicle = vehicle,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Düzenle'));
+    await tester.pump();
+
+    expect(selectedVehicle?.id, 'vehicle-demo-001');
+  });
 }
 
-Widget _app(VehicleDetailController controller, String vehicleId) {
+Widget _app(
+  VehicleDetailController controller,
+  String vehicleId, {
+  Future<void> Function(Vehicle vehicle)? onEditVehicle,
+}) {
   return MaterialApp(
     theme: ThemeData(splashFactory: NoSplash.splashFactory),
     home: VehicleDetailPage(
@@ -70,6 +98,7 @@ Widget _app(VehicleDetailController controller, String vehicleId) {
       currentUser: _chief,
       onLogout: () async {},
       controller: controller,
+      onEditVehicle: onEditVehicle,
     ),
   );
 }

@@ -15,6 +15,7 @@ import '../../technical_operations/presentation/pages/field_report_page.dart';
 import '../../teams/presentation/controllers/team_controller.dart';
 import '../../teams/presentation/pages/team_management_page.dart';
 import '../../vehicles/presentation/pages/vehicle_module_page.dart';
+import '../../vehicles/domain/models/vehicle.dart';
 import '../../vehicles/presentation/pages/vehicle_detail_page.dart';
 import '../../vehicles/presentation/pages/create_vehicle_page.dart';
 import '../../vehicles/presentation/controllers/vehicle_controller.dart';
@@ -212,9 +213,31 @@ class RoleDashboardResolver extends StatelessWidget {
           currentUser: currentUser,
           onLogout: onLogout,
           controller: controller,
+          onEditVehicle:
+              currentUser.hasPermission(AppPermission.manageVehicleFleet)
+              ? (vehicle) => _openEditVehicle(context, vehicle)
+              : null,
         ),
       ),
     );
+  }
+
+  Future<void> _openEditVehicle(BuildContext context, Vehicle vehicle) async {
+    if (!currentUser.hasPermission(AppPermission.manageVehicleFleet)) {
+      return;
+    }
+    final updatedVehicle = await Navigator.of(context).push<Vehicle>(
+      MaterialPageRoute(
+        builder: (context) => CreateVehiclePage.edit(
+          controller: vehicleController,
+          vehicle: vehicle,
+        ),
+      ),
+    );
+    if (updatedVehicle == null || !context.mounted) {
+      return;
+    }
+    await vehicleDetailController?.load(updatedVehicle.id);
   }
 
   Future<void> _openPersonnelModule(BuildContext context) async {

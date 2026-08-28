@@ -18,6 +18,7 @@ class VehicleDetailPage extends StatefulWidget {
   final AppUser currentUser;
   final Future<void> Function() onLogout;
   final VehicleDetailController controller;
+  final Future<void> Function(Vehicle vehicle)? onEditVehicle;
 
   const VehicleDetailPage({
     super.key,
@@ -25,6 +26,7 @@ class VehicleDetailPage extends StatefulWidget {
     required this.currentUser,
     required this.onLogout,
     required this.controller,
+    this.onEditVehicle,
   });
 
   @override
@@ -80,6 +82,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
           ),
           VehicleDetailLoadStatus.loaded => _LoadedVehicleDetail(
             vehicle: widget.controller.vehicle!,
+            onEditVehicle: widget.onEditVehicle,
           ),
         },
       ),
@@ -89,8 +92,9 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 
 class _LoadedVehicleDetail extends StatelessWidget {
   final Vehicle vehicle;
+  final Future<void> Function(Vehicle vehicle)? onEditVehicle;
 
-  const _LoadedVehicleDetail({required this.vehicle});
+  const _LoadedVehicleDetail({required this.vehicle, this.onEditVehicle});
 
   @override
   Widget build(BuildContext context) {
@@ -105,6 +109,14 @@ class _LoadedVehicleDetail extends StatelessWidget {
               AppPageHeader(
                 title: vehicle.licensePlate,
                 subtitle: '${vehicle.brand} ${vehicle.model}',
+                actions: [
+                  if (onEditVehicle != null)
+                    AppButton.primary(
+                      label: 'Düzenle',
+                      icon: Icons.edit_outlined,
+                      onPressed: () => onEditVehicle!(vehicle),
+                    ),
+                ],
               ),
               const SizedBox(height: AppSpacing.lg),
               Wrap(

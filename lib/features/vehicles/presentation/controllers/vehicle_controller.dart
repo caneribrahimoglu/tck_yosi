@@ -4,6 +4,7 @@ import '../../domain/enums/vehicle_operational_status.dart';
 import '../../domain/enums/vehicle_ownership_type.dart';
 import '../../domain/models/vehicle.dart';
 import '../../domain/models/create_vehicle_request.dart';
+import '../../domain/models/update_vehicle_request.dart';
 import '../../domain/repositories/vehicle_repository.dart';
 import '../../domain/repositories/vehicle_repository_exception.dart';
 import 'vehicle_load_status.dart';
@@ -19,6 +20,8 @@ class VehicleController extends ChangeNotifier {
   String? _errorMessage;
   bool _isCreating = false;
   String? _creationErrorMessage;
+  bool _isUpdating = false;
+  String? _updateErrorMessage;
 
   VehicleController({required VehicleRepository repository})
     : _repository = repository;
@@ -27,6 +30,8 @@ class VehicleController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isCreating => _isCreating;
   String? get creationErrorMessage => _creationErrorMessage;
+  bool get isUpdating => _isUpdating;
+  String? get updateErrorMessage => _updateErrorMessage;
   String get searchQuery => _searchQuery;
   VehicleOwnershipType? get ownershipFilter => _ownershipFilter;
   VehicleOperationalStatus? get statusFilter => _statusFilter;
@@ -113,6 +118,38 @@ class VehicleController extends ChangeNotifier {
       return null;
     } finally {
       _isCreating = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Vehicle?> updateVehicle({
+    required String vehicleId,
+    required UpdateVehicleRequest request,
+  }) async {
+    if (_isUpdating) {
+      return null;
+    }
+    _isUpdating = true;
+    _updateErrorMessage = null;
+    notifyListeners();
+    try {
+      final updatedVehicle = await _repository.updateVehicle(
+        vehicleId: vehicleId,
+        request: request,
+      );
+      _allVehicles = List.unmodifiable([
+        for (final vehicle in _allVehicles)
+          if (vehicle.id == vehicleId) updatedVehicle else vehicle,
+      ]);
+      return updatedVehicle;
+    } on VehicleRepositoryException catch (error) {
+      _updateErrorMessage = error.message;
+      return null;
+    } catch (_) {
+      _updateErrorMessage = 'Araç bilgileri güncellenemedi.';
+      return null;
+    } finally {
+      _isUpdating = false;
       notifyListeners();
     }
   }

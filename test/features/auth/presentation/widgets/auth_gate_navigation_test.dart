@@ -88,7 +88,7 @@ void main() {
     });
   }
 
-  testWidgets('şef araç listesinden gerçek araç detayına gider', (
+  testWidgets('şef araç detayına gider ve operasyon durumunu günceller', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1400, 1000);
@@ -114,6 +114,20 @@ void main() {
     expect(find.text('81 KGM 101'), findsNWidgets(2));
     expect(find.text('48.320 km'), findsOneWidget);
     expect(find.text('Araç Bilgileri'), findsOneWidget);
+
+    await tester.tap(find.text('Düzenle'));
+    await tester.pumpAndSettle();
+    expect(find.text('Araç Bilgilerini Düzenle'), findsOneWidget);
+    await tester.tap(find.text('Aktif'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bakımda').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Değişiklikleri Kaydet'));
+    await tester.tap(find.text('Değişiklikleri Kaydet'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Araç Detayı'), findsOneWidget);
+    expect(find.text('Bakımda'), findsNWidgets(2));
   });
 
   for (final account in const [

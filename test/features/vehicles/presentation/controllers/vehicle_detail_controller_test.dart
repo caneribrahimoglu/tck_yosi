@@ -6,6 +6,7 @@ import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_ownership_type.d
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/update_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_detail_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_detail_load_status.dart';
@@ -80,6 +81,14 @@ class _VehicleDetailRepository implements VehicleRepository {
 
   @override
   Future<Vehicle> createVehicle(CreateVehicleRequest request) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Vehicle> updateVehicle({
+    required String vehicleId,
+    required UpdateVehicleRequest request,
+  }) {
     throw UnimplementedError();
   }
 }

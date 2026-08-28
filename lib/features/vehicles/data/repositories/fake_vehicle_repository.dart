@@ -1,5 +1,6 @@
 import '../../domain/models/vehicle.dart';
 import '../../domain/models/create_vehicle_request.dart';
+import '../../domain/models/update_vehicle_request.dart';
 import '../../domain/repositories/vehicle_repository.dart';
 import '../../domain/repositories/vehicle_repository_exception.dart';
 import '../fake_vehicle_data.dart';
@@ -58,6 +59,44 @@ class FakeVehicleRepository implements VehicleRepository {
     );
     _vehicles.add(vehicle);
     return vehicle;
+  }
+
+  @override
+  Future<Vehicle> updateVehicle({
+    required String vehicleId,
+    required UpdateVehicleRequest request,
+  }) async {
+    await _wait();
+    final index = _vehicles.indexWhere((vehicle) => vehicle.id == vehicleId);
+    if (index == -1) {
+      throw const VehicleRepositoryException('Araç kaydı bulunamadı.');
+    }
+
+    final normalizedPlate = request.licensePlate.trim().toUpperCase();
+    final plateExists = _vehicles.any(
+      (vehicle) =>
+          vehicle.id != vehicleId && vehicle.licensePlate == normalizedPlate,
+    );
+    if (plateExists) {
+      throw const VehicleRepositoryException(
+        'Bu plakaya ait bir araç zaten kayıtlı.',
+      );
+    }
+
+    final updatedVehicle = Vehicle(
+      id: vehicleId,
+      licensePlate: normalizedPlate,
+      brand: request.brand,
+      model: request.model,
+      modelYear: request.modelYear,
+      currentMileage: request.currentMileage,
+      ownershipType: request.ownershipType,
+      operationalStatus: request.operationalStatus,
+      contractorName: request.contractorName,
+      type: request.type,
+    );
+    _vehicles[index] = updatedVehicle;
+    return updatedVehicle;
   }
 
   Future<void> _wait() async {

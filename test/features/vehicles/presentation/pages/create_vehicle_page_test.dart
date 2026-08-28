@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_ownership_type.dart';
+import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_operational_status.dart';
+import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_type.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/pages/create_vehicle_page.dart';
 import 'package:tck_yosi/shared/widgets/app_text_field.dart';
@@ -55,6 +58,41 @@ void main() {
     );
     expect(controller.allVehicles.single.contractorName, 'Demo Filo A.Ş.');
   });
+
+  testWidgets('düzenleme formu mevcut bilgileri gösterir ve durumu günceller', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 1100);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicle],
+      delay: Duration.zero,
+    );
+    final controller = VehicleController(repository: repository);
+    addTearDown(controller.dispose);
+    await controller.load();
+
+    await tester.pumpWidget(_editApp(controller, _vehicle));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Araç Bilgilerini Düzenle'), findsOneWidget);
+    expect(find.text('81 TST 001'), findsOneWidget);
+    await tester.tap(find.text('Aktif'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bakımda').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Değişiklikleri Kaydet'));
+    await tester.tap(find.text('Değişiklikleri Kaydet'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      controller.allVehicles.single.operationalStatus,
+      VehicleOperationalStatus.maintenance,
+    );
+  });
 }
 
 VehicleController _controller() => VehicleController(
@@ -64,6 +102,23 @@ VehicleController _controller() => VehicleController(
 Widget _app(VehicleController controller) => MaterialApp(
   theme: ThemeData(splashFactory: NoSplash.splashFactory),
   home: CreateVehiclePage(controller: controller),
+);
+
+Widget _editApp(VehicleController controller, Vehicle vehicle) => MaterialApp(
+  theme: ThemeData(splashFactory: NoSplash.splashFactory),
+  home: CreateVehiclePage.edit(controller: controller, vehicle: vehicle),
+);
+
+final _vehicle = Vehicle(
+  id: 'vehicle-test-edit',
+  licensePlate: '81 TST 001',
+  brand: 'Ford',
+  model: 'Ranger',
+  modelYear: 2022,
+  currentMileage: 1000,
+  ownershipType: VehicleOwnershipType.institutionOwned,
+  operationalStatus: VehicleOperationalStatus.active,
+  type: VehicleType.pickup,
 );
 
 Future<void> _enter(WidgetTester tester, String label, String value) async {

@@ -9,14 +9,23 @@ import '../../domain/enums/vehicle_operational_status.dart';
 import '../../domain/enums/vehicle_ownership_type.dart';
 import '../../domain/enums/vehicle_type.dart';
 import '../../domain/models/create_vehicle_request.dart';
+import '../../domain/models/update_vehicle_request.dart';
 import '../../domain/models/vehicle.dart';
 import '../controllers/vehicle_controller.dart';
 import '../vehicle_presentation.dart';
 
 class CreateVehiclePage extends StatefulWidget {
   final VehicleController controller;
+  final Vehicle? vehicle;
 
-  const CreateVehiclePage({super.key, required this.controller});
+  const CreateVehiclePage({super.key, required this.controller})
+    : vehicle = null;
+
+  const CreateVehiclePage.edit({
+    super.key,
+    required this.controller,
+    required this.vehicle,
+  });
 
   @override
   State<CreateVehiclePage> createState() => _CreateVehiclePageState();
@@ -24,16 +33,48 @@ class CreateVehiclePage extends StatefulWidget {
 
 class _CreateVehiclePageState extends State<CreateVehiclePage> {
   final _formKey = GlobalKey<FormState>();
-  final _licensePlateController = TextEditingController();
-  final _brandController = TextEditingController();
-  final _modelController = TextEditingController();
-  final _modelYearController = TextEditingController();
-  final _mileageController = TextEditingController(text: '0');
-  final _contractorController = TextEditingController();
+  late final TextEditingController _licensePlateController;
+  late final TextEditingController _brandController;
+  late final TextEditingController _modelController;
+  late final TextEditingController _modelYearController;
+  late final TextEditingController _mileageController;
+  late final TextEditingController _contractorController;
 
-  VehicleType _type = VehicleType.passengerCar;
-  VehicleOwnershipType _ownershipType = VehicleOwnershipType.institutionOwned;
-  VehicleOperationalStatus _operationalStatus = VehicleOperationalStatus.active;
+  late VehicleType _type;
+  late VehicleOwnershipType _ownershipType;
+  late VehicleOperationalStatus _operationalStatus;
+
+  bool get _isEditing => widget.vehicle != null;
+  bool get _isSaving =>
+      _isEditing ? widget.controller.isUpdating : widget.controller.isCreating;
+  String? get _saveError => _isEditing
+      ? widget.controller.updateErrorMessage
+      : widget.controller.creationErrorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    final vehicle = widget.vehicle;
+    _licensePlateController = TextEditingController(
+      text: vehicle?.licensePlate ?? '',
+    );
+    _brandController = TextEditingController(text: vehicle?.brand ?? '');
+    _modelController = TextEditingController(text: vehicle?.model ?? '');
+    _modelYearController = TextEditingController(
+      text: vehicle?.modelYear?.toString() ?? '',
+    );
+    _mileageController = TextEditingController(
+      text: vehicle?.currentMileage.toString() ?? '0',
+    );
+    _contractorController = TextEditingController(
+      text: vehicle?.contractorName ?? '',
+    );
+    _type = vehicle?.type ?? VehicleType.passengerCar;
+    _ownershipType =
+        vehicle?.ownershipType ?? VehicleOwnershipType.institutionOwned;
+    _operationalStatus =
+        vehicle?.operationalStatus ?? VehicleOperationalStatus.active;
+  }
 
   @override
   void dispose() {
@@ -49,7 +90,7 @@ class _CreateVehiclePageState extends State<CreateVehiclePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Yeni Araç')),
+      appBar: AppBar(title: Text(_isEditing ? 'Aracı Düzenle' : 'Yeni Araç')),
       body: AnimatedBuilder(
         animation: widget.controller,
         builder: (context, child) {
@@ -63,10 +104,13 @@ class _CreateVehiclePageState extends State<CreateVehiclePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const AppPageHeader(
-                        title: 'Filoya Araç Ekle',
-                        subtitle:
-                            'Kurum aracı veya sözleşmeli araç bilgilerini kaydedin.',
+                      AppPageHeader(
+                        title: _isEditing
+                            ? 'Araç Bilgilerini Düzenle'
+                            : 'Filoya Araç Ekle',
+                        subtitle: _isEditing
+                            ? 'Araç bilgilerini ve operasyon durumunu güncelleyin.'
+                            : 'Kurum aracı veya sözleşmeli araç bilgilerini kaydedin.',
                       ),
                       const SizedBox(height: AppSpacing.xl),
                       AppCard(
@@ -170,12 +214,11 @@ class _CreateVehiclePageState extends State<CreateVehiclePage> {
                                   validator: _requiredValidator,
                                 ),
                               ],
-                              if (widget.controller.creationErrorMessage !=
-                                  null) ...[
+                              if (_saveError != null) ...[
                                 const SizedBox(height: AppSpacing.lg),
                                 Text(
-                                  widget.controller.creationErrorMessage!,
-                                  key: const ValueKey('vehicle-creation-error'),
+                                  _saveError!,
+                                  key: const ValueKey('vehicle-save-error'),
                                   style: TextStyle(
                                     color: Theme.of(context).colorScheme.error,
                                     fontWeight: FontWeight.w600,
@@ -186,13 +229,15 @@ class _CreateVehiclePageState extends State<CreateVehiclePage> {
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: AppButton.primary(
-                                  label: widget.controller.isCreating
+                                  label: _isSaving
                                       ? 'Kaydediliyor...'
+                                      : _isEditing
+                                      ? 'Değişiklikleri Kaydet'
                                       : 'Aracı Kaydet',
-                                  icon: Icons.add_rounded,
-                                  onPressed: widget.controller.isCreating
-                                      ? null
-                                      : _submit,
+                                  icon: _isEditing
+                                      ? Icons.save_outlined
+                                      : Icons.add_rounded,
+                                  onPressed: _isSaving ? null : _submit,
                                 ),
                               ),
                             ],
@@ -214,22 +259,43 @@ class _CreateVehiclePageState extends State<CreateVehiclePage> {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
-    final request = CreateVehicleRequest(
-      licensePlate: _licensePlateController.text.trim(),
-      brand: _brandController.text.trim(),
-      model: _modelController.text.trim(),
-      modelYear: _modelYearController.text.trim().isEmpty
-          ? null
-          : int.parse(_modelYearController.text.trim()),
-      currentMileage: int.parse(_mileageController.text.trim()),
-      ownershipType: _ownershipType,
-      operationalStatus: _operationalStatus,
-      contractorName: _ownershipType == VehicleOwnershipType.contracted
-          ? _contractorController.text.trim()
-          : null,
-      type: _type,
-    );
-    final vehicle = await widget.controller.createVehicle(request);
+    final modelYear = _modelYearController.text.trim().isEmpty
+        ? null
+        : int.parse(_modelYearController.text.trim());
+    final contractorName = _ownershipType == VehicleOwnershipType.contracted
+        ? _contractorController.text.trim()
+        : null;
+    final Vehicle? vehicle;
+    if (_isEditing) {
+      vehicle = await widget.controller.updateVehicle(
+        vehicleId: widget.vehicle!.id,
+        request: UpdateVehicleRequest(
+          licensePlate: _licensePlateController.text.trim(),
+          brand: _brandController.text.trim(),
+          model: _modelController.text.trim(),
+          modelYear: modelYear,
+          currentMileage: int.parse(_mileageController.text.trim()),
+          ownershipType: _ownershipType,
+          operationalStatus: _operationalStatus,
+          contractorName: contractorName,
+          type: _type,
+        ),
+      );
+    } else {
+      vehicle = await widget.controller.createVehicle(
+        CreateVehicleRequest(
+          licensePlate: _licensePlateController.text.trim(),
+          brand: _brandController.text.trim(),
+          model: _modelController.text.trim(),
+          modelYear: modelYear,
+          currentMileage: int.parse(_mileageController.text.trim()),
+          ownershipType: _ownershipType,
+          operationalStatus: _operationalStatus,
+          contractorName: contractorName,
+          type: _type,
+        ),
+      );
+    }
     if (vehicle != null && mounted) {
       Navigator.of(context).pop<Vehicle>(vehicle);
     }

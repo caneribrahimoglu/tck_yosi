@@ -6,6 +6,7 @@ import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_ownership_type.d
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/update_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_load_status.dart';
@@ -136,6 +137,34 @@ void main() {
       'Bu plakaya ait bir araç zaten kayıtlı.',
     );
   });
+
+  test(
+    'güncelleme araç kaydını yerinde değiştirip sayaçları yeniler',
+    () async {
+      final controller = VehicleController(
+        repository: FakeVehicleRepository(
+          vehicles: [_vehicles.first],
+          delay: Duration.zero,
+        ),
+      );
+      addTearDown(controller.dispose);
+      await controller.load();
+
+      final updated = await controller.updateVehicle(
+        vehicleId: _vehicles.first.id,
+        request: _updateRequest(status: VehicleOperationalStatus.maintenance),
+      );
+
+      expect(updated?.id, _vehicles.first.id);
+      expect(controller.totalCount, 1);
+      expect(controller.activeCount, 0);
+      expect(controller.maintenanceCount, 1);
+      expect(
+        controller.allVehicles.single.operationalStatus,
+        VehicleOperationalStatus.maintenance,
+      );
+    },
+  );
 }
 
 CreateVehicleRequest _createRequest({String licensePlate = '81 YEN 001'}) =>
@@ -150,6 +179,20 @@ CreateVehicleRequest _createRequest({String licensePlate = '81 YEN 001'}) =>
       contractorName: null,
       type: VehicleType.pickup,
     );
+
+UpdateVehicleRequest _updateRequest({
+  VehicleOperationalStatus status = VehicleOperationalStatus.active,
+}) => UpdateVehicleRequest(
+  licensePlate: '81 KGM 001',
+  brand: 'Ford',
+  model: 'Ranger',
+  modelYear: 2024,
+  currentMileage: 2000,
+  ownershipType: VehicleOwnershipType.institutionOwned,
+  operationalStatus: status,
+  contractorName: null,
+  type: VehicleType.pickup,
+);
 
 class _VehicleRepository implements VehicleRepository {
   final List<Vehicle>? vehicles;
@@ -173,6 +216,14 @@ class _VehicleRepository implements VehicleRepository {
 
   @override
   Future<Vehicle> createVehicle(CreateVehicleRequest request) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Vehicle> updateVehicle({
+    required String vehicleId,
+    required UpdateVehicleRequest request,
+  }) {
     throw UnimplementedError();
   }
 }
