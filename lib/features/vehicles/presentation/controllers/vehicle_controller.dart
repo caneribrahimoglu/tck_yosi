@@ -3,7 +3,9 @@ import 'package:flutter/foundation.dart';
 import '../../domain/enums/vehicle_operational_status.dart';
 import '../../domain/enums/vehicle_ownership_type.dart';
 import '../../domain/models/vehicle.dart';
+import '../../domain/models/create_vehicle_request.dart';
 import '../../domain/repositories/vehicle_repository.dart';
+import '../../domain/repositories/vehicle_repository_exception.dart';
 import 'vehicle_load_status.dart';
 
 class VehicleController extends ChangeNotifier {
@@ -15,12 +17,16 @@ class VehicleController extends ChangeNotifier {
   VehicleOwnershipType? _ownershipFilter;
   VehicleOperationalStatus? _statusFilter;
   String? _errorMessage;
+  bool _isCreating = false;
+  String? _creationErrorMessage;
 
   VehicleController({required VehicleRepository repository})
     : _repository = repository;
 
   VehicleLoadStatus get status => _status;
   String? get errorMessage => _errorMessage;
+  bool get isCreating => _isCreating;
+  String? get creationErrorMessage => _creationErrorMessage;
   String get searchQuery => _searchQuery;
   VehicleOwnershipType? get ownershipFilter => _ownershipFilter;
   VehicleOperationalStatus? get statusFilter => _statusFilter;
@@ -85,6 +91,30 @@ class VehicleController extends ChangeNotifier {
       _status = VehicleLoadStatus.failure;
     }
     notifyListeners();
+  }
+
+  Future<Vehicle?> createVehicle(CreateVehicleRequest request) async {
+    if (_isCreating) {
+      return null;
+    }
+    _isCreating = true;
+    _creationErrorMessage = null;
+    notifyListeners();
+    try {
+      final vehicle = await _repository.createVehicle(request);
+      _allVehicles = List.unmodifiable([..._allVehicles, vehicle]);
+      _status = VehicleLoadStatus.loaded;
+      return vehicle;
+    } on VehicleRepositoryException catch (error) {
+      _creationErrorMessage = error.message;
+      return null;
+    } catch (_) {
+      _creationErrorMessage = 'Araç kaydı oluşturulamadı.';
+      return null;
+    } finally {
+      _isCreating = false;
+      notifyListeners();
+    }
   }
 
   void setSearchQuery(String value) {

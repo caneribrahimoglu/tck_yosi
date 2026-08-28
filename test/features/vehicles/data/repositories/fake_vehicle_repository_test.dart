@@ -4,6 +4,8 @@ import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_operational_stat
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_ownership_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
+import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository_exception.dart';
 
 void main() {
   test('demo filo kuruma ait ve sözleşmeli araçlar içerir', () async {
@@ -59,7 +61,52 @@ void main() {
     expect((await repository.getVehicleById('first'))?.id, 'first');
     expect(await repository.getVehicleById('missing'), isNull);
   });
+
+  test('kuruma ait yeni araç oluşturulur ve filoya eklenir', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [],
+      delay: Duration.zero,
+    );
+
+    final created = await repository.createVehicle(_request());
+    final vehicles = await repository.getAllVehicles();
+
+    expect(created.licensePlate, '81 YEN 001');
+    expect(created.ownershipType, VehicleOwnershipType.institutionOwned);
+    expect(vehicles.single.id, created.id);
+  });
+
+  test('aynı plaka ikinci kez kaydedilemez', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicle('existing')],
+      delay: Duration.zero,
+    );
+
+    expect(
+      () => repository.createVehicle(_request(licensePlate: '81 tst 001')),
+      throwsA(
+        isA<VehicleRepositoryException>().having(
+          (error) => error.message,
+          'message',
+          'Bu plakaya ait bir araç zaten kayıtlı.',
+        ),
+      ),
+    );
+  });
 }
+
+CreateVehicleRequest _request({String licensePlate = '81 YEN 001'}) =>
+    CreateVehicleRequest(
+      licensePlate: licensePlate,
+      brand: 'Ford',
+      model: 'Ranger',
+      modelYear: 2024,
+      currentMileage: 1000,
+      ownershipType: VehicleOwnershipType.institutionOwned,
+      operationalStatus: VehicleOperationalStatus.active,
+      contractorName: null,
+      type: VehicleType.pickup,
+    );
 
 Vehicle _vehicle(String id) => Vehicle(
   id: id,

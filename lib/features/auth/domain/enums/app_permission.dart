@@ -1,6 +1,7 @@
 enum AppPermission {
   viewAssignedVehicle,
   viewVehicleFleet,
+  manageVehicleFleet,
   receiveVehicle,
   returnVehicle,
   updateMileage,

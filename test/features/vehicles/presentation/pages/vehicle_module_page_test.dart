@@ -7,6 +7,7 @@ import 'package:tck_yosi/features/auth/domain/enums/user_role.dart';
 import 'package:tck_yosi/features/auth/domain/models/app_user.dart';
 import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/pages/vehicle_module_page.dart';
@@ -186,6 +187,35 @@ void main() {
 
     expect(selectedVehicle?.id, 'vehicle-demo-001');
   });
+
+  testWidgets(
+    'filoyu yönetme yetkisi olan şef araç ekleme aksiyonunu kullanır',
+    (tester) async {
+      final controller = VehicleController(
+        repository: FakeVehicleRepository(delay: Duration.zero),
+      );
+      addTearDown(controller.dispose);
+      var addCallCount = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(splashFactory: NoSplash.splashFactory),
+          home: VehicleModulePage(
+            currentUser: _chief,
+            onLogout: () async {},
+            controller: controller,
+            onAddVehicle: () async => addCallCount++,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Araç Ekle'));
+      await tester.pump();
+
+      expect(addCallCount, 1);
+    },
+  );
 }
 
 Widget _app(VehicleController controller) {
@@ -215,6 +245,11 @@ class _VehicleRepository implements VehicleRepository {
 
   @override
   Future<Vehicle?> getVehicleById(String vehicleId) async => null;
+
+  @override
+  Future<Vehicle> createVehicle(CreateVehicleRequest request) {
+    throw UnimplementedError();
+  }
 }
 
 const _chief = AppUser(
@@ -222,5 +257,8 @@ const _chief = AppUser(
   fullName: 'Test Şef',
   username: 'test.sef',
   role: UserRole.chief,
-  permissions: {AppPermission.viewVehicleFleet},
+  permissions: {
+    AppPermission.viewVehicleFleet,
+    AppPermission.manageVehicleFleet,
+  },
 );

@@ -5,9 +5,11 @@ import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_operational_stat
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_ownership_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_load_status.dart';
+import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_repository.dart';
 
 void main() {
   test('load listeyi ve gerçek sayaçları doldurur', () async {
@@ -96,7 +98,58 @@ void main() {
     expect(controller.errorMessage, 'Araç bilgileri yüklenemedi.');
     expect(controller.vehicles, isEmpty);
   });
+
+  test('oluşturulan araç listeye ve sayaçlara anında eklenir', () async {
+    final controller = VehicleController(
+      repository: FakeVehicleRepository(vehicles: [], delay: Duration.zero),
+    );
+    addTearDown(controller.dispose);
+    await controller.load();
+
+    final created = await controller.createVehicle(_createRequest());
+
+    expect(created, isNotNull);
+    expect(controller.totalCount, 1);
+    expect(controller.activeCount, 1);
+    expect(controller.vehicles.single.licensePlate, '81 YEN 001');
+    expect(controller.creationErrorMessage, isNull);
+  });
+
+  test('mükerrer plaka güvenli oluşturma hatası üretir', () async {
+    final controller = VehicleController(
+      repository: FakeVehicleRepository(
+        vehicles: [_vehicles.first],
+        delay: Duration.zero,
+      ),
+    );
+    addTearDown(controller.dispose);
+    await controller.load();
+
+    final created = await controller.createVehicle(
+      _createRequest(licensePlate: '81 kgm 001'),
+    );
+
+    expect(created, isNull);
+    expect(controller.totalCount, 1);
+    expect(
+      controller.creationErrorMessage,
+      'Bu plakaya ait bir araç zaten kayıtlı.',
+    );
+  });
 }
+
+CreateVehicleRequest _createRequest({String licensePlate = '81 YEN 001'}) =>
+    CreateVehicleRequest(
+      licensePlate: licensePlate,
+      brand: 'Ford',
+      model: 'Ranger',
+      modelYear: 2024,
+      currentMileage: 1000,
+      ownershipType: VehicleOwnershipType.institutionOwned,
+      operationalStatus: VehicleOperationalStatus.active,
+      contractorName: null,
+      type: VehicleType.pickup,
+    );
 
 class _VehicleRepository implements VehicleRepository {
   final List<Vehicle>? vehicles;
@@ -117,6 +170,11 @@ class _VehicleRepository implements VehicleRepository {
 
   @override
   Future<Vehicle?> getVehicleById(String vehicleId) async => null;
+
+  @override
+  Future<Vehicle> createVehicle(CreateVehicleRequest request) {
+    throw UnimplementedError();
+  }
 }
 
 final _vehicles = [

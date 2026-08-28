@@ -1,5 +1,7 @@
 import '../../domain/models/vehicle.dart';
+import '../../domain/models/create_vehicle_request.dart';
 import '../../domain/repositories/vehicle_repository.dart';
+import '../../domain/repositories/vehicle_repository_exception.dart';
 import '../fake_vehicle_data.dart';
 
 class FakeVehicleRepository implements VehicleRepository {
@@ -26,6 +28,36 @@ class FakeVehicleRepository implements VehicleRepository {
       }
     }
     return null;
+  }
+
+  @override
+  Future<Vehicle> createVehicle(CreateVehicleRequest request) async {
+    await _wait();
+    final normalizedPlate = request.licensePlate.trim().toUpperCase();
+    final plateExists = _vehicles.any(
+      (vehicle) => vehicle.licensePlate == normalizedPlate,
+    );
+    if (plateExists) {
+      throw const VehicleRepositoryException(
+        'Bu plakaya ait bir araç zaten kayıtlı.',
+      );
+    }
+
+    final now = DateTime.now();
+    final vehicle = Vehicle(
+      id: 'vehicle-${now.microsecondsSinceEpoch}',
+      licensePlate: normalizedPlate,
+      brand: request.brand,
+      model: request.model,
+      modelYear: request.modelYear,
+      currentMileage: request.currentMileage,
+      ownershipType: request.ownershipType,
+      operationalStatus: request.operationalStatus,
+      contractorName: request.contractorName,
+      type: request.type,
+    );
+    _vehicles.add(vehicle);
+    return vehicle;
   }
 
   Future<void> _wait() async {

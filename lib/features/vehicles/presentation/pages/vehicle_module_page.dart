@@ -6,6 +6,7 @@ import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../../../shared/widgets/app_page_header.dart';
 import '../../../auth/domain/models/app_user.dart';
+import '../../../auth/domain/enums/app_permission.dart';
 import '../../domain/models/vehicle.dart';
 import '../controllers/vehicle_controller.dart';
 import '../controllers/vehicle_load_status.dart';
@@ -18,6 +19,7 @@ class VehicleModulePage extends StatefulWidget {
   final Future<void> Function() onLogout;
   final VehicleController controller;
   final ValueChanged<Vehicle>? onViewVehicle;
+  final Future<void> Function()? onAddVehicle;
 
   const VehicleModulePage({
     super.key,
@@ -25,6 +27,7 @@ class VehicleModulePage extends StatefulWidget {
     required this.onLogout,
     required this.controller,
     this.onViewVehicle,
+    this.onAddVehicle,
   });
 
   @override
@@ -98,10 +101,21 @@ class _VehicleModulePageState extends State<VehicleModulePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const AppPageHeader(
+              AppPageHeader(
                 title: 'Araç Yönetimi',
                 subtitle:
                     'Kurum ve sözleşmeli araçlardan oluşan filonun güncel durumunu izleyin.',
+                actions: [
+                  if (widget.currentUser.hasPermission(
+                        AppPermission.manageVehicleFleet,
+                      ) &&
+                      widget.onAddVehicle != null)
+                    AppButton.primary(
+                      label: 'Araç Ekle',
+                      icon: Icons.add_rounded,
+                      onPressed: widget.onAddVehicle,
+                    ),
+                ],
               ),
               const SizedBox(height: AppSpacing.xl),
               VehicleSummaryGrid(controller: widget.controller),

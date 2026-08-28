@@ -4,6 +4,7 @@ extension TeamPermissionPresentation on AppPermission {
   String get teamLabel => switch (this) {
     AppPermission.viewAssignedVehicle => 'Atanmış aracı görüntüleme',
     AppPermission.viewVehicleFleet => 'Araç filosunu görüntüleme',
+    AppPermission.manageVehicleFleet => 'Araç filosunu yönetme',
     AppPermission.receiveVehicle => 'Araç teslim alma',
     AppPermission.returnVehicle => 'Araç iade etme',
     AppPermission.updateMileage => 'Kilometre güncelleme',

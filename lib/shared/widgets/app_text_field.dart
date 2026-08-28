@@ -17,6 +17,7 @@ class AppTextField extends StatelessWidget {
   final int? maxLength;
   final TextInputType keyboardType;
   final TextInputAction textInputAction;
+  final TextCapitalization textCapitalization;
   final FormFieldValidator<String>? validator;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
@@ -39,6 +40,7 @@ class AppTextField extends StatelessWidget {
     this.maxLength,
     this.keyboardType = TextInputType.text,
     this.textInputAction = TextInputAction.next,
+    this.textCapitalization = TextCapitalization.none,
     this.validator,
     this.onChanged,
     this.onSubmitted,
@@ -63,6 +65,7 @@ class AppTextField extends StatelessWidget {
       maxLength: maxLength,
       keyboardType: keyboardType,
       textInputAction: textInputAction,
+      textCapitalization: textCapitalization,
       validator: validator,
       onChanged: onChanged,
       onFieldSubmitted: onSubmitted,
