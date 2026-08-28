@@ -6,6 +6,7 @@ import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../../../shared/widgets/app_page_header.dart';
 import '../../../auth/domain/models/app_user.dart';
+import '../../domain/models/vehicle.dart';
 import '../controllers/vehicle_controller.dart';
 import '../controllers/vehicle_load_status.dart';
 import '../widgets/vehicle_card.dart';
@@ -16,12 +17,14 @@ class VehicleModulePage extends StatefulWidget {
   final AppUser currentUser;
   final Future<void> Function() onLogout;
   final VehicleController controller;
+  final ValueChanged<Vehicle>? onViewVehicle;
 
   const VehicleModulePage({
     super.key,
     required this.currentUser,
     required this.onLogout,
     required this.controller,
+    this.onViewVehicle,
   });
 
   @override
@@ -158,7 +161,12 @@ class _VehicleModulePageState extends State<VehicleModulePage> {
                 for (final vehicle in vehicles)
                   SizedBox(
                     width: width,
-                    child: VehicleCard(vehicle: vehicle),
+                    child: VehicleCard(
+                      vehicle: vehicle,
+                      onTap: widget.onViewVehicle == null
+                          ? null
+                          : () => widget.onViewVehicle!(vehicle),
+                    ),
                   ),
               ],
             );

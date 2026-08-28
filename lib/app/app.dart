@@ -12,7 +12,9 @@ import '../features/technical_operations/presentation/controllers/technical_work
 import '../features/technical_operations/presentation/controllers/technical_work_completion_controller.dart';
 import '../features/technical_operations/presentation/controllers/technical_work_hold_controller.dart';
 import '../features/vehicles/data/repositories/fake_vehicle_repository.dart';
+import '../features/vehicles/domain/repositories/vehicle_repository.dart';
 import '../features/vehicles/presentation/controllers/vehicle_controller.dart';
+import '../features/vehicles/presentation/controllers/vehicle_detail_controller.dart';
 import '../features/teams/data/repositories/fake_team_repository.dart';
 import '../features/teams/domain/repositories/team_repository.dart';
 import '../features/teams/presentation/controllers/team_controller.dart';
@@ -41,6 +43,8 @@ class _TckYosiAppState extends State<TckYosiApp> {
   late final TeamRepository _teamRepository;
   late final TeamController _teamController;
   late final VehicleController _vehicleController;
+  late final VehicleDetailController _vehicleDetailController;
+  late final VehicleRepository _vehicleRepository;
 
   @override
   void initState() {
@@ -94,7 +98,11 @@ class _TckYosiAppState extends State<TckYosiApp> {
       repository: _teamRepository,
       actorPermissions: const {},
     );
-    _vehicleController = VehicleController(repository: FakeVehicleRepository());
+    _vehicleRepository = FakeVehicleRepository();
+    _vehicleController = VehicleController(repository: _vehicleRepository);
+    _vehicleDetailController = VehicleDetailController(
+      repository: _vehicleRepository,
+    );
   }
 
   @override
@@ -107,6 +115,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
     _fieldReportController.dispose();
     _teamController.dispose();
     _vehicleController.dispose();
+    _vehicleDetailController.dispose();
 
     super.dispose();
   }
@@ -126,6 +135,7 @@ class _TckYosiAppState extends State<TckYosiApp> {
         fieldReportController: _fieldReportController,
         teamController: _teamController,
         vehicleController: _vehicleController,
+        vehicleDetailController: _vehicleDetailController,
       ),
     );
   }

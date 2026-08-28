@@ -4,6 +4,11 @@ import '../../../core/enums/app_status_type.dart';
 import '../domain/enums/vehicle_operational_status.dart';
 import '../domain/enums/vehicle_ownership_type.dart';
 import '../domain/enums/vehicle_type.dart';
+import '../domain/models/vehicle.dart';
+
+extension VehiclePresentation on Vehicle {
+  String get formattedMileage => '${_formatNumber(currentMileage)} km';
+}
 
 extension VehicleOwnershipTypePresentation on VehicleOwnershipType {
   String get label => switch (this) {
@@ -45,4 +50,16 @@ extension VehicleTypePresentation on VehicleType {
     VehicleType.truck => Icons.fire_truck_outlined,
     VehicleType.workMachine => Icons.agriculture_outlined,
   };
+}
+
+String _formatNumber(int value) {
+  final digits = value.toString();
+  final buffer = StringBuffer();
+  for (var index = 0; index < digits.length; index++) {
+    if (index > 0 && (digits.length - index) % 3 == 0) {
+      buffer.write('.');
+    }
+    buffer.write(digits[index]);
+  }
+  return buffer.toString();
 }

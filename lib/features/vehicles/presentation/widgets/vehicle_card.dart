@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_spacing.dart';
+import '../../../../core/theme/app_shadows.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_status_chip.dart';
 import '../../domain/enums/vehicle_ownership_type.dart';
@@ -9,13 +10,16 @@ import '../vehicle_presentation.dart';
 
 class VehicleCard extends StatelessWidget {
   final Vehicle vehicle;
+  final VoidCallback? onTap;
 
-  const VehicleCard({super.key, required this.vehicle});
+  const VehicleCard({super.key, required this.vehicle, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return AppCard(
       key: ValueKey('vehicle-${vehicle.id}'),
+      onTap: onTap,
+      shadows: AppShadows.lg,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -81,7 +85,7 @@ class VehicleCard extends StatelessWidget {
                 ),
               _VehicleFact(
                 icon: Icons.speed_rounded,
-                text: '${_formatNumber(vehicle.currentMileage)} km',
+                text: vehicle.formattedMileage,
               ),
             ],
           ),
@@ -116,16 +120,4 @@ class _VehicleFact extends StatelessWidget {
       ],
     );
   }
-}
-
-String _formatNumber(int value) {
-  final digits = value.toString();
-  final buffer = StringBuffer();
-  for (var index = 0; index < digits.length; index++) {
-    if (index > 0 && (digits.length - index) % 3 == 0) {
-      buffer.write('.');
-    }
-    buffer.write(digits[index]);
-  }
-  return buffer.toString();
 }

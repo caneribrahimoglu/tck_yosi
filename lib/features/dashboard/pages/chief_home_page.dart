@@ -154,11 +154,22 @@ class _ChiefHomePageState extends State<ChiefHomePage> {
               else
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final columnCount = constraints.maxWidth >= 1100
-                        ? 3
-                        : constraints.maxWidth >= 650
-                        ? 2
-                        : 1;
+                    if (constraints.maxWidth < 650) {
+                      return Column(
+                        children: [
+                          for (
+                            var index = 0;
+                            index < cards.length;
+                            index++
+                          ) ...[
+                            cards[index],
+                            if (index < cards.length - 1)
+                              const SizedBox(height: AppSpacing.md),
+                          ],
+                        ],
+                      );
+                    }
+                    final columnCount = constraints.maxWidth >= 1100 ? 3 : 2;
                     final cardHeight = constraints.maxWidth >= 1100
                         ? 340.0
                         : 400.0;

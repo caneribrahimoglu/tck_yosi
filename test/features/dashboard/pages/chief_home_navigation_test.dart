@@ -157,8 +157,16 @@ void main() {
     final mobileVehicles = tester.getTopLeft(
       find.byKey(const ValueKey('chief-vehicles-module')),
     );
+    final mobileOperationsSize = tester.getSize(
+      find.byKey(const ValueKey('chief-operations-module')),
+    );
+    final mobileVehiclesSize = tester.getSize(
+      find.byKey(const ValueKey('chief-vehicles-module')),
+    );
     expect(mobileVehicles.dx, mobileOperations.dx);
     expect(mobileVehicles.dy, greaterThan(mobileOperations.dy));
+    expect(mobileOperationsSize.height, lessThan(400));
+    expect(mobileVehiclesSize.height, lessThan(mobileOperationsSize.height));
 
     tester.view.physicalSize = const Size(1400, 900);
     await tester.pumpAndSettle();

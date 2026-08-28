@@ -9,6 +9,7 @@ import '../../../technical_operations/presentation/controllers/technical_work_co
 import '../../../technical_operations/presentation/controllers/technical_work_hold_controller.dart';
 import '../../../teams/presentation/controllers/team_controller.dart';
 import '../../../vehicles/presentation/controllers/vehicle_controller.dart';
+import '../../../vehicles/presentation/controllers/vehicle_detail_controller.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/auth_status.dart';
 import '../pages/login_page.dart';
@@ -22,6 +23,7 @@ class AuthGate extends StatefulWidget {
   final FieldReportController fieldReportController;
   final TeamController teamController;
   final VehicleController vehicleController;
+  final VehicleDetailController vehicleDetailController;
 
   const AuthGate({
     super.key,
@@ -33,6 +35,7 @@ class AuthGate extends StatefulWidget {
     required this.fieldReportController,
     required this.teamController,
     required this.vehicleController,
+    required this.vehicleDetailController,
   });
 
   @override
@@ -106,6 +109,7 @@ class _AuthGateState extends State<AuthGate> {
             fieldReportController: widget.fieldReportController,
             teamController: widget.teamController,
             vehicleController: widget.vehicleController,
+            vehicleDetailController: widget.vehicleDetailController,
           ),
         };
       },

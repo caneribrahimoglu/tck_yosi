@@ -15,7 +15,9 @@ import '../../technical_operations/presentation/pages/field_report_page.dart';
 import '../../teams/presentation/controllers/team_controller.dart';
 import '../../teams/presentation/pages/team_management_page.dart';
 import '../../vehicles/presentation/pages/vehicle_module_page.dart';
+import '../../vehicles/presentation/pages/vehicle_detail_page.dart';
 import '../../vehicles/presentation/controllers/vehicle_controller.dart';
+import '../../vehicles/presentation/controllers/vehicle_detail_controller.dart';
 import '../../personnel/presentation/pages/personnel_module_page.dart';
 import '../pages/chief_home_page.dart';
 import '../pages/chief_dashboard_page.dart';
@@ -33,6 +35,7 @@ class RoleDashboardResolver extends StatelessWidget {
   final FieldReportController fieldReportController;
   final TeamController teamController;
   final VehicleController vehicleController;
+  final VehicleDetailController? vehicleDetailController;
 
   const RoleDashboardResolver({
     super.key,
@@ -45,6 +48,7 @@ class RoleDashboardResolver extends StatelessWidget {
     required this.fieldReportController,
     required this.teamController,
     required this.vehicleController,
+    this.vehicleDetailController,
   });
 
   Future<void> _openFieldReport(BuildContext context) async {
@@ -168,6 +172,30 @@ class RoleDashboardResolver extends StatelessWidget {
           currentUser: currentUser,
           onLogout: onLogout,
           controller: vehicleController,
+          onViewVehicle: vehicleDetailController == null
+              ? null
+              : (vehicle) => _openVehicleDetail(context, vehicle.id),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openVehicleDetail(
+    BuildContext context,
+    String vehicleId,
+  ) async {
+    final controller = vehicleDetailController;
+    if (controller == null) {
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => VehicleDetailPage(
+          vehicleId: vehicleId,
+          currentUser: currentUser,
+          onLogout: onLogout,
+          controller: controller,
         ),
       ),
     );

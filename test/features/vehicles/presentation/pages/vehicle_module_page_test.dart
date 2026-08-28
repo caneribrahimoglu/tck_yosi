@@ -136,10 +136,55 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('81 KGM 101'), findsOneWidget);
 
+    final totalSummary = find.byKey(const ValueKey('vehicle-summary-total'));
+    final activeSummary = find.byKey(const ValueKey('vehicle-summary-active'));
+    final maintenanceSummary = find.byKey(
+      const ValueKey('vehicle-summary-maintenance'),
+    );
+    final totalPosition = tester.getTopLeft(totalSummary);
+    final activePosition = tester.getTopLeft(activeSummary);
+    final maintenancePosition = tester.getTopLeft(maintenanceSummary);
+
+    expect(activePosition.dx, greaterThan(totalPosition.dx));
+    expect((activePosition.dy - totalPosition.dy).abs(), lessThan(1));
+    expect((maintenancePosition.dx - totalPosition.dx).abs(), lessThan(1));
+    expect(maintenancePosition.dy, greaterThan(totalPosition.dy));
+
     tester.view.physicalSize = const Size(1400, 1000);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.text('81 DEM 404'), findsOneWidget);
+  });
+
+  testWidgets('araç kartına dokununca seçilen araç geri bildirilir', (
+    tester,
+  ) async {
+    final controller = VehicleController(
+      repository: FakeVehicleRepository(delay: Duration.zero),
+    );
+    addTearDown(controller.dispose);
+    Vehicle? selectedVehicle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(splashFactory: NoSplash.splashFactory),
+        home: VehicleModulePage(
+          currentUser: _chief,
+          onLogout: () async {},
+          controller: controller,
+          onViewVehicle: (vehicle) => selectedVehicle = vehicle,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final vehicleCard = find.byKey(const ValueKey('vehicle-vehicle-demo-001'));
+    await tester.ensureVisible(vehicleCard);
+    await tester.pumpAndSettle();
+    await tester.tap(vehicleCard);
+    await tester.pump();
+
+    expect(selectedVehicle?.id, 'vehicle-demo-001');
   });
 }
 

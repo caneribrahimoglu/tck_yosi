@@ -16,6 +16,7 @@ import 'package:tck_yosi/features/technical_operations/presentation/controllers/
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_hold_controller.dart';
 import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
+import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_detail_controller.dart';
 
 void main() {
   testWidgets(
@@ -87,6 +88,34 @@ void main() {
     });
   }
 
+  testWidgets('şef araç listesinden gerçek araç detayına gider', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final fixture = _AuthGateFixture();
+    addTearDown(fixture.dispose);
+    await tester.pumpWidget(fixture.app);
+    await tester.pumpAndSettle();
+    await _login(tester, username: 'sef');
+
+    await tester.tap(find.text('Araç Yönetimi'));
+    await tester.pumpAndSettle();
+    final vehicleCard = find.byKey(const ValueKey('vehicle-vehicle-demo-001'));
+    await tester.ensureVisible(vehicleCard);
+    await tester.pumpAndSettle();
+    await tester.tap(vehicleCard);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Araç Detayı'), findsOneWidget);
+    expect(find.text('81 KGM 101'), findsNWidgets(2));
+    expect(find.text('48.320 km'), findsOneWidget);
+    expect(find.text('Araç Bilgileri'), findsOneWidget);
+  });
+
   for (final account in const [
     ('sef', 'Şeflik Ana Sayfası'),
     ('sofor', 'Hoş geldin, Ahmet Yılmaz'),
@@ -126,6 +155,7 @@ class _AuthGateFixture {
   late final FieldReportController fieldReportController;
   late final TeamController teamController;
   late final VehicleController vehicleController;
+  late final VehicleDetailController vehicleDetailController;
 
   _AuthGateFixture() {
     authService = FakeAuthService();
@@ -169,8 +199,10 @@ class _AuthGateFixture {
       repository: teamRepository,
       actorPermissions: const {},
     );
-    vehicleController = VehicleController(
-      repository: FakeVehicleRepository(delay: Duration.zero),
+    final vehicleRepository = FakeVehicleRepository(delay: Duration.zero);
+    vehicleController = VehicleController(repository: vehicleRepository);
+    vehicleDetailController = VehicleDetailController(
+      repository: vehicleRepository,
     );
   }
 
@@ -185,6 +217,7 @@ class _AuthGateFixture {
       fieldReportController: fieldReportController,
       teamController: teamController,
       vehicleController: vehicleController,
+      vehicleDetailController: vehicleDetailController,
     ),
   );
 
@@ -197,6 +230,7 @@ class _AuthGateFixture {
     fieldReportController.dispose();
     teamController.dispose();
     vehicleController.dispose();
+    vehicleDetailController.dispose();
   }
 }
 
