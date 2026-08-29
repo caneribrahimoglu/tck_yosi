@@ -6,6 +6,7 @@ import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/update_vehicle_request.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/vehicle_inspection.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository_exception.dart';
 
 void main() {
@@ -215,7 +216,210 @@ void main() {
     expect(history.single.isActive, isFalse);
     expect(history.single.endedAt, isNotNull);
   });
+
+  test('teslim alma kilometreyi günceller ve kullanım oturumu açar', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicle('vehicle-001')],
+      delay: Duration.zero,
+    );
+    await repository.assignVehicle(
+      vehicleId: 'vehicle-001',
+      userId: 'driver-001',
+      userName: 'Test Şoför',
+    );
+
+    final session = await repository.receiveVehicle(
+      userId: 'driver-001',
+      mileage: 150,
+      inspection: _inspection,
+    );
+
+    expect(session.receivedMileage, 150);
+    expect(session.isActive, isTrue);
+    expect(
+      (await repository.getVehicleById('vehicle-001'))?.currentMileage,
+      150,
+    );
+    expect(
+      (await repository.getActiveUsageSessionForUser('driver-001'))?.id,
+      session.id,
+    );
+  });
+
+  test('teslim kilometresi güncel kilometreden düşük olamaz', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicle('vehicle-001')],
+      delay: Duration.zero,
+    );
+    await repository.assignVehicle(
+      vehicleId: 'vehicle-001',
+      userId: 'driver-001',
+      userName: 'Test Şoför',
+    );
+
+    expect(
+      () => repository.receiveVehicle(
+        userId: 'driver-001',
+        mileage: 99,
+        inspection: _inspection,
+      ),
+      throwsA(isA<VehicleRepositoryException>()),
+    );
+  });
+
+  test('kontrolde sorun varsa açıklama zorunludur', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicle('vehicle-001')],
+      delay: Duration.zero,
+    );
+    await repository.assignVehicle(
+      vehicleId: 'vehicle-001',
+      userId: 'driver-001',
+      userName: 'Test Şoför',
+    );
+
+    expect(
+      () => repository.receiveVehicle(
+        userId: 'driver-001',
+        mileage: 100,
+        inspection: const VehicleInspection(
+          bodyworkOkay: false,
+          tiresOkay: true,
+          lightsOkay: true,
+          glassAndMirrorsOkay: true,
+          leakFree: true,
+          equipmentComplete: true,
+          notes: '',
+        ),
+      ),
+      throwsA(
+        isA<VehicleRepositoryException>().having(
+          (error) => error.message,
+          'message',
+          'Kontrolde sorun işaretlendiyse açıklama zorunludur.',
+        ),
+      ),
+    );
+  });
+
+  test('iade kilometreyi günceller, oturumu ve atamayı kapatır', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicle('vehicle-001')],
+      delay: Duration.zero,
+    );
+    await repository.assignVehicle(
+      vehicleId: 'vehicle-001',
+      userId: 'driver-001',
+      userName: 'Test Şoför',
+    );
+    await repository.receiveVehicle(
+      userId: 'driver-001',
+      mileage: 150,
+      inspection: _inspection,
+    );
+
+    final returned = await repository.returnVehicle(
+      userId: 'driver-001',
+      mileage: 225,
+      inspection: _inspection,
+    );
+
+    expect(returned.isActive, isFalse);
+    expect(returned.returnedMileage, 225);
+    expect(
+      (await repository.getVehicleById('vehicle-001'))?.currentMileage,
+      225,
+    );
+    expect(await repository.getActiveAssignmentForUser('driver-001'), isNull);
+    expect(await repository.getActiveUsageSessionForUser('driver-001'), isNull);
+    expect(await repository.getVehicleUsageSessions('vehicle-001'), [returned]);
+  });
+
+  test('teslim alınmış aracın ataması yönetimden kapatılamaz', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicle('vehicle-001')],
+      delay: Duration.zero,
+    );
+    await repository.assignVehicle(
+      vehicleId: 'vehicle-001',
+      userId: 'driver-001',
+      userName: 'Test Şoför',
+    );
+    await repository.receiveVehicle(
+      userId: 'driver-001',
+      mileage: 100,
+      inspection: _inspection,
+    );
+
+    expect(
+      () => repository.releaseVehicle('vehicle-001'),
+      throwsA(isA<VehicleRepositoryException>()),
+    );
+  });
+
+  test(
+    'teslim alınmış araç iade edilmeden başka personele devredilemez',
+    () async {
+      final repository = FakeVehicleRepository(
+        vehicles: [_vehicle('vehicle-001')],
+        delay: Duration.zero,
+      );
+      await repository.assignVehicle(
+        vehicleId: 'vehicle-001',
+        userId: 'driver-001',
+        userName: 'İlk Şoför',
+      );
+      await repository.receiveVehicle(
+        userId: 'driver-001',
+        mileage: 100,
+        inspection: _inspection,
+      );
+
+      expect(
+        () => repository.assignVehicle(
+          vehicleId: 'vehicle-001',
+          userId: 'driver-002',
+          userName: 'İkinci Şoför',
+        ),
+        throwsA(isA<VehicleRepositoryException>()),
+      );
+    },
+  );
+
+  test('personele aynı anda ikinci aktif araç atanamaz', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [
+        _vehicle('vehicle-001'),
+        _vehicle('vehicle-002', plate: '81 TST 002'),
+      ],
+      delay: Duration.zero,
+    );
+    await repository.assignVehicle(
+      vehicleId: 'vehicle-001',
+      userId: 'driver-001',
+      userName: 'Test Şoför',
+    );
+
+    expect(
+      () => repository.assignVehicle(
+        vehicleId: 'vehicle-002',
+        userId: 'driver-001',
+        userName: 'Test Şoför',
+      ),
+      throwsA(isA<VehicleRepositoryException>()),
+    );
+  });
 }
+
+const _inspection = VehicleInspection(
+  bodyworkOkay: true,
+  tiresOkay: true,
+  lightsOkay: true,
+  glassAndMirrorsOkay: true,
+  leakFree: true,
+  equipmentComplete: true,
+  notes: '',
+);
 
 CreateVehicleRequest _request({String licensePlate = '81 YEN 001'}) =>
     CreateVehicleRequest(

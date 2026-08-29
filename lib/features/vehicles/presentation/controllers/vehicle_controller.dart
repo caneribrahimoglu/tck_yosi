@@ -10,6 +10,8 @@ import '../../domain/models/vehicle.dart';
 import '../../domain/models/create_vehicle_request.dart';
 import '../../domain/models/update_vehicle_request.dart';
 import '../../domain/models/vehicle_assignment.dart';
+import '../../domain/models/vehicle_inspection.dart';
+import '../../domain/models/vehicle_usage_session.dart';
 import '../../domain/repositories/vehicle_repository.dart';
 import '../../domain/repositories/vehicle_repository_exception.dart';
 import 'vehicle_load_status.dart';
@@ -32,6 +34,12 @@ class VehicleController extends ChangeNotifier {
   bool _isLoadingAssignmentCandidates = false;
   bool _isAssigning = false;
   String? _assignmentErrorMessage;
+  bool _isLoadingAssignedVehicle = false;
+  bool _isSubmittingHandover = false;
+  VehicleAssignment? _currentUserAssignment;
+  Vehicle? _assignedVehicle;
+  VehicleUsageSession? _currentUsageSession;
+  String? _handoverErrorMessage;
 
   VehicleController({
     required VehicleRepository repository,
@@ -50,6 +58,12 @@ class VehicleController extends ChangeNotifier {
   bool get isLoadingAssignmentCandidates => _isLoadingAssignmentCandidates;
   bool get isAssigning => _isAssigning;
   String? get assignmentErrorMessage => _assignmentErrorMessage;
+  bool get isLoadingAssignedVehicle => _isLoadingAssignedVehicle;
+  bool get isSubmittingHandover => _isSubmittingHandover;
+  VehicleAssignment? get currentUserAssignment => _currentUserAssignment;
+  Vehicle? get assignedVehicle => _assignedVehicle;
+  VehicleUsageSession? get currentUsageSession => _currentUsageSession;
+  String? get handoverErrorMessage => _handoverErrorMessage;
   String get searchQuery => _searchQuery;
   VehicleOwnershipType? get ownershipFilter => _ownershipFilter;
   VehicleOperationalStatus? get statusFilter => _statusFilter;
@@ -249,6 +263,121 @@ class VehicleController extends ChangeNotifier {
       _isAssigning = false;
       notifyListeners();
     }
+  }
+
+  Future<void> loadAssignedVehicle(String userId) async {
+    if (_isLoadingAssignedVehicle) {
+      return;
+    }
+    _isLoadingAssignedVehicle = true;
+    _handoverErrorMessage = null;
+    notifyListeners();
+    try {
+      final assignment = await _repository.getActiveAssignmentForUser(userId);
+      _currentUserAssignment = assignment;
+      if (assignment == null) {
+        _assignedVehicle = null;
+        _currentUsageSession = null;
+      } else {
+        _assignedVehicle = await _repository.getVehicleById(
+          assignment.vehicleId,
+        );
+        _currentUsageSession = await _repository.getActiveUsageSessionForUser(
+          userId,
+        );
+      }
+    } catch (_) {
+      _currentUserAssignment = null;
+      _assignedVehicle = null;
+      _currentUsageSession = null;
+      _handoverErrorMessage = 'Atanmış araç bilgisi yüklenemedi.';
+    } finally {
+      _isLoadingAssignedVehicle = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> receiveAssignedVehicle({
+    required String userId,
+    required int mileage,
+    required VehicleInspection inspection,
+  }) async {
+    if (_isSubmittingHandover) {
+      return false;
+    }
+    _isSubmittingHandover = true;
+    _handoverErrorMessage = null;
+    notifyListeners();
+    try {
+      _currentUsageSession = await _repository.receiveVehicle(
+        userId: userId,
+        mileage: mileage,
+        inspection: inspection,
+      );
+      final vehicleId = _currentUserAssignment?.vehicleId;
+      if (vehicleId != null) {
+        _assignedVehicle = await _repository.getVehicleById(vehicleId);
+        _replaceVehicleInFleet(_assignedVehicle);
+      }
+      return true;
+    } on VehicleRepositoryException catch (error) {
+      _handoverErrorMessage = error.message;
+      return false;
+    } catch (_) {
+      _handoverErrorMessage = 'Araç teslim alınamadı.';
+      return false;
+    } finally {
+      _isSubmittingHandover = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> returnAssignedVehicle({
+    required String userId,
+    required int mileage,
+    required VehicleInspection inspection,
+  }) async {
+    if (_isSubmittingHandover) {
+      return false;
+    }
+    _isSubmittingHandover = true;
+    _handoverErrorMessage = null;
+    notifyListeners();
+    try {
+      final closedSession = await _repository.returnVehicle(
+        userId: userId,
+        mileage: mileage,
+        inspection: inspection,
+      );
+      final updatedVehicle = await _repository.getVehicleById(
+        closedSession.vehicleId,
+      );
+      _replaceVehicleInFleet(updatedVehicle);
+      _currentUsageSession = null;
+      _currentUserAssignment = null;
+      _assignedVehicle = null;
+      return true;
+    } on VehicleRepositoryException catch (error) {
+      _handoverErrorMessage = error.message;
+      return false;
+    } catch (_) {
+      _handoverErrorMessage = 'Araç iade edilemedi.';
+      return false;
+    } finally {
+      _isSubmittingHandover = false;
+      notifyListeners();
+    }
+  }
+
+  void _replaceVehicleInFleet(Vehicle? updatedVehicle) {
+    if (updatedVehicle == null ||
+        !_allVehicles.any((vehicle) => vehicle.id == updatedVehicle.id)) {
+      return;
+    }
+    _allVehicles = List.unmodifiable([
+      for (final vehicle in _allVehicles)
+        if (vehicle.id == updatedVehicle.id) updatedVehicle else vehicle,
+    ]);
   }
 
   void setSearchQuery(String value) {

@@ -10,6 +10,8 @@ import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/update_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_assignment.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/vehicle_inspection.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/vehicle_usage_session.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/pages/vehicle_module_page.dart';
@@ -277,6 +279,39 @@ class _VehicleRepository implements VehicleRepository {
 
   @override
   Future<void> releaseVehicle(String vehicleId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VehicleAssignment?> getActiveAssignmentForUser(String userId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VehicleUsageSession?> getActiveUsageSessionForUser(String userId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<VehicleUsageSession>> getVehicleUsageSessions(String vehicleId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VehicleUsageSession> receiveVehicle({
+    required String userId,
+    required int mileage,
+    required VehicleInspection inspection,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VehicleUsageSession> returnVehicle({
+    required String userId,
+    required int mileage,
+    required VehicleInspection inspection,
+  }) {
     throw UnimplementedError();
   }
 }

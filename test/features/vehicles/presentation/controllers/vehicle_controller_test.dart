@@ -9,6 +9,8 @@ import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/update_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_assignment.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/vehicle_inspection.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/vehicle_usage_session.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_load_status.dart';
@@ -117,6 +119,47 @@ void main() {
     expect(released, isTrue);
     expect(controller.assignmentErrorMessage, isNull);
     expect(controller.isAssigning, isFalse);
+  });
+
+  test('şoför atanmış aracını yükler, teslim alır ve iade eder', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicles.first],
+      assignments: [
+        VehicleAssignment(
+          id: 'assignment-driver',
+          vehicleId: _vehicles.first.id,
+          assignedToUserId: 'driver-001',
+          assignedToName: 'Test Şoför',
+          assignedAt: DateTime(2026, 8, 29),
+        ),
+      ],
+      delay: Duration.zero,
+    );
+    final controller = VehicleController(repository: repository);
+    addTearDown(controller.dispose);
+
+    await controller.loadAssignedVehicle('driver-001');
+    expect(controller.assignedVehicle?.id, _vehicles.first.id);
+    expect(controller.currentUsageSession, isNull);
+
+    final received = await controller.receiveAssignedVehicle(
+      userId: 'driver-001',
+      mileage: 250,
+      inspection: _inspection,
+    );
+    expect(received, isTrue);
+    expect(controller.currentUsageSession?.receivedMileage, 250);
+    expect(controller.assignedVehicle?.currentMileage, 250);
+
+    final returned = await controller.returnAssignedVehicle(
+      userId: 'driver-001',
+      mileage: 300,
+      inspection: _inspection,
+    );
+    expect(returned, isTrue);
+    expect(controller.currentUsageSession, isNull);
+    expect(controller.assignedVehicle, isNull);
+    expect(controller.currentUserAssignment, isNull);
   });
 
   test('eşzamanlı iki load repositoryyi bir kez çağırır', () async {
@@ -295,6 +338,39 @@ class _VehicleRepository implements VehicleRepository {
   Future<void> releaseVehicle(String vehicleId) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<VehicleAssignment?> getActiveAssignmentForUser(String userId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VehicleUsageSession?> getActiveUsageSessionForUser(String userId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<VehicleUsageSession>> getVehicleUsageSessions(String vehicleId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VehicleUsageSession> receiveVehicle({
+    required String userId,
+    required int mileage,
+    required VehicleInspection inspection,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VehicleUsageSession> returnVehicle({
+    required String userId,
+    required int mileage,
+    required VehicleInspection inspection,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 final _vehicles = [
@@ -327,6 +403,16 @@ final _vehicles = [
     status: VehicleOperationalStatus.outOfService,
   ),
 ];
+
+const _inspection = VehicleInspection(
+  bodyworkOkay: true,
+  tiresOkay: true,
+  lightsOkay: true,
+  glassAndMirrorsOkay: true,
+  leakFree: true,
+  equipmentComplete: true,
+  notes: '',
+);
 
 Vehicle _vehicle({
   required String id,

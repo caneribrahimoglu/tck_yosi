@@ -2,6 +2,8 @@ import '../models/vehicle.dart';
 import '../models/create_vehicle_request.dart';
 import '../models/update_vehicle_request.dart';
 import '../models/vehicle_assignment.dart';
+import '../models/vehicle_inspection.dart';
+import '../models/vehicle_usage_session.dart';
 
 abstract interface class VehicleRepository {
   Future<List<Vehicle>> getAllVehicles();
@@ -24,4 +26,22 @@ abstract interface class VehicleRepository {
   });
 
   Future<void> releaseVehicle(String vehicleId);
+
+  Future<VehicleAssignment?> getActiveAssignmentForUser(String userId);
+
+  Future<VehicleUsageSession?> getActiveUsageSessionForUser(String userId);
+
+  Future<List<VehicleUsageSession>> getVehicleUsageSessions(String vehicleId);
+
+  Future<VehicleUsageSession> receiveVehicle({
+    required String userId,
+    required int mileage,
+    required VehicleInspection inspection,
+  });
+
+  Future<VehicleUsageSession> returnVehicle({
+    required String userId,
+    required int mileage,
+    required VehicleInspection inspection,
+  });
 }

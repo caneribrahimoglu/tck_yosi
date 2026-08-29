@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../domain/models/vehicle.dart';
 import '../../domain/models/vehicle_assignment.dart';
+import '../../domain/models/vehicle_usage_session.dart';
 import '../../domain/repositories/vehicle_repository.dart';
 import 'vehicle_detail_load_status.dart';
 
@@ -12,6 +13,7 @@ class VehicleDetailController extends ChangeNotifier {
   Vehicle? _vehicle;
   String? _errorMessage;
   List<VehicleAssignment> _assignments = const [];
+  List<VehicleUsageSession> _usageSessions = const [];
 
   VehicleDetailController({required VehicleRepository repository})
     : _repository = repository;
@@ -20,6 +22,8 @@ class VehicleDetailController extends ChangeNotifier {
   Vehicle? get vehicle => _vehicle;
   String? get errorMessage => _errorMessage;
   List<VehicleAssignment> get assignments => List.unmodifiable(_assignments);
+  List<VehicleUsageSession> get usageSessions =>
+      List.unmodifiable(_usageSessions);
   VehicleAssignment? get currentAssignment {
     for (final assignment in _assignments) {
       if (assignment.isActive) {
@@ -38,6 +42,7 @@ class VehicleDetailController extends ChangeNotifier {
     _vehicle = null;
     _errorMessage = null;
     _assignments = const [];
+    _usageSessions = const [];
     notifyListeners();
 
     try {
@@ -48,6 +53,9 @@ class VehicleDetailController extends ChangeNotifier {
         _vehicle = vehicle;
         _assignments = List.unmodifiable(
           await _repository.getVehicleAssignments(vehicleId),
+        );
+        _usageSessions = List.unmodifiable(
+          await _repository.getVehicleUsageSessions(vehicleId),
         );
         _status = VehicleDetailLoadStatus.loaded;
       }

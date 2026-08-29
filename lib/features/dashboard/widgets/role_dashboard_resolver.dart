@@ -19,6 +19,7 @@ import '../../vehicles/domain/models/vehicle.dart';
 import '../../vehicles/presentation/pages/vehicle_detail_page.dart';
 import '../../vehicles/presentation/pages/create_vehicle_page.dart';
 import '../../vehicles/presentation/pages/vehicle_assignment_page.dart';
+import '../../vehicles/presentation/pages/vehicle_handover_page.dart';
 import '../../vehicles/presentation/controllers/vehicle_controller.dart';
 import '../../vehicles/presentation/controllers/vehicle_detail_controller.dart';
 import '../../personnel/presentation/pages/personnel_module_page.dart';
@@ -278,6 +279,26 @@ class RoleDashboardResolver extends StatelessWidget {
     );
   }
 
+  Future<void> _openVehicleHandover(
+    BuildContext context,
+    VehicleHandoverType type,
+  ) async {
+    final vehicle = vehicleController.assignedVehicle;
+    if (vehicle == null) {
+      return;
+    }
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => VehicleHandoverPage(
+          type: type,
+          vehicle: vehicle,
+          currentUser: currentUser,
+          controller: vehicleController,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return switch (currentUser.role) {
@@ -285,6 +306,11 @@ class RoleDashboardResolver extends StatelessWidget {
         currentUser: currentUser,
         onLogout: onLogout,
         onCreateFieldReport: () => _openFieldReport(context),
+        vehicleController: vehicleController,
+        onReceiveVehicle: () =>
+            _openVehicleHandover(context, VehicleHandoverType.receive),
+        onReturnVehicle: () =>
+            _openVehicleHandover(context, VehicleHandoverType.returnVehicle),
       ),
       UserRole.engineer => EngineerDashboardPage(
         currentUser: currentUser,

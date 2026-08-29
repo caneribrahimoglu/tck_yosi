@@ -5,6 +5,7 @@ import 'package:tck_yosi/features/auth/domain/enums/user_role.dart';
 import 'package:tck_yosi/features/auth/domain/models/app_user.dart';
 import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/vehicle_inspection.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_detail_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/pages/vehicle_detail_page.dart';
 
@@ -109,6 +110,75 @@ void main() {
     await tester.tap(find.text('Atamayı Yönet'));
     await tester.pump();
     expect(selectedVehicle?.id, 'vehicle-demo-001');
+  });
+
+  testWidgets(
+    'teslim alınan aracın kullanım kilometresi şef detayında görünür',
+    (tester) async {
+      final repository = FakeVehicleRepository(delay: Duration.zero);
+      await repository.receiveVehicle(
+        userId: 'user-driver-001',
+        mileage: 48500,
+        inspection: const VehicleInspection(
+          bodyworkOkay: true,
+          tiresOkay: true,
+          lightsOkay: true,
+          glassAndMirrorsOkay: true,
+          leakFree: true,
+          equipmentComplete: true,
+          notes: 'Silecekler sesli çalışıyor.',
+        ),
+      );
+      final controller = VehicleDetailController(repository: repository);
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(_app(controller, 'vehicle-demo-001'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Teslim ve iade kayıtları'), findsOneWidget);
+      expect(find.textContaining('Teslim:'), findsOneWidget);
+      expect(find.textContaining('48.500'), findsNWidgets(2));
+      expect(find.text('Araç halen kullanıcıda'), findsOneWidget);
+      expect(
+        find.text('Teslim notu: Silecekler sesli çalışıyor.'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('uygun olmayan kontroller başlık ve açıklamayla gösterilir', (
+    tester,
+  ) async {
+    final repository = FakeVehicleRepository(delay: Duration.zero);
+    await repository.receiveVehicle(
+      userId: 'user-driver-001',
+      mileage: 48320,
+      inspection: const VehicleInspection(
+        bodyworkOkay: true,
+        tiresOkay: true,
+        lightsOkay: true,
+        wipersOkay: false,
+        glassAndMirrorsOkay: true,
+        leakFree: true,
+        equipmentComplete: true,
+        notes: 'Sağ taraftaki kötü siliyor, iz bırakıyor.',
+      ),
+    );
+    final controller = VehicleDetailController(repository: repository);
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(_app(controller, 'vehicle-demo-001'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Teslim sırasında tespit edilen sorunlar'),
+      findsOneWidget,
+    );
+    expect(find.text('Silecek arızası'), findsOneWidget);
+    expect(
+      find.text('Açıklama: Sağ taraftaki kötü siliyor, iz bırakıyor.'),
+      findsOneWidget,
+    );
   });
 }
 

@@ -4,20 +4,39 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_page_header.dart';
-import '../../auth/domain/models/app_user.dart';
 import '../../auth/domain/enums/app_permission.dart';
+import '../../auth/domain/models/app_user.dart';
+import '../../vehicles/presentation/controllers/vehicle_controller.dart';
+import '../../vehicles/presentation/vehicle_presentation.dart';
 
-class DriverDashboardPage extends StatelessWidget {
+class DriverDashboardPage extends StatefulWidget {
   final AppUser currentUser;
   final Future<void> Function() onLogout;
   final Future<void> Function() onCreateFieldReport;
+  final Future<void> Function() onReceiveVehicle;
+  final Future<void> Function() onReturnVehicle;
+  final VehicleController vehicleController;
 
   const DriverDashboardPage({
     super.key,
     required this.currentUser,
     required this.onLogout,
     required this.onCreateFieldReport,
+    required this.onReceiveVehicle,
+    required this.onReturnVehicle,
+    required this.vehicleController,
   });
+
+  @override
+  State<DriverDashboardPage> createState() => _DriverDashboardPageState();
+}
+
+class _DriverDashboardPageState extends State<DriverDashboardPage> {
+  @override
+  void initState() {
+    super.initState();
+    widget.vehicleController.loadAssignedVehicle(widget.currentUser.id);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,11 +48,11 @@ class DriverDashboardPage extends StatelessWidget {
             padding: const EdgeInsets.only(right: AppSpacing.md),
             child: Row(
               children: [
-                Text(currentUser.fullName),
+                Text(widget.currentUser.fullName),
                 const SizedBox(width: AppSpacing.sm),
                 IconButton(
                   tooltip: 'Çıkış yap',
-                  onPressed: onLogout,
+                  onPressed: widget.onLogout,
                   icon: const Icon(Icons.logout_rounded),
                 ),
               ],
@@ -41,67 +60,86 @@ class DriverDashboardPage extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppPageHeader(
-              title: 'Hoş geldin, ${currentUser.fullName}',
-              subtitle: 'Bugünkü görevlerin ve araç işlemlerin',
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            _buildAssignedVehicle(context),
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              'Hızlı İşlemler',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.md,
-              runSpacing: AppSpacing.md,
-              children: [
-                if (currentUser.hasPermission(AppPermission.receiveVehicle))
-                  AppButton.primary(
-                    label: 'Aracı Teslim Al',
-                    icon: Icons.key_rounded,
-                    onPressed: () {},
-                  ),
-                if (currentUser.hasPermission(AppPermission.updateMileage))
-                  AppButton.secondary(
-                    label: 'Kilometre Gir',
-                    icon: Icons.speed_rounded,
-                    onPressed: () {},
-                  ),
-                if (currentUser.hasPermission(AppPermission.createFuelRecord))
-                  AppButton.secondary(
-                    label: 'Yakıt Kaydı',
-                    icon: Icons.local_gas_station_outlined,
-                    onPressed: () {},
-                  ),
-                if (currentUser.hasPermission(AppPermission.createFieldReport))
-                  AppButton.secondary(
-                    label: 'Saha Bildirimi Oluştur',
-                    icon: Icons.add_location_alt_outlined,
-                    onPressed: onCreateFieldReport,
-                  ),
-              ],
-            ),
-          ],
+      body: AnimatedBuilder(
+        animation: widget.vehicleController,
+        builder: (context, child) => SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppPageHeader(
+                title: 'Hoş geldin, ${widget.currentUser.fullName}',
+                subtitle: 'Görevlerin ve araç işlemlerin',
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              _buildAssignedVehicle(context),
+              const SizedBox(height: AppSpacing.xl),
+              Text(
+                'Hızlı İşlemler',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _buildActions(),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildAssignedVehicle(BuildContext context) {
+    final controller = widget.vehicleController;
+    if (controller.isLoadingAssignedVehicle) {
+      return const AppCard(child: Center(child: CircularProgressIndicator()));
+    }
+    if (controller.handoverErrorMessage case final error?) {
+      return AppCard(
+        child: Column(
+          children: [
+            const Icon(Icons.error_outline_rounded, size: 40),
+            const SizedBox(height: AppSpacing.sm),
+            Text(error, textAlign: TextAlign.center),
+            const SizedBox(height: AppSpacing.md),
+            AppButton.secondary(
+              label: 'Tekrar Dene',
+              onPressed: () =>
+                  controller.loadAssignedVehicle(widget.currentUser.id),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final vehicle = controller.assignedVehicle;
+    if (vehicle == null) {
+      return const AppCard(
+        child: Column(
+          children: [
+            Icon(Icons.no_transfer_outlined, size: 44),
+            SizedBox(height: AppSpacing.sm),
+            Text(
+              'Atanmış Araç Yok',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            SizedBox(height: AppSpacing.xs),
+            Text(
+              'Şef tarafından araç atandığında burada görüntülenecek.',
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    final usage = controller.currentUsageSession;
     return AppCard(
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            Icons.local_shipping_outlined,
+            vehicle.type.icon,
             size: 48,
             color: Theme.of(context).colorScheme.primary,
           ),
@@ -111,20 +149,32 @@ class DriverDashboardPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Bugünkü Aracın',
+                  'Atanmış Aracın',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '34 ABC 123',
+                  vehicle.licensePlate,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Ford Transit • 125.430 km',
+                  '${vehicle.brand} ${vehicle.model} • ${vehicle.formattedMileage}',
                   style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  usage == null
+                      ? 'Teslim alınmayı bekliyor'
+                      : 'Teslim alındı · ${_formatDate(usage.receivedAt)} · ${usage.receivedMileage} km',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: usage == null
+                        ? Theme.of(context).colorScheme.tertiary
+                        : Colors.green.shade700,
+                  ),
                 ),
               ],
             ),
@@ -132,5 +182,57 @@ class DriverDashboardPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildActions() {
+    final hasVehicle = widget.vehicleController.assignedVehicle != null;
+    final isReceived = widget.vehicleController.currentUsageSession != null;
+    return Wrap(
+      spacing: AppSpacing.md,
+      runSpacing: AppSpacing.md,
+      children: [
+        if (hasVehicle &&
+            !isReceived &&
+            widget.currentUser.hasPermission(AppPermission.receiveVehicle))
+          AppButton.primary(
+            label: 'Aracı Teslim Al',
+            icon: Icons.key_rounded,
+            onPressed: widget.onReceiveVehicle,
+          ),
+        if (hasVehicle &&
+            isReceived &&
+            widget.currentUser.hasPermission(AppPermission.returnVehicle))
+          AppButton.primary(
+            label: 'Aracı İade Et',
+            icon: Icons.assignment_return_outlined,
+            onPressed: widget.onReturnVehicle,
+          ),
+        if (isReceived &&
+            widget.currentUser.hasPermission(AppPermission.updateMileage))
+          const AppButton.secondary(
+            label: 'Kilometre Gir',
+            icon: Icons.speed_rounded,
+            onPressed: null,
+          ),
+        if (isReceived &&
+            widget.currentUser.hasPermission(AppPermission.createFuelRecord))
+          const AppButton.secondary(
+            label: 'Yakıt Kaydı',
+            icon: Icons.local_gas_station_outlined,
+            onPressed: null,
+          ),
+        if (widget.currentUser.hasPermission(AppPermission.createFieldReport))
+          AppButton.secondary(
+            label: 'Saha Bildirimi Oluştur',
+            icon: Icons.add_location_alt_outlined,
+            onPressed: widget.onCreateFieldReport,
+          ),
+      ],
+    );
+  }
+
+  String _formatDate(DateTime value) {
+    String twoDigits(int number) => number.toString().padLeft(2, '0');
+    return '${twoDigits(value.day)}.${twoDigits(value.month)}.${value.year} ${twoDigits(value.hour)}:${twoDigits(value.minute)}';
   }
 }

@@ -11,6 +11,8 @@ import '../../domain/enums/vehicle_operational_status.dart';
 import '../../domain/enums/vehicle_ownership_type.dart';
 import '../../domain/models/vehicle.dart';
 import '../../domain/models/vehicle_assignment.dart';
+import '../../domain/models/vehicle_inspection.dart';
+import '../../domain/models/vehicle_usage_session.dart';
 import '../controllers/vehicle_detail_controller.dart';
 import '../controllers/vehicle_detail_load_status.dart';
 import '../vehicle_presentation.dart';
@@ -87,6 +89,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
           VehicleDetailLoadStatus.loaded => _LoadedVehicleDetail(
             vehicle: widget.controller.vehicle!,
             assignments: widget.controller.assignments,
+            usageSessions: widget.controller.usageSessions,
             currentAssignment: widget.controller.currentAssignment,
             onEditVehicle: widget.onEditVehicle,
             onManageAssignment: widget.onManageAssignment,
@@ -100,6 +103,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 class _LoadedVehicleDetail extends StatelessWidget {
   final Vehicle vehicle;
   final List<VehicleAssignment> assignments;
+  final List<VehicleUsageSession> usageSessions;
   final VehicleAssignment? currentAssignment;
   final Future<void> Function(Vehicle vehicle)? onEditVehicle;
   final Future<void> Function(Vehicle vehicle)? onManageAssignment;
@@ -107,6 +111,7 @@ class _LoadedVehicleDetail extends StatelessWidget {
   const _LoadedVehicleDetail({
     required this.vehicle,
     required this.assignments,
+    required this.usageSessions,
     required this.currentAssignment,
     this.onEditVehicle,
     this.onManageAssignment,
@@ -234,6 +239,7 @@ class _LoadedVehicleDetail extends StatelessWidget {
               _AssignmentHistoryCard(
                 assignments: assignments,
                 currentAssignment: currentAssignment,
+                usageSessions: usageSessions,
               ),
             ],
           ),
@@ -246,10 +252,12 @@ class _LoadedVehicleDetail extends StatelessWidget {
 class _AssignmentHistoryCard extends StatelessWidget {
   final List<VehicleAssignment> assignments;
   final VehicleAssignment? currentAssignment;
+  final List<VehicleUsageSession> usageSessions;
 
   const _AssignmentHistoryCard({
     required this.assignments,
     required this.currentAssignment,
+    required this.usageSessions,
   });
 
   @override
@@ -288,10 +296,175 @@ class _AssignmentHistoryCard extends StatelessWidget {
             ))
               _AssignmentRow(assignment: assignment, title: 'Önceki sorumlu'),
           ],
+          if (usageSessions.isNotEmpty) ...[
+            const Divider(height: AppSpacing.xxl),
+            Text(
+              'Teslim ve iade kayıtları',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            for (final session in usageSessions)
+              _UsageSessionRow(session: session),
+          ],
         ],
       ),
     );
   }
+}
+
+class _UsageSessionRow extends StatelessWidget {
+  final VehicleUsageSession session;
+
+  const _UsageSessionRow({required this.session});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            session.isActive
+                ? Icons.key_outlined
+                : Icons.assignment_return_outlined,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  session.userName,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  'Teslim: ${_formatVehicleDate(session.receivedAt)} · ${_formatVehicleMileage(session.receivedMileage)}',
+                ),
+                if (session.returnedAt != null)
+                  Text(
+                    'İade: ${_formatVehicleDate(session.returnedAt!)} · ${_formatVehicleMileage(session.returnedMileage!)}',
+                  )
+                else
+                  const Text('Araç halen kullanıcıda'),
+                _InspectionSummary(
+                  title: 'Teslim',
+                  inspection: session.receiveInspection,
+                ),
+                if (session.returnInspection case final inspection?)
+                  _InspectionSummary(title: 'İade', inspection: inspection),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InspectionSummary extends StatelessWidget {
+  final String title;
+  final VehicleInspection inspection;
+
+  const _InspectionSummary({required this.title, required this.inspection});
+
+  @override
+  Widget build(BuildContext context) {
+    final issues = _inspectionIssueLabels(inspection);
+    final notes = inspection.notes.trim();
+
+    if (issues.isEmpty && notes.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    if (issues.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.xs),
+        child: Text('$title notu: $notes'),
+      );
+    }
+
+    final errorColor = Theme.of(context).colorScheme.error;
+    return Container(
+      margin: const EdgeInsets.only(top: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: errorColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: errorColor.withValues(alpha: 0.24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$title sırasında tespit edilen sorunlar',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: errorColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          for (final issue in issues)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.error_outline_rounded,
+                    size: 18,
+                    color: errorColor,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      issue,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (notes.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text('Açıklama: $notes'),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+List<String> _inspectionIssueLabels(VehicleInspection inspection) => [
+  if (!inspection.bodyworkOkay) 'Kaporta veya dış gövde sorunu',
+  if (!inspection.tiresOkay) 'Lastik sorunu',
+  if (!inspection.lightsOkay) 'Far veya sinyal arızası',
+  if (!inspection.wipersOkay) 'Silecek arızası',
+  if (!inspection.glassAndMirrorsOkay) 'Cam veya ayna sorunu',
+  if (!inspection.leakFree) 'Yağ veya sıvı kaçağı',
+  if (!inspection.equipmentComplete) 'Eksik ruhsat veya araç ekipmanı',
+];
+
+String _formatVehicleDate(DateTime value) {
+  String twoDigits(int number) => number.toString().padLeft(2, '0');
+  return '${twoDigits(value.day)}.${twoDigits(value.month)}.${value.year} ${twoDigits(value.hour)}:${twoDigits(value.minute)}';
+}
+
+String _formatVehicleMileage(int value) {
+  final digits = value.toString();
+  final buffer = StringBuffer();
+  for (var index = 0; index < digits.length; index++) {
+    if (index > 0 && (digits.length - index) % 3 == 0) {
+      buffer.write('.');
+    }
+    buffer.write(digits[index]);
+  }
+  return '$buffer km';
 }
 
 class _AssignmentRow extends StatelessWidget {

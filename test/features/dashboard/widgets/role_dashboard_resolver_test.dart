@@ -62,13 +62,14 @@ void main() {
     WidgetTester tester,
   ) async {
     const driver = AppUser(
-      id: 'driver-test',
+      id: 'user-driver-001',
       fullName: 'Test Şoför',
       username: 'test.sofor',
       role: UserRole.driver,
       permissions: {
         AppPermission.viewAssignedVehicle,
         AppPermission.receiveVehicle,
+        AppPermission.returnVehicle,
         AppPermission.updateMileage,
         AppPermission.createFuelRecord,
         AppPermission.createFieldReport,
@@ -77,6 +78,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(splashFactory: NoSplash.splashFactory),
         home: RoleDashboardResolver(
           currentUser: driver,
           onLogout: () async {},
@@ -88,12 +90,20 @@ void main() {
       ),
     );
 
+    await tester.pumpAndSettle();
+
     expect(find.text('Hoş geldin, Test Şoför'), findsOneWidget);
-    expect(find.text('Bugünkü Aracın'), findsOneWidget);
+    expect(find.text('Atanmış Aracın'), findsOneWidget);
+    expect(find.text('81 KGM 101'), findsOneWidget);
     expect(find.text('Aracı Teslim Al'), findsOneWidget);
-    expect(find.text('Yakıt Kaydı'), findsOneWidget);
+    expect(find.text('Yakıt Kaydı'), findsNothing);
     expect(find.text('Saha Bildirimi Oluştur'), findsOneWidget);
     expect(find.text('Yönetim Menüsü'), findsNothing);
+
+    await tester.tap(find.text('Aracı Teslim Al'));
+    await tester.pumpAndSettle();
+    expect(find.text('Araç Teslim Kontrolü'), findsOneWidget);
+    expect(find.text('Kontrolü Kaydet ve Teslim Al'), findsOneWidget);
   });
 
   testWidgets('mühendis rolü teknik operasyon dashboardunu gösterir', (
@@ -426,7 +436,9 @@ void main() {
       );
 
       expect(find.text('Hoş geldin, Yetkisiz Şoför'), findsOneWidget);
-      expect(find.text('Aracı Teslim Al'), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.text('Atanmış Araç Yok'), findsOneWidget);
+      expect(find.text('Aracı Teslim Al'), findsNothing);
       expect(find.text('Kilometre Gir'), findsNothing);
       expect(find.text('Yakıt Kaydı'), findsNothing);
       expect(find.text('Saha Bildirimi Oluştur'), findsNothing);
