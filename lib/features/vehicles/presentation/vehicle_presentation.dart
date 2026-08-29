@@ -4,6 +4,7 @@ import '../../../core/enums/app_status_type.dart';
 import '../domain/enums/vehicle_operational_status.dart';
 import '../domain/enums/vehicle_ownership_type.dart';
 import '../domain/enums/vehicle_type.dart';
+import '../domain/enums/vehicle_record_type.dart';
 import '../domain/models/vehicle.dart';
 
 extension VehiclePresentation on Vehicle {
@@ -49,6 +50,18 @@ extension VehicleTypePresentation on VehicleType {
     VehicleType.pickup => Icons.local_shipping_outlined,
     VehicleType.truck => Icons.fire_truck_outlined,
     VehicleType.workMachine => Icons.agriculture_outlined,
+  };
+}
+
+extension VehicleRecordTypePresentation on VehicleRecordType {
+  String get label => switch (this) {
+    VehicleRecordType.fault => 'Arıza',
+    VehicleRecordType.maintenance => 'Bakım',
+  };
+
+  IconData get icon => switch (this) {
+    VehicleRecordType.fault => Icons.car_crash_outlined,
+    VehicleRecordType.maintenance => Icons.build_outlined,
   };
 }
 

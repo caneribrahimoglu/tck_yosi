@@ -6,6 +6,8 @@ import 'package:tck_yosi/features/auth/domain/models/app_user.dart';
 import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_inspection.dart';
+import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_record_type.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_record_request.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_detail_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/pages/vehicle_detail_page.dart';
 
@@ -180,6 +182,37 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('arıza ve bakım kayıtları şef araç detayında görünür', (
+    tester,
+  ) async {
+    final repository = FakeVehicleRepository(delay: Duration.zero);
+    await repository.receiveVehicle(
+      userId: 'user-driver-001',
+      mileage: 48320,
+      inspection: _allOkayInspection,
+    );
+    await repository.createVehicleRecord(
+      userId: 'user-driver-001',
+      userName: 'Ahmet Yılmaz',
+      request: const CreateVehicleRecordRequest(
+        type: VehicleRecordType.fault,
+        title: 'Silecek arızası',
+        description: 'Sağ silecek iz bırakıyor.',
+        mileage: 48400,
+      ),
+    );
+    final controller = VehicleDetailController(repository: repository);
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(_app(controller, 'vehicle-demo-001'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Arıza ve Bakım Geçmişi'), findsOneWidget);
+    expect(find.text('Arıza: Silecek arızası'), findsOneWidget);
+    expect(find.text('Sağ silecek iz bırakıyor.'), findsOneWidget);
+    expect(find.textContaining('Ahmet Yılmaz'), findsWidgets);
+  });
 }
 
 Widget _app(
@@ -207,4 +240,14 @@ const _chief = AppUser(
   username: 'test.sef',
   role: UserRole.chief,
   permissions: {AppPermission.viewVehicleFleet},
+);
+
+const _allOkayInspection = VehicleInspection(
+  bodyworkOkay: true,
+  tiresOkay: true,
+  lightsOkay: true,
+  glassAndMirrorsOkay: true,
+  leakFree: true,
+  equipmentComplete: true,
+  notes: '',
 );

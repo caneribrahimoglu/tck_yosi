@@ -4,6 +4,8 @@ import '../../domain/models/update_vehicle_request.dart';
 import '../../domain/models/vehicle_assignment.dart';
 import '../../domain/models/vehicle_inspection.dart';
 import '../../domain/models/vehicle_usage_session.dart';
+import '../../domain/models/create_vehicle_record_request.dart';
+import '../../domain/models/vehicle_record.dart';
 import '../../domain/enums/vehicle_operational_status.dart';
 import '../../domain/repositories/vehicle_repository.dart';
 import '../../domain/repositories/vehicle_repository_exception.dart';
@@ -13,19 +15,22 @@ class FakeVehicleRepository implements VehicleRepository {
   final List<Vehicle> _vehicles;
   final List<VehicleAssignment> _assignments;
   final List<VehicleUsageSession> _usageSessions;
+  final List<VehicleRecord> _records;
   final Duration delay;
 
   FakeVehicleRepository({
     List<Vehicle>? vehicles,
     List<VehicleAssignment>? assignments,
     List<VehicleUsageSession>? usageSessions,
+    List<VehicleRecord>? records,
     this.delay = const Duration(milliseconds: 300),
   }) : _vehicles = List.of(vehicles ?? FakeVehicleData.vehicles),
        _assignments = List.of(
          assignments ??
              (vehicles == null ? FakeVehicleData.assignments : const []),
        ),
-       _usageSessions = List.of(usageSessions ?? const []);
+       _usageSessions = List.of(usageSessions ?? const []),
+       _records = List.of(records ?? const []);
 
   @override
   Future<List<Vehicle>> getAllVehicles() async {
@@ -352,6 +357,70 @@ class FakeVehicleRepository implements VehicleRepository {
       _assignments[assignmentIndex] = _assignments[assignmentIndex].end(now);
     }
     return closedSession;
+  }
+
+  @override
+  Future<List<VehicleRecord>> getVehicleRecords(String vehicleId) async {
+    await _wait();
+    final records =
+        _records
+            .where((record) => record.vehicleId == vehicleId)
+            .toList(growable: false)
+          ..sort(
+            (first, second) => second.createdAt.compareTo(first.createdAt),
+          );
+    return List.unmodifiable(records);
+  }
+
+  @override
+  Future<VehicleRecord> createVehicleRecord({
+    required String userId,
+    required String userName,
+    required CreateVehicleRecordRequest request,
+  }) async {
+    await _wait();
+    final session = _usageSessions
+        .where((item) => item.userId == userId && item.isActive)
+        .lastOrNull;
+    if (session == null) {
+      throw const VehicleRepositoryException(
+        'Kayıt eklemek için araç teslim alınmış olmalıdır.',
+      );
+    }
+    final vehicleIndex = _vehicles.indexWhere(
+      (vehicle) => vehicle.id == session.vehicleId,
+    );
+    if (vehicleIndex == -1) {
+      throw const VehicleRepositoryException('Araç kaydı bulunamadı.');
+    }
+    final vehicle = _vehicles[vehicleIndex];
+    if (request.mileage < vehicle.currentMileage) {
+      throw VehicleRepositoryException(
+        'Kayıt kilometresi ${vehicle.currentMileage} km değerinden düşük olamaz.',
+      );
+    }
+    if (request.title.trim().isEmpty || request.description.trim().isEmpty) {
+      throw const VehicleRepositoryException(
+        'Kayıt başlığı ve açıklaması zorunludur.',
+      );
+    }
+
+    final now = DateTime.now();
+    final record = VehicleRecord(
+      id: 'vehicle-record-${now.microsecondsSinceEpoch}',
+      vehicleId: vehicle.id,
+      usageSessionId: session.id,
+      type: request.type,
+      title: request.title.trim(),
+      description: request.description.trim(),
+      mileage: request.mileage,
+      createdByUserId: userId,
+      createdByName: userName.trim(),
+      createdAt: now,
+    );
+    _records.add(record);
+    _vehicles[vehicleIndex] = _copyVehicleWithMileage(vehicle, request.mileage);
+    return record;
   }
 
   void _ensureInspectionNotes(VehicleInspection inspection) {

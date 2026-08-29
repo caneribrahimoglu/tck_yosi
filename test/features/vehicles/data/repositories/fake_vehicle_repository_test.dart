@@ -3,10 +3,12 @@ import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_reposi
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_operational_status.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_ownership_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_type.dart';
+import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_record_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/update_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_inspection.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_record_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository_exception.dart';
 
 void main() {
@@ -405,6 +407,69 @@ void main() {
         vehicleId: 'vehicle-002',
         userId: 'driver-001',
         userName: 'Test Şoför',
+      ),
+      throwsA(isA<VehicleRepositoryException>()),
+    );
+  });
+
+  test(
+    'teslim alınmış araca arıza kaydı ekler ve kilometreyi günceller',
+    () async {
+      final repository = FakeVehicleRepository(
+        vehicles: [_vehicle('vehicle-001')],
+        delay: Duration.zero,
+      );
+      await repository.assignVehicle(
+        vehicleId: 'vehicle-001',
+        userId: 'driver-001',
+        userName: 'Test Şoför',
+      );
+      await repository.receiveVehicle(
+        userId: 'driver-001',
+        mileage: 120,
+        inspection: _inspection,
+      );
+
+      final record = await repository.createVehicleRecord(
+        userId: 'driver-001',
+        userName: 'Test Şoför',
+        request: const CreateVehicleRecordRequest(
+          type: VehicleRecordType.fault,
+          title: 'Silecek arızası',
+          description: 'Sağ silecek iz bırakıyor.',
+          mileage: 150,
+        ),
+      );
+
+      expect(record.type, VehicleRecordType.fault);
+      expect(record.usageSessionId, isNotEmpty);
+      expect(
+        (await repository.getVehicleRecords('vehicle-001')).single,
+        record,
+      );
+      expect(
+        (await repository.getVehicleById('vehicle-001'))?.currentMileage,
+        150,
+      );
+    },
+  );
+
+  test('araç teslim alınmadan arıza veya bakım kaydı eklenemez', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicle('vehicle-001')],
+      delay: Duration.zero,
+    );
+
+    expect(
+      () => repository.createVehicleRecord(
+        userId: 'driver-001',
+        userName: 'Test Şoför',
+        request: const CreateVehicleRecordRequest(
+          type: VehicleRecordType.maintenance,
+          title: 'Yağ değişimi',
+          description: 'Motor yağı değiştirildi.',
+          mileage: 150,
+        ),
       ),
       throwsA(isA<VehicleRepositoryException>()),
     );

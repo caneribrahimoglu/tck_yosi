@@ -12,6 +12,8 @@ import '../../domain/models/update_vehicle_request.dart';
 import '../../domain/models/vehicle_assignment.dart';
 import '../../domain/models/vehicle_inspection.dart';
 import '../../domain/models/vehicle_usage_session.dart';
+import '../../domain/models/create_vehicle_record_request.dart';
+import '../../domain/models/vehicle_record.dart';
 import '../../domain/repositories/vehicle_repository.dart';
 import '../../domain/repositories/vehicle_repository_exception.dart';
 import 'vehicle_load_status.dart';
@@ -40,6 +42,9 @@ class VehicleController extends ChangeNotifier {
   Vehicle? _assignedVehicle;
   VehicleUsageSession? _currentUsageSession;
   String? _handoverErrorMessage;
+  List<VehicleRecord> _assignedVehicleRecords = const [];
+  bool _isSubmittingRecord = false;
+  String? _recordErrorMessage;
 
   VehicleController({
     required VehicleRepository repository,
@@ -64,6 +69,10 @@ class VehicleController extends ChangeNotifier {
   Vehicle? get assignedVehicle => _assignedVehicle;
   VehicleUsageSession? get currentUsageSession => _currentUsageSession;
   String? get handoverErrorMessage => _handoverErrorMessage;
+  List<VehicleRecord> get assignedVehicleRecords =>
+      List.unmodifiable(_assignedVehicleRecords);
+  bool get isSubmittingRecord => _isSubmittingRecord;
+  String? get recordErrorMessage => _recordErrorMessage;
   String get searchQuery => _searchQuery;
   VehicleOwnershipType? get ownershipFilter => _ownershipFilter;
   VehicleOperationalStatus? get statusFilter => _statusFilter;
@@ -278,6 +287,7 @@ class VehicleController extends ChangeNotifier {
       if (assignment == null) {
         _assignedVehicle = null;
         _currentUsageSession = null;
+        _assignedVehicleRecords = const [];
       } else {
         _assignedVehicle = await _repository.getVehicleById(
           assignment.vehicleId,
@@ -285,11 +295,15 @@ class VehicleController extends ChangeNotifier {
         _currentUsageSession = await _repository.getActiveUsageSessionForUser(
           userId,
         );
+        _assignedVehicleRecords = List.unmodifiable(
+          await _repository.getVehicleRecords(assignment.vehicleId),
+        );
       }
     } catch (_) {
       _currentUserAssignment = null;
       _assignedVehicle = null;
       _currentUsageSession = null;
+      _assignedVehicleRecords = const [];
       _handoverErrorMessage = 'Atanmış araç bilgisi yüklenemedi.';
     } finally {
       _isLoadingAssignedVehicle = false;
@@ -356,6 +370,7 @@ class VehicleController extends ChangeNotifier {
       _currentUsageSession = null;
       _currentUserAssignment = null;
       _assignedVehicle = null;
+      _assignedVehicleRecords = const [];
       return true;
     } on VehicleRepositoryException catch (error) {
       _handoverErrorMessage = error.message;
@@ -365,6 +380,41 @@ class VehicleController extends ChangeNotifier {
       return false;
     } finally {
       _isSubmittingHandover = false;
+      notifyListeners();
+    }
+  }
+
+  Future<VehicleRecord?> createVehicleRecord({
+    required AppUser currentUser,
+    required CreateVehicleRecordRequest request,
+  }) async {
+    if (_isSubmittingRecord) {
+      return null;
+    }
+    _isSubmittingRecord = true;
+    _recordErrorMessage = null;
+    notifyListeners();
+    try {
+      final record = await _repository.createVehicleRecord(
+        userId: currentUser.id,
+        userName: currentUser.fullName,
+        request: request,
+      );
+      _assignedVehicleRecords = List.unmodifiable([
+        record,
+        ..._assignedVehicleRecords,
+      ]);
+      _assignedVehicle = await _repository.getVehicleById(record.vehicleId);
+      _replaceVehicleInFleet(_assignedVehicle);
+      return record;
+    } on VehicleRepositoryException catch (error) {
+      _recordErrorMessage = error.message;
+      return null;
+    } catch (_) {
+      _recordErrorMessage = 'Araç kaydı oluşturulamadı.';
+      return null;
+    } finally {
+      _isSubmittingRecord = false;
       notifyListeners();
     }
   }

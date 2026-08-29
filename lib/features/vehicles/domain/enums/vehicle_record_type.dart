@@ -1,0 +1,1 @@
+enum VehicleRecordType { fault, maintenance }

@@ -4,6 +4,8 @@ import '../models/update_vehicle_request.dart';
 import '../models/vehicle_assignment.dart';
 import '../models/vehicle_inspection.dart';
 import '../models/vehicle_usage_session.dart';
+import '../models/create_vehicle_record_request.dart';
+import '../models/vehicle_record.dart';
 
 abstract interface class VehicleRepository {
   Future<List<Vehicle>> getAllVehicles();
@@ -43,5 +45,13 @@ abstract interface class VehicleRepository {
     required String userId,
     required int mileage,
     required VehicleInspection inspection,
+  });
+
+  Future<List<VehicleRecord>> getVehicleRecords(String vehicleId);
+
+  Future<VehicleRecord> createVehicleRecord({
+    required String userId,
+    required String userName,
+    required CreateVehicleRecordRequest request,
   });
 }

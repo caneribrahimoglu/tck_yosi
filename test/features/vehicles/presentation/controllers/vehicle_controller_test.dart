@@ -2,15 +2,20 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tck_yosi/features/auth/data/services/fake_auth_service.dart';
+import 'package:tck_yosi/features/auth/domain/enums/user_role.dart';
+import 'package:tck_yosi/features/auth/domain/models/app_user.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_operational_status.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_ownership_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_type.dart';
+import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_record_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/update_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_assignment.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_inspection.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_usage_session.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_record_request.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/vehicle_record.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_load_status.dart';
@@ -150,6 +155,19 @@ void main() {
     expect(received, isTrue);
     expect(controller.currentUsageSession?.receivedMileage, 250);
     expect(controller.assignedVehicle?.currentMileage, 250);
+
+    final record = await controller.createVehicleRecord(
+      currentUser: _recordDriver,
+      request: const CreateVehicleRecordRequest(
+        type: VehicleRecordType.maintenance,
+        title: 'Periyodik bakım',
+        description: 'Motor yağı ve filtre değiştirildi.',
+        mileage: 275,
+      ),
+    );
+    expect(record?.type, VehicleRecordType.maintenance);
+    expect(controller.assignedVehicleRecords, hasLength(1));
+    expect(controller.assignedVehicle?.currentMileage, 275);
 
     final returned = await controller.returnAssignedVehicle(
       userId: 'driver-001',
@@ -371,6 +389,19 @@ class _VehicleRepository implements VehicleRepository {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<List<VehicleRecord>> getVehicleRecords(String vehicleId) async =>
+      const [];
+
+  @override
+  Future<VehicleRecord> createVehicleRecord({
+    required String userId,
+    required String userName,
+    required CreateVehicleRecordRequest request,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 final _vehicles = [
@@ -412,6 +443,14 @@ const _inspection = VehicleInspection(
   leakFree: true,
   equipmentComplete: true,
   notes: '',
+);
+
+const _recordDriver = AppUser(
+  id: 'driver-001',
+  fullName: 'Test Şoför',
+  username: 'test.sofor',
+  role: UserRole.driver,
+  permissions: {},
 );
 
 Vehicle _vehicle({

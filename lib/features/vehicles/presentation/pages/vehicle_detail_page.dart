@@ -9,10 +9,12 @@ import '../../../../shared/widgets/app_status_chip.dart';
 import '../../../auth/domain/models/app_user.dart';
 import '../../domain/enums/vehicle_operational_status.dart';
 import '../../domain/enums/vehicle_ownership_type.dart';
+import '../../domain/enums/vehicle_record_type.dart';
 import '../../domain/models/vehicle.dart';
 import '../../domain/models/vehicle_assignment.dart';
 import '../../domain/models/vehicle_inspection.dart';
 import '../../domain/models/vehicle_usage_session.dart';
+import '../../domain/models/vehicle_record.dart';
 import '../controllers/vehicle_detail_controller.dart';
 import '../controllers/vehicle_detail_load_status.dart';
 import '../vehicle_presentation.dart';
@@ -90,6 +92,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
             vehicle: widget.controller.vehicle!,
             assignments: widget.controller.assignments,
             usageSessions: widget.controller.usageSessions,
+            records: widget.controller.records,
             currentAssignment: widget.controller.currentAssignment,
             onEditVehicle: widget.onEditVehicle,
             onManageAssignment: widget.onManageAssignment,
@@ -104,6 +107,7 @@ class _LoadedVehicleDetail extends StatelessWidget {
   final Vehicle vehicle;
   final List<VehicleAssignment> assignments;
   final List<VehicleUsageSession> usageSessions;
+  final List<VehicleRecord> records;
   final VehicleAssignment? currentAssignment;
   final Future<void> Function(Vehicle vehicle)? onEditVehicle;
   final Future<void> Function(Vehicle vehicle)? onManageAssignment;
@@ -112,6 +116,7 @@ class _LoadedVehicleDetail extends StatelessWidget {
     required this.vehicle,
     required this.assignments,
     required this.usageSessions,
+    required this.records,
     required this.currentAssignment,
     this.onEditVehicle,
     this.onManageAssignment,
@@ -241,10 +246,91 @@ class _LoadedVehicleDetail extends StatelessWidget {
                 currentAssignment: currentAssignment,
                 usageSessions: usageSessions,
               ),
+              if (records.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.xl),
+                _VehicleRecordHistoryCard(records: records),
+              ],
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _VehicleRecordHistoryCard extends StatelessWidget {
+  final List<VehicleRecord> records;
+
+  const _VehicleRecordHistoryCard({required this.records});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Arıza ve Bakım Geçmişi',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          for (var index = 0; index < records.length; index++) ...[
+            _VehicleRecordRow(record: records[index]),
+            if (index != records.length - 1)
+              const Divider(height: AppSpacing.xl),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _VehicleRecordRow extends StatelessWidget {
+  final VehicleRecord record;
+
+  const _VehicleRecordRow({required this.record});
+
+  @override
+  Widget build(BuildContext context) {
+    final isFault = record.type == VehicleRecordType.fault;
+    final color = isFault
+        ? Theme.of(context).colorScheme.error
+        : Colors.green.shade700;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(record.type.icon, color: color),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${record.type.label}: ${record.title}',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(record.description),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '${_formatVehicleMileage(record.mileage)} · ${_formatVehicleDate(record.createdAt)} · ${record.createdByName}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

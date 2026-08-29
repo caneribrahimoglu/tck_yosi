@@ -12,6 +12,8 @@ import 'package:tck_yosi/features/vehicles/domain/models/update_vehicle_request.
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_assignment.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_inspection.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_usage_session.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_record_request.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/vehicle_record.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/pages/vehicle_module_page.dart';
@@ -311,6 +313,19 @@ class _VehicleRepository implements VehicleRepository {
     required String userId,
     required int mileage,
     required VehicleInspection inspection,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<VehicleRecord>> getVehicleRecords(String vehicleId) async =>
+      const [];
+
+  @override
+  Future<VehicleRecord> createVehicleRecord({
+    required String userId,
+    required String userName,
+    required CreateVehicleRecordRequest request,
   }) {
     throw UnimplementedError();
   }

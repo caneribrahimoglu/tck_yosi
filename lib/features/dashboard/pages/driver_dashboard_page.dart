@@ -15,6 +15,8 @@ class DriverDashboardPage extends StatefulWidget {
   final Future<void> Function() onCreateFieldReport;
   final Future<void> Function() onReceiveVehicle;
   final Future<void> Function() onReturnVehicle;
+  final Future<void> Function() onCreateFaultRecord;
+  final Future<void> Function() onCreateMaintenanceRecord;
   final VehicleController vehicleController;
 
   const DriverDashboardPage({
@@ -24,6 +26,8 @@ class DriverDashboardPage extends StatefulWidget {
     required this.onCreateFieldReport,
     required this.onReceiveVehicle,
     required this.onReturnVehicle,
+    required this.onCreateFaultRecord,
+    required this.onCreateMaintenanceRecord,
     required this.vehicleController,
   });
 
@@ -73,6 +77,14 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
               ),
               const SizedBox(height: AppSpacing.xl),
               _buildAssignedVehicle(context),
+              if (widget.vehicleController.currentUsageSession != null &&
+                  widget
+                      .vehicleController
+                      .assignedVehicleRecords
+                      .isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.lg),
+                _buildVehicleHistory(context),
+              ],
               const SizedBox(height: AppSpacing.xl),
               Text(
                 'Hızlı İşlemler',
@@ -221,6 +233,24 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
             icon: Icons.local_gas_station_outlined,
             onPressed: null,
           ),
+        if (isReceived &&
+            widget.currentUser.hasPermission(
+              AppPermission.createVehicleFaultRecord,
+            ))
+          AppButton.secondary(
+            label: 'Arıza Kaydı',
+            icon: Icons.car_crash_outlined,
+            onPressed: widget.onCreateFaultRecord,
+          ),
+        if (isReceived &&
+            widget.currentUser.hasPermission(
+              AppPermission.createVehicleMaintenanceRecord,
+            ))
+          AppButton.secondary(
+            label: 'Bakım Kaydı',
+            icon: Icons.build_outlined,
+            onPressed: widget.onCreateMaintenanceRecord,
+          ),
         if (widget.currentUser.hasPermission(AppPermission.createFieldReport))
           AppButton.secondary(
             label: 'Saha Bildirimi Oluştur',
@@ -228,6 +258,40 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
             onPressed: widget.onCreateFieldReport,
           ),
       ],
+    );
+  }
+
+  Widget _buildVehicleHistory(BuildContext context) {
+    final records = widget.vehicleController.assignedVehicleRecords.take(3);
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Son Araç Kayıtları',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          for (final record in records)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                record.type.icon,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: Text(
+                '${record.type.label}: ${record.title}',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                '${record.description}\n${record.mileage} km · ${_formatDate(record.createdAt)}',
+              ),
+              isThreeLine: true,
+            ),
+        ],
+      ),
     );
   }
 
