@@ -18,6 +18,7 @@ import '../../vehicles/presentation/pages/vehicle_module_page.dart';
 import '../../vehicles/domain/models/vehicle.dart';
 import '../../vehicles/presentation/pages/vehicle_detail_page.dart';
 import '../../vehicles/presentation/pages/create_vehicle_page.dart';
+import '../../vehicles/presentation/pages/vehicle_assignment_page.dart';
 import '../../vehicles/presentation/controllers/vehicle_controller.dart';
 import '../../vehicles/presentation/controllers/vehicle_detail_controller.dart';
 import '../../personnel/presentation/pages/personnel_module_page.dart';
@@ -217,6 +218,10 @@ class RoleDashboardResolver extends StatelessWidget {
               currentUser.hasPermission(AppPermission.manageVehicleFleet)
               ? (vehicle) => _openEditVehicle(context, vehicle)
               : null,
+          onManageAssignment:
+              currentUser.hasPermission(AppPermission.manageVehicleFleet)
+              ? (vehicle) => _openVehicleAssignment(context, vehicle)
+              : null,
         ),
       ),
     );
@@ -238,6 +243,27 @@ class RoleDashboardResolver extends StatelessWidget {
       return;
     }
     await vehicleDetailController?.load(updatedVehicle.id);
+  }
+
+  Future<void> _openVehicleAssignment(
+    BuildContext context,
+    Vehicle vehicle,
+  ) async {
+    if (!currentUser.hasPermission(AppPermission.manageVehicleFleet)) {
+      return;
+    }
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => VehicleAssignmentPage(
+          vehicle: vehicle,
+          currentAssignment: vehicleDetailController?.currentAssignment,
+          controller: vehicleController,
+        ),
+      ),
+    );
+    if (changed == true && context.mounted) {
+      await vehicleDetailController?.load(vehicle.id);
+    }
   }
 
   Future<void> _openPersonnelModule(BuildContext context) async {

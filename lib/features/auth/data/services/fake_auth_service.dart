@@ -143,6 +143,10 @@ class FakeAuthService implements AuthService, AppUserDirectory {
     }
     return null;
   }
+
+  @override
+  Future<List<AppUser>> getAllUsers() async =>
+      List.unmodifiable(_accounts.map((account) => account.user));
 }
 
 class _FakeAccount {

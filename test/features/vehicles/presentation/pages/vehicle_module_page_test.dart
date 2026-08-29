@@ -9,6 +9,7 @@ import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_reposi
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/update_vehicle_request.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/vehicle_assignment.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/pages/vehicle_module_page.dart';
@@ -257,6 +258,25 @@ class _VehicleRepository implements VehicleRepository {
     required String vehicleId,
     required UpdateVehicleRequest request,
   }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<VehicleAssignment>> getVehicleAssignments(String vehicleId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VehicleAssignment> assignVehicle({
+    required String vehicleId,
+    required String userId,
+    required String userName,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> releaseVehicle(String vehicleId) {
     throw UnimplementedError();
   }
 }

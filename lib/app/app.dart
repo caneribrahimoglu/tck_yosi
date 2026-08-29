@@ -99,7 +99,10 @@ class _TckYosiAppState extends State<TckYosiApp> {
       actorPermissions: const {},
     );
     _vehicleRepository = FakeVehicleRepository();
-    _vehicleController = VehicleController(repository: _vehicleRepository);
+    _vehicleController = VehicleController(
+      repository: _vehicleRepository,
+      userDirectory: _authService,
+    );
     _vehicleDetailController = VehicleDetailController(
       repository: _vehicleRepository,
     );

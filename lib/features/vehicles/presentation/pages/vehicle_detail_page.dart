@@ -7,8 +7,10 @@ import '../../../../shared/widgets/app_loading.dart';
 import '../../../../shared/widgets/app_page_header.dart';
 import '../../../../shared/widgets/app_status_chip.dart';
 import '../../../auth/domain/models/app_user.dart';
+import '../../domain/enums/vehicle_operational_status.dart';
 import '../../domain/enums/vehicle_ownership_type.dart';
 import '../../domain/models/vehicle.dart';
+import '../../domain/models/vehicle_assignment.dart';
 import '../controllers/vehicle_detail_controller.dart';
 import '../controllers/vehicle_detail_load_status.dart';
 import '../vehicle_presentation.dart';
@@ -19,6 +21,7 @@ class VehicleDetailPage extends StatefulWidget {
   final Future<void> Function() onLogout;
   final VehicleDetailController controller;
   final Future<void> Function(Vehicle vehicle)? onEditVehicle;
+  final Future<void> Function(Vehicle vehicle)? onManageAssignment;
 
   const VehicleDetailPage({
     super.key,
@@ -27,6 +30,7 @@ class VehicleDetailPage extends StatefulWidget {
     required this.onLogout,
     required this.controller,
     this.onEditVehicle,
+    this.onManageAssignment,
   });
 
   @override
@@ -82,7 +86,10 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
           ),
           VehicleDetailLoadStatus.loaded => _LoadedVehicleDetail(
             vehicle: widget.controller.vehicle!,
+            assignments: widget.controller.assignments,
+            currentAssignment: widget.controller.currentAssignment,
             onEditVehicle: widget.onEditVehicle,
+            onManageAssignment: widget.onManageAssignment,
           ),
         },
       ),
@@ -92,9 +99,18 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 
 class _LoadedVehicleDetail extends StatelessWidget {
   final Vehicle vehicle;
+  final List<VehicleAssignment> assignments;
+  final VehicleAssignment? currentAssignment;
   final Future<void> Function(Vehicle vehicle)? onEditVehicle;
+  final Future<void> Function(Vehicle vehicle)? onManageAssignment;
 
-  const _LoadedVehicleDetail({required this.vehicle, this.onEditVehicle});
+  const _LoadedVehicleDetail({
+    required this.vehicle,
+    required this.assignments,
+    required this.currentAssignment,
+    this.onEditVehicle,
+    this.onManageAssignment,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -110,6 +126,17 @@ class _LoadedVehicleDetail extends StatelessWidget {
                 title: vehicle.licensePlate,
                 subtitle: '${vehicle.brand} ${vehicle.model}',
                 actions: [
+                  if (onManageAssignment != null &&
+                      (vehicle.operationalStatus ==
+                              VehicleOperationalStatus.active ||
+                          currentAssignment != null))
+                    AppButton.secondary(
+                      label: currentAssignment == null
+                          ? 'Personel Ata'
+                          : 'Atamayı Yönet',
+                      icon: Icons.assignment_ind_outlined,
+                      onPressed: () => onManageAssignment!(vehicle),
+                    ),
                   if (onEditVehicle != null)
                     AppButton.primary(
                       label: 'Düzenle',
@@ -203,11 +230,115 @@ class _LoadedVehicleDetail extends StatelessWidget {
                   );
                 },
               ),
+              const SizedBox(height: AppSpacing.xl),
+              _AssignmentHistoryCard(
+                assignments: assignments,
+                currentAssignment: currentAssignment,
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+}
+
+class _AssignmentHistoryCard extends StatelessWidget {
+  final List<VehicleAssignment> assignments;
+  final VehicleAssignment? currentAssignment;
+
+  const _AssignmentHistoryCard({
+    required this.assignments,
+    required this.currentAssignment,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Personel Ataması ve Kullanım Geçmişi',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          if (currentAssignment == null)
+            const Text('Araç şu anda bir personele atanmamış.')
+          else
+            _AssignmentRow(
+              assignment: currentAssignment!,
+              title: 'Mevcut sorumlu',
+            ),
+          if (assignments
+              .where((assignment) => !assignment.isActive)
+              .isNotEmpty) ...[
+            const Divider(height: AppSpacing.xxl),
+            Text(
+              'Geçmiş atamalar',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            for (final assignment in assignments.where(
+              (assignment) => !assignment.isActive,
+            ))
+              _AssignmentRow(assignment: assignment, title: 'Önceki sorumlu'),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AssignmentRow extends StatelessWidget {
+  final VehicleAssignment assignment;
+  final String title;
+
+  const _AssignmentRow({required this.assignment, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.person_outline_rounded,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  assignment.assignedToName,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  assignment.endedAt == null
+                      ? '${_formatDate(assignment.assignedAt)} tarihinden beri kullanıyor'
+                      : '${_formatDate(assignment.assignedAt)} – ${_formatDate(assignment.endedAt!)}',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime value) {
+    String twoDigits(int number) => number.toString().padLeft(2, '0');
+    return '${twoDigits(value.day)}.${twoDigits(value.month)}.${value.year} ${twoDigits(value.hour)}:${twoDigits(value.minute)}';
   }
 }
 

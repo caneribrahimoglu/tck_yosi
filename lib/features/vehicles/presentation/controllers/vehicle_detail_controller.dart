@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../domain/models/vehicle.dart';
+import '../../domain/models/vehicle_assignment.dart';
 import '../../domain/repositories/vehicle_repository.dart';
 import 'vehicle_detail_load_status.dart';
 
@@ -10,6 +11,7 @@ class VehicleDetailController extends ChangeNotifier {
   VehicleDetailLoadStatus _status = VehicleDetailLoadStatus.initial;
   Vehicle? _vehicle;
   String? _errorMessage;
+  List<VehicleAssignment> _assignments = const [];
 
   VehicleDetailController({required VehicleRepository repository})
     : _repository = repository;
@@ -17,6 +19,15 @@ class VehicleDetailController extends ChangeNotifier {
   VehicleDetailLoadStatus get status => _status;
   Vehicle? get vehicle => _vehicle;
   String? get errorMessage => _errorMessage;
+  List<VehicleAssignment> get assignments => List.unmodifiable(_assignments);
+  VehicleAssignment? get currentAssignment {
+    for (final assignment in _assignments) {
+      if (assignment.isActive) {
+        return assignment;
+      }
+    }
+    return null;
+  }
 
   Future<void> load(String vehicleId) async {
     if (_status == VehicleDetailLoadStatus.loading) {
@@ -26,6 +37,7 @@ class VehicleDetailController extends ChangeNotifier {
     _status = VehicleDetailLoadStatus.loading;
     _vehicle = null;
     _errorMessage = null;
+    _assignments = const [];
     notifyListeners();
 
     try {
@@ -34,6 +46,9 @@ class VehicleDetailController extends ChangeNotifier {
         _status = VehicleDetailLoadStatus.notFound;
       } else {
         _vehicle = vehicle;
+        _assignments = List.unmodifiable(
+          await _repository.getVehicleAssignments(vehicleId),
+        );
         _status = VehicleDetailLoadStatus.loaded;
       }
     } catch (_) {

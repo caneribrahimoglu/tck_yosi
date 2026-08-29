@@ -132,6 +132,89 @@ void main() {
       throwsA(isA<VehicleRepositoryException>()),
     );
   });
+
+  test('aktif araç personele atanır', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicle('vehicle-001')],
+      delay: Duration.zero,
+    );
+
+    final assignment = await repository.assignVehicle(
+      vehicleId: 'vehicle-001',
+      userId: 'driver-001',
+      userName: 'Test Şoför',
+    );
+
+    expect(assignment.assignedToUserId, 'driver-001');
+    expect(assignment.assignedToName, 'Test Şoför');
+    expect(assignment.isActive, isTrue);
+    expect(await repository.getVehicleAssignments('vehicle-001'), [assignment]);
+  });
+
+  test('araç başka personele devredilince önceki atama kapanır', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicle('vehicle-001')],
+      delay: Duration.zero,
+    );
+    await repository.assignVehicle(
+      vehicleId: 'vehicle-001',
+      userId: 'driver-001',
+      userName: 'İlk Şoför',
+    );
+
+    final current = await repository.assignVehicle(
+      vehicleId: 'vehicle-001',
+      userId: 'driver-002',
+      userName: 'İkinci Şoför',
+    );
+    final history = await repository.getVehicleAssignments('vehicle-001');
+
+    expect(history, hasLength(2));
+    expect(history.where((assignment) => assignment.isActive).single, current);
+    expect(history.where((assignment) => !assignment.isActive), hasLength(1));
+  });
+
+  test('bakımdaki araç personele atanamaz', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [
+        _vehicle('vehicle-001', status: VehicleOperationalStatus.maintenance),
+      ],
+      delay: Duration.zero,
+    );
+
+    expect(
+      () => repository.assignVehicle(
+        vehicleId: 'vehicle-001',
+        userId: 'driver-001',
+        userName: 'Test Şoför',
+      ),
+      throwsA(
+        isA<VehicleRepositoryException>().having(
+          (error) => error.message,
+          'message',
+          'Yalnızca aktif durumdaki araçlar personele atanabilir.',
+        ),
+      ),
+    );
+  });
+
+  test('aktif atama sonlandırılır ve geçmişte korunur', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicle('vehicle-001')],
+      delay: Duration.zero,
+    );
+    await repository.assignVehicle(
+      vehicleId: 'vehicle-001',
+      userId: 'driver-001',
+      userName: 'Test Şoför',
+    );
+
+    await repository.releaseVehicle('vehicle-001');
+    final history = await repository.getVehicleAssignments('vehicle-001');
+
+    expect(history.single.isActive, isFalse);
+    expect(history.single.endedAt, isNotNull);
+  });
 }
 
 CreateVehicleRequest _request({String licensePlate = '81 YEN 001'}) =>
@@ -162,7 +245,11 @@ UpdateVehicleRequest _updateRequest({
   type: VehicleType.pickup,
 );
 
-Vehicle _vehicle(String id, {String plate = '81 TST 001'}) => Vehicle(
+Vehicle _vehicle(
+  String id, {
+  String plate = '81 TST 001',
+  VehicleOperationalStatus status = VehicleOperationalStatus.active,
+}) => Vehicle(
   id: id,
   licensePlate: plate,
   brand: 'Demo',
@@ -170,6 +257,6 @@ Vehicle _vehicle(String id, {String plate = '81 TST 001'}) => Vehicle(
   modelYear: 2022,
   currentMileage: 100,
   ownershipType: VehicleOwnershipType.institutionOwned,
-  operationalStatus: VehicleOperationalStatus.active,
+  operationalStatus: status,
   type: VehicleType.pickup,
 );

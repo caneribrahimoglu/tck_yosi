@@ -1,16 +1,22 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../auth/domain/enums/app_permission.dart';
+import '../../../auth/domain/enums/user_role.dart';
+import '../../../auth/domain/models/app_user.dart';
+import '../../../auth/domain/services/app_user_directory.dart';
 import '../../domain/enums/vehicle_operational_status.dart';
 import '../../domain/enums/vehicle_ownership_type.dart';
 import '../../domain/models/vehicle.dart';
 import '../../domain/models/create_vehicle_request.dart';
 import '../../domain/models/update_vehicle_request.dart';
+import '../../domain/models/vehicle_assignment.dart';
 import '../../domain/repositories/vehicle_repository.dart';
 import '../../domain/repositories/vehicle_repository_exception.dart';
 import 'vehicle_load_status.dart';
 
 class VehicleController extends ChangeNotifier {
   final VehicleRepository _repository;
+  final AppUserDirectory? _userDirectory;
 
   VehicleLoadStatus _status = VehicleLoadStatus.initial;
   List<Vehicle> _allVehicles = const [];
@@ -22,9 +28,16 @@ class VehicleController extends ChangeNotifier {
   String? _creationErrorMessage;
   bool _isUpdating = false;
   String? _updateErrorMessage;
+  List<AppUser> _assignmentCandidates = const [];
+  bool _isLoadingAssignmentCandidates = false;
+  bool _isAssigning = false;
+  String? _assignmentErrorMessage;
 
-  VehicleController({required VehicleRepository repository})
-    : _repository = repository;
+  VehicleController({
+    required VehicleRepository repository,
+    AppUserDirectory? userDirectory,
+  }) : _repository = repository,
+       _userDirectory = userDirectory;
 
   VehicleLoadStatus get status => _status;
   String? get errorMessage => _errorMessage;
@@ -32,6 +45,11 @@ class VehicleController extends ChangeNotifier {
   String? get creationErrorMessage => _creationErrorMessage;
   bool get isUpdating => _isUpdating;
   String? get updateErrorMessage => _updateErrorMessage;
+  List<AppUser> get assignmentCandidates =>
+      List.unmodifiable(_assignmentCandidates);
+  bool get isLoadingAssignmentCandidates => _isLoadingAssignmentCandidates;
+  bool get isAssigning => _isAssigning;
+  String? get assignmentErrorMessage => _assignmentErrorMessage;
   String get searchQuery => _searchQuery;
   VehicleOwnershipType? get ownershipFilter => _ownershipFilter;
   VehicleOperationalStatus? get statusFilter => _statusFilter;
@@ -150,6 +168,85 @@ class VehicleController extends ChangeNotifier {
       return null;
     } finally {
       _isUpdating = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadAssignmentCandidates() async {
+    final directory = _userDirectory;
+    if (directory == null || _isLoadingAssignmentCandidates) {
+      return;
+    }
+    _isLoadingAssignmentCandidates = true;
+    _assignmentErrorMessage = null;
+    notifyListeners();
+    try {
+      final users = await directory.getAllUsers();
+      _assignmentCandidates = List.unmodifiable(
+        users.where(
+          (user) =>
+              user.isActive &&
+              user.hasPermission(AppPermission.viewAssignedVehicle) &&
+              user.role != UserRole.chief &&
+              user.role != UserRole.director &&
+              user.role != UserRole.admin,
+        ),
+      );
+    } catch (_) {
+      _assignmentCandidates = const [];
+      _assignmentErrorMessage = 'Atanabilir personel listesi yüklenemedi.';
+    } finally {
+      _isLoadingAssignmentCandidates = false;
+      notifyListeners();
+    }
+  }
+
+  Future<VehicleAssignment?> assignVehicle({
+    required String vehicleId,
+    required AppUser user,
+  }) async {
+    if (_isAssigning) {
+      return null;
+    }
+    _isAssigning = true;
+    _assignmentErrorMessage = null;
+    notifyListeners();
+    try {
+      return await _repository.assignVehicle(
+        vehicleId: vehicleId,
+        userId: user.id,
+        userName: user.fullName,
+      );
+    } on VehicleRepositoryException catch (error) {
+      _assignmentErrorMessage = error.message;
+      return null;
+    } catch (_) {
+      _assignmentErrorMessage = 'Araç personele atanamadı.';
+      return null;
+    } finally {
+      _isAssigning = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> releaseVehicle(String vehicleId) async {
+    if (_isAssigning) {
+      return false;
+    }
+    _isAssigning = true;
+    _assignmentErrorMessage = null;
+    notifyListeners();
+    try {
+      await _repository.releaseVehicle(vehicleId);
+      return true;
+    } on VehicleRepositoryException catch (error) {
+      _assignmentErrorMessage = error.message;
+      return false;
+    } catch (_) {
+      _assignmentErrorMessage = 'Araç ataması sonlandırılamadı.';
+      return false;
+    } finally {
+      _isAssigning = false;
       notifyListeners();
     }
   }

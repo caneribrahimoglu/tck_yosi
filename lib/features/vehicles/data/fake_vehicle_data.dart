@@ -2,6 +2,7 @@ import '../domain/enums/vehicle_operational_status.dart';
 import '../domain/enums/vehicle_ownership_type.dart';
 import '../domain/enums/vehicle_type.dart';
 import '../domain/models/vehicle.dart';
+import '../domain/models/vehicle_assignment.dart';
 
 final class FakeVehicleData {
   FakeVehicleData._();
@@ -52,6 +53,16 @@ final class FakeVehicleData {
       operationalStatus: VehicleOperationalStatus.outOfService,
       contractorName: 'Örnek Filo Tedarik Ltd.',
       type: VehicleType.workMachine,
+    ),
+  ]);
+
+  static final List<VehicleAssignment> assignments = List.unmodifiable([
+    VehicleAssignment(
+      id: 'vehicle-assignment-demo-001',
+      vehicleId: 'vehicle-demo-001',
+      assignedToUserId: 'user-driver-001',
+      assignedToName: 'Ahmet Yılmaz',
+      assignedAt: DateTime(2026, 8, 20, 9, 0),
     ),
   ]);
 }

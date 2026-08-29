@@ -84,12 +84,39 @@ void main() {
 
     expect(selectedVehicle?.id, 'vehicle-demo-001');
   });
+
+  testWidgets('mevcut personel atamasını ve yönetme aksiyonunu gösterir', (
+    tester,
+  ) async {
+    final controller = VehicleDetailController(
+      repository: FakeVehicleRepository(delay: Duration.zero),
+    );
+    addTearDown(controller.dispose);
+    Vehicle? selectedVehicle;
+
+    await tester.pumpWidget(
+      _app(
+        controller,
+        'vehicle-demo-001',
+        onManageAssignment: (vehicle) async => selectedVehicle = vehicle,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Personel Ataması ve Kullanım Geçmişi'), findsOneWidget);
+    expect(find.text('Ahmet Yılmaz'), findsOneWidget);
+    expect(find.text('Atamayı Yönet'), findsOneWidget);
+    await tester.tap(find.text('Atamayı Yönet'));
+    await tester.pump();
+    expect(selectedVehicle?.id, 'vehicle-demo-001');
+  });
 }
 
 Widget _app(
   VehicleDetailController controller,
   String vehicleId, {
   Future<void> Function(Vehicle vehicle)? onEditVehicle,
+  Future<void> Function(Vehicle vehicle)? onManageAssignment,
 }) {
   return MaterialApp(
     theme: ThemeData(splashFactory: NoSplash.splashFactory),
@@ -99,6 +126,7 @@ Widget _app(
       onLogout: () async {},
       controller: controller,
       onEditVehicle: onEditVehicle,
+      onManageAssignment: onManageAssignment,
     ),
   );
 }

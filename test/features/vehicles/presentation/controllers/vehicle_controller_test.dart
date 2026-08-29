@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tck_yosi/features/auth/data/services/fake_auth_service.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_operational_status.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_ownership_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/update_vehicle_request.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/vehicle_assignment.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_load_status.dart';
@@ -68,6 +70,54 @@ void main() {
       expect(controller.searchQuery, isEmpty);
     },
   );
+
+  test('atama adayları aktif operasyon personeliyle sınırlandırılır', () async {
+    final controller = VehicleController(
+      repository: FakeVehicleRepository(vehicles: [], delay: Duration.zero),
+      userDirectory: FakeAuthService(),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.loadAssignmentCandidates();
+
+    expect(
+      controller.assignmentCandidates.map((user) => user.username),
+      containsAll(['sofor', 'muhendis']),
+    );
+    expect(
+      controller.assignmentCandidates.map((user) => user.username),
+      isNot(contains('sef')),
+    );
+    expect(controller.assignmentErrorMessage, isNull);
+  });
+
+  test('controller aracı personele atar ve atamayı sonlandırır', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicles.first],
+      delay: Duration.zero,
+    );
+    final directory = FakeAuthService();
+    final controller = VehicleController(
+      repository: repository,
+      userDirectory: directory,
+    );
+    addTearDown(controller.dispose);
+    await controller.loadAssignmentCandidates();
+    final driver = controller.assignmentCandidates.firstWhere(
+      (user) => user.username == 'sofor',
+    );
+
+    final assignment = await controller.assignVehicle(
+      vehicleId: _vehicles.first.id,
+      user: driver,
+    );
+    final released = await controller.releaseVehicle(_vehicles.first.id);
+
+    expect(assignment?.assignedToUserId, driver.id);
+    expect(released, isTrue);
+    expect(controller.assignmentErrorMessage, isNull);
+    expect(controller.isAssigning, isFalse);
+  });
 
   test('eşzamanlı iki load repositoryyi bir kez çağırır', () async {
     final completer = Completer<List<Vehicle>>();
@@ -224,6 +274,25 @@ class _VehicleRepository implements VehicleRepository {
     required String vehicleId,
     required UpdateVehicleRequest request,
   }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<VehicleAssignment>> getVehicleAssignments(String vehicleId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VehicleAssignment> assignVehicle({
+    required String vehicleId,
+    required String userId,
+    required String userName,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> releaseVehicle(String vehicleId) {
     throw UnimplementedError();
   }
 }
