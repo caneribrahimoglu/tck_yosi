@@ -1,4 +1,6 @@
 import '../enums/vehicle_record_type.dart';
+import '../enums/vehicle_fault_review_decision.dart';
+import 'vehicle_fault_review.dart';
 
 class VehicleRecord {
   final String id;
@@ -11,6 +13,7 @@ class VehicleRecord {
   final String createdByUserId;
   final String createdByName;
   final DateTime createdAt;
+  final List<VehicleFaultReview> faultReviews;
 
   const VehicleRecord({
     required this.id,
@@ -23,5 +26,26 @@ class VehicleRecord {
     required this.createdByUserId,
     required this.createdByName,
     required this.createdAt,
+    this.faultReviews = const [],
   });
+
+  VehicleFaultReview? get latestFaultReview =>
+      faultReviews.isEmpty ? null : faultReviews.last;
+
+  bool get isFaultResolved =>
+      latestFaultReview?.decision == VehicleFaultReviewDecision.resolve;
+
+  VehicleRecord addFaultReview(VehicleFaultReview review) => VehicleRecord(
+    id: id,
+    vehicleId: vehicleId,
+    usageSessionId: usageSessionId,
+    type: type,
+    title: title,
+    description: description,
+    mileage: mileage,
+    createdByUserId: createdByUserId,
+    createdByName: createdByName,
+    createdAt: createdAt,
+    faultReviews: List.unmodifiable([...faultReviews, review]),
+  );
 }

@@ -4,10 +4,13 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_page_header.dart';
+import '../../../shared/widgets/app_status_chip.dart';
 import '../../auth/domain/enums/app_permission.dart';
 import '../../auth/domain/models/app_user.dart';
 import '../../vehicles/presentation/controllers/vehicle_controller.dart';
 import '../../vehicles/presentation/vehicle_presentation.dart';
+import '../../vehicles/domain/enums/vehicle_record_type.dart';
+import '../../vehicles/domain/models/vehicle_record.dart';
 
 class DriverDashboardPage extends StatefulWidget {
   final AppUser currentUser;
@@ -49,7 +52,10 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
         title: const Text('TCK YÖSİ'),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.md),
+            padding: const EdgeInsets.only(
+              left: AppSpacing.sm,
+              right: AppSpacing.md,
+            ),
             child: Row(
               children: [
                 Text(widget.currentUser.fullName),
@@ -274,22 +280,101 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: AppSpacing.sm),
-          for (final record in records)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                record.type.icon,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              title: Text(
-                '${record.type.label}: ${record.title}',
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              subtitle: Text(
-                '${record.description}\n${record.mileage} km · ${_formatDate(record.createdAt)}',
-              ),
-              isThreeLine: true,
+          for (final record in records) _buildVehicleRecord(context, record),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVehicleRecord(BuildContext context, VehicleRecord record) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final review = record.latestFaultReview;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(AppSpacing.md),
             ),
+            child: Icon(record.type.icon, color: colorScheme.primary),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      '${record.type.label}: ${record.title}',
+                      style: textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (record.type == VehicleRecordType.fault)
+                      AppStatusChip(
+                        label: record.faultReviewLabel,
+                        type: record.faultReviewStatusType,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(record.description),
+                if (review != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer.withValues(
+                        alpha: 0.45,
+                      ),
+                      borderRadius: BorderRadius.circular(AppSpacing.md),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Şef değerlendirmesi',
+                          style: textTheme.labelLarge?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(review.note),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          '${review.reviewedByName} · ${_formatDate(review.reviewedAt)}',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  '${record.mileage} km · Bildirim: ${_formatDate(record.createdAt)}',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

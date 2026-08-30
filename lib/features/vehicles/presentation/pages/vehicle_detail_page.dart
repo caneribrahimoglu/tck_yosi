@@ -314,11 +314,23 @@ class _VehicleRecordRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '${record.type.label}: ${record.title}',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    '${record.type.label}: ${record.title}',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (record.type == VehicleRecordType.fault)
+                    AppStatusChip(
+                      label: record.faultReviewLabel,
+                      type: record.faultReviewStatusType,
+                    ),
+                ],
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(record.description),
@@ -327,6 +339,17 @@ class _VehicleRecordRow extends StatelessWidget {
                 '${_formatVehicleMileage(record.mileage)} · ${_formatVehicleDate(record.createdAt)} · ${record.createdByName}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              if (record.faultReviews.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                for (final review in record.faultReviews)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                    child: Text(
+                      '${review.decision.label}: ${review.note} · ${review.reviewedByName} · ${_formatVehicleDate(review.reviewedAt)}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+              ],
             ],
           ),
         ),

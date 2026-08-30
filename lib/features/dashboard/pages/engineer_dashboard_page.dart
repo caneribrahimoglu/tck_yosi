@@ -8,6 +8,7 @@ import '../../../shared/widgets/app_loading.dart';
 import '../../../shared/widgets/app_page_header.dart';
 import '../../../shared/widgets/app_status_chip.dart';
 import '../../../shared/widgets/app_snackbar.dart';
+import '../../../shared/widgets/responsive_metric_strip.dart';
 import '../../auth/domain/enums/app_permission.dart';
 import '../../auth/domain/models/app_user.dart';
 import '../../technical_operations/domain/enums/technical_work_priority.dart';
@@ -185,52 +186,30 @@ class _EngineerDashboardPageState extends State<EngineerDashboardPage> {
 
   Widget _buildSummarySection(BuildContext context) {
     final controller = widget.technicalWorkController;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columnCount = switch (constraints.maxWidth) {
-          >= 1100 => 3,
-          _ => 2,
-        };
-
-        final totalSpacing = AppSpacing.md * (columnCount - 1);
-
-        final cardWidth = (constraints.maxWidth - totalSpacing) / columnCount;
-
-        return Wrap(
-          spacing: AppSpacing.md,
-          runSpacing: AppSpacing.md,
-          children: [
-            SizedBox(
-              width: cardWidth,
-              child: _SummaryCard(
-                title: 'Açık Teknik İşler',
-                value: controller.openWorkCount.toString(),
-                icon: Icons.engineering_outlined,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            SizedBox(
-              width: cardWidth,
-              child: _SummaryCard(
-                title: 'Kritik Bildirimler',
-                value: controller.criticalWorkCount.toString(),
-                icon: Icons.warning_amber_rounded,
-                color: Colors.red,
-              ),
-            ),
-            SizedBox(
-              width: cardWidth,
-              child: _SummaryCard(
-                title: 'İnceleme Bekleyenler',
-                value: controller.awaitingInspectionCount.toString(),
-                icon: Icons.manage_search_rounded,
-                color: Colors.orange,
-              ),
-            ),
-          ],
-        );
-      },
+    return ResponsiveMetricStrip(
+      metrics: [
+        AppMetric(
+          label: 'Açık Teknik İşler',
+          compactLabel: 'Açık İşler',
+          value: controller.openWorkCount.toString(),
+          icon: Icons.engineering_outlined,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        AppMetric(
+          label: 'Kritik Bildirimler',
+          compactLabel: 'Kritik',
+          value: controller.criticalWorkCount.toString(),
+          icon: Icons.warning_amber_rounded,
+          color: Colors.red,
+        ),
+        AppMetric(
+          label: 'İnceleme Bekleyenler',
+          compactLabel: 'Bekleyen',
+          value: controller.awaitingInspectionCount.toString(),
+          icon: Icons.manage_search_rounded,
+          color: Colors.orange,
+        ),
+      ],
     );
   }
 
@@ -328,83 +307,6 @@ class _EngineerDashboardPageState extends State<EngineerDashboardPage> {
             },
           ),
       ],
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _SummaryCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 220;
-
-        if (isCompact) {
-          return AppCard(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(icon, size: 28, color: color),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      value,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return AppCard(
-          child: Row(
-            children: [
-              Icon(icon, size: 40, color: color),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      value,
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(title, style: Theme.of(context).textTheme.bodyLarge),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

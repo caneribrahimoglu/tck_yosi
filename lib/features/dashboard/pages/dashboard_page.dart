@@ -13,6 +13,7 @@ import '../../../../shared/widgets/app_page_header.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../../../core/enums/app_status_type.dart';
 import '../../../../shared/widgets/app_status_chip.dart';
+import 'package:tck_yosi/shared/widgets/responsive_metric_strip.dart';
 import '../../auth/domain/models/app_user.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -366,82 +367,28 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildSummaryCards() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cardWidth = constraints.maxWidth >= 1000
-            ? (constraints.maxWidth - (AppSpacing.md * 2)) / 3
-            : constraints.maxWidth >= 600
-            ? (constraints.maxWidth - AppSpacing.md) / 2
-            : constraints.maxWidth;
-
-        return Wrap(
-          spacing: AppSpacing.md,
-          runSpacing: AppSpacing.md,
-          children: [
-            SizedBox(
-              width: cardWidth,
-              child: const _SummaryCard(
-                title: 'Personel',
-                value: '24',
-                icon: Icons.people_alt_outlined,
-              ),
-            ),
-            SizedBox(
-              width: cardWidth,
-              child: const _SummaryCard(
-                title: 'Araç',
-                value: '12',
-                icon: Icons.local_shipping_outlined,
-              ),
-            ),
-            SizedBox(
-              width: cardWidth,
-              child: const _SummaryCard(
-                title: 'Envanter',
-                value: '96',
-                icon: Icons.inventory_2_outlined,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-
-  const _SummaryCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      child: Row(
-        children: [
-          Icon(icon, size: 36, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: AppSpacing.md),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(title, style: Theme.of(context).textTheme.bodyLarge),
-            ],
-          ),
-        ],
-      ),
+    final primary = Theme.of(context).colorScheme.primary;
+    return ResponsiveMetricStrip(
+      metrics: [
+        AppMetric(
+          label: 'Personel',
+          value: '24',
+          icon: Icons.people_alt_outlined,
+          color: primary,
+        ),
+        AppMetric(
+          label: 'Araç',
+          value: '12',
+          icon: Icons.local_shipping_outlined,
+          color: primary,
+        ),
+        AppMetric(
+          label: 'Envanter',
+          value: '96',
+          icon: Icons.inventory_2_outlined,
+          color: primary,
+        ),
+      ],
     );
   }
 }

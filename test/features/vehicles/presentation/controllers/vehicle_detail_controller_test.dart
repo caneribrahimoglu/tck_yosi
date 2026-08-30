@@ -12,6 +12,7 @@ import 'package:tck_yosi/features/vehicles/domain/models/vehicle_inspection.dart
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_usage_session.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_record_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_record.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/review_vehicle_fault_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_detail_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_detail_load_status.dart';
@@ -158,6 +159,19 @@ class _VehicleDetailRepository implements VehicleRepository {
     required String userId,
     required String userName,
     required CreateVehicleRecordRequest request,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<VehicleRecord>> getOpenVehicleFaults() async => const [];
+
+  @override
+  Future<VehicleRecord> reviewVehicleFault({
+    required String recordId,
+    required String reviewedByUserId,
+    required String reviewedByName,
+    required ReviewVehicleFaultRequest request,
   }) {
     throw UnimplementedError();
   }

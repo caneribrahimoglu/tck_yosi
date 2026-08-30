@@ -12,6 +12,7 @@ extension TeamPermissionPresentation on AppPermission {
     AppPermission.createVehicleFaultRecord => 'Araç arıza kaydı oluşturma',
     AppPermission.createVehicleMaintenanceRecord =>
       'Araç bakım kaydı oluşturma',
+    AppPermission.reviewVehicleFaults => 'Araç arızalarını inceleme',
     AppPermission.createFieldReport => 'Saha bildirimi oluşturma',
     AppPermission.viewPersonnel => 'Personel görüntüleme',
     AppPermission.managePersonnel => 'Personel yönetimi',

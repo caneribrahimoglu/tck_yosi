@@ -14,6 +14,7 @@ import 'package:tck_yosi/features/vehicles/domain/models/vehicle_inspection.dart
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_usage_session.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_record_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_record.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/review_vehicle_fault_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/pages/vehicle_module_page.dart';
@@ -148,14 +149,20 @@ void main() {
     final maintenanceSummary = find.byKey(
       const ValueKey('vehicle-summary-maintenance'),
     );
+    final contractedSummary = find.byKey(
+      const ValueKey('vehicle-summary-contracted'),
+    );
     final totalPosition = tester.getTopLeft(totalSummary);
     final activePosition = tester.getTopLeft(activeSummary);
     final maintenancePosition = tester.getTopLeft(maintenanceSummary);
+    final contractedPosition = tester.getTopLeft(contractedSummary);
 
     expect(activePosition.dx, greaterThan(totalPosition.dx));
     expect((activePosition.dy - totalPosition.dy).abs(), lessThan(1));
-    expect((maintenancePosition.dx - totalPosition.dx).abs(), lessThan(1));
-    expect(maintenancePosition.dy, greaterThan(totalPosition.dy));
+    expect(maintenancePosition.dx, greaterThan(activePosition.dx));
+    expect((maintenancePosition.dy - totalPosition.dy).abs(), lessThan(1));
+    expect(contractedPosition.dx, greaterThan(maintenancePosition.dx));
+    expect((contractedPosition.dy - totalPosition.dy).abs(), lessThan(1));
 
     tester.view.physicalSize = const Size(1400, 1000);
     await tester.pumpAndSettle();
@@ -326,6 +333,19 @@ class _VehicleRepository implements VehicleRepository {
     required String userId,
     required String userName,
     required CreateVehicleRecordRequest request,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<VehicleRecord>> getOpenVehicleFaults() async => const [];
+
+  @override
+  Future<VehicleRecord> reviewVehicleFault({
+    required String recordId,
+    required String reviewedByUserId,
+    required String reviewedByName,
+    required ReviewVehicleFaultRequest request,
   }) {
     throw UnimplementedError();
   }

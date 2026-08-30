@@ -6,6 +6,8 @@ import '../../../auth/domain/models/app_user.dart';
 import '../../../auth/domain/services/app_user_directory.dart';
 import '../../domain/enums/vehicle_operational_status.dart';
 import '../../domain/enums/vehicle_ownership_type.dart';
+import '../../domain/enums/vehicle_record_type.dart';
+import '../../domain/enums/vehicle_fault_review_decision.dart';
 import '../../domain/models/vehicle.dart';
 import '../../domain/models/create_vehicle_request.dart';
 import '../../domain/models/update_vehicle_request.dart';
@@ -14,6 +16,7 @@ import '../../domain/models/vehicle_inspection.dart';
 import '../../domain/models/vehicle_usage_session.dart';
 import '../../domain/models/create_vehicle_record_request.dart';
 import '../../domain/models/vehicle_record.dart';
+import '../../domain/models/review_vehicle_fault_request.dart';
 import '../../domain/repositories/vehicle_repository.dart';
 import '../../domain/repositories/vehicle_repository_exception.dart';
 import 'vehicle_load_status.dart';
@@ -45,6 +48,10 @@ class VehicleController extends ChangeNotifier {
   List<VehicleRecord> _assignedVehicleRecords = const [];
   bool _isSubmittingRecord = false;
   String? _recordErrorMessage;
+  List<VehicleRecord> _openVehicleFaults = const [];
+  bool _isLoadingFaultReviews = false;
+  bool _isReviewingFault = false;
+  String? _faultReviewErrorMessage;
 
   VehicleController({
     required VehicleRepository repository,
@@ -73,6 +80,14 @@ class VehicleController extends ChangeNotifier {
       List.unmodifiable(_assignedVehicleRecords);
   bool get isSubmittingRecord => _isSubmittingRecord;
   String? get recordErrorMessage => _recordErrorMessage;
+  List<VehicleRecord> get openVehicleFaults =>
+      List.unmodifiable(_openVehicleFaults);
+  bool get isLoadingFaultReviews => _isLoadingFaultReviews;
+  bool get isReviewingFault => _isReviewingFault;
+  String? get faultReviewErrorMessage => _faultReviewErrorMessage;
+  int get pendingFaultReviewCount => _openVehicleFaults
+      .where((record) => record.latestFaultReview == null)
+      .length;
   String get searchQuery => _searchQuery;
   VehicleOwnershipType? get ownershipFilter => _ownershipFilter;
   VehicleOperationalStatus? get statusFilter => _statusFilter;
@@ -130,9 +145,13 @@ class VehicleController extends ChangeNotifier {
     notifyListeners();
     try {
       _allVehicles = List.unmodifiable(await _repository.getAllVehicles());
+      _openVehicleFaults = List.unmodifiable(
+        await _repository.getOpenVehicleFaults(),
+      );
       _status = VehicleLoadStatus.loaded;
     } catch (_) {
       _allVehicles = const [];
+      _openVehicleFaults = const [];
       _errorMessage = 'Araç bilgileri yüklenemedi.';
       _status = VehicleLoadStatus.failure;
     }
@@ -404,6 +423,9 @@ class VehicleController extends ChangeNotifier {
         record,
         ..._assignedVehicleRecords,
       ]);
+      if (record.type == VehicleRecordType.fault) {
+        _openVehicleFaults = List.unmodifiable([record, ..._openVehicleFaults]);
+      }
       _assignedVehicle = await _repository.getVehicleById(record.vehicleId);
       _replaceVehicleInFleet(_assignedVehicle);
       return record;
@@ -415,6 +437,74 @@ class VehicleController extends ChangeNotifier {
       return null;
     } finally {
       _isSubmittingRecord = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadOpenVehicleFaults() async {
+    if (_isLoadingFaultReviews) {
+      return;
+    }
+    _isLoadingFaultReviews = true;
+    _faultReviewErrorMessage = null;
+    notifyListeners();
+    try {
+      _openVehicleFaults = List.unmodifiable(
+        await _repository.getOpenVehicleFaults(),
+      );
+    } catch (_) {
+      _openVehicleFaults = const [];
+      _faultReviewErrorMessage = 'Araç arızaları yüklenemedi.';
+    } finally {
+      _isLoadingFaultReviews = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> reviewVehicleFault({
+    required VehicleRecord record,
+    required AppUser currentUser,
+    required VehicleFaultReviewDecision decision,
+    required String note,
+  }) async {
+    if (_isReviewingFault) {
+      return false;
+    }
+    _isReviewingFault = true;
+    _faultReviewErrorMessage = null;
+    notifyListeners();
+    try {
+      final updatedRecord = await _repository.reviewVehicleFault(
+        recordId: record.id,
+        reviewedByUserId: currentUser.id,
+        reviewedByName: currentUser.fullName,
+        request: ReviewVehicleFaultRequest(decision: decision, note: note),
+      );
+      _openVehicleFaults = List.unmodifiable([
+        if (!updatedRecord.isFaultResolved) updatedRecord,
+        for (final item in _openVehicleFaults)
+          if (item.id != updatedRecord.id) item,
+      ]);
+      _assignedVehicleRecords = List.unmodifiable([
+        for (final item in _assignedVehicleRecords)
+          if (item.id == updatedRecord.id) updatedRecord else item,
+      ]);
+      final updatedVehicle = await _repository.getVehicleById(
+        updatedRecord.vehicleId,
+      );
+      _replaceVehicleInFleet(updatedVehicle);
+      if (_assignedVehicle?.id == updatedVehicle?.id) {
+        _assignedVehicle = updatedVehicle;
+      }
+      return true;
+    } on VehicleRepositoryException catch (error) {
+      _faultReviewErrorMessage = error.message;
+      return false;
+    } catch (_) {
+      _faultReviewErrorMessage = 'Araç arızası değerlendirilemedi.';
+      return false;
+    } finally {
+      _isReviewingFault = false;
       notifyListeners();
     }
   }

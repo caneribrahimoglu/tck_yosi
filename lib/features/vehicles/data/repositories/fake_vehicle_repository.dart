@@ -6,6 +6,10 @@ import '../../domain/models/vehicle_inspection.dart';
 import '../../domain/models/vehicle_usage_session.dart';
 import '../../domain/models/create_vehicle_record_request.dart';
 import '../../domain/models/vehicle_record.dart';
+import '../../domain/models/review_vehicle_fault_request.dart';
+import '../../domain/models/vehicle_fault_review.dart';
+import '../../domain/enums/vehicle_fault_review_decision.dart';
+import '../../domain/enums/vehicle_record_type.dart';
 import '../../domain/enums/vehicle_operational_status.dart';
 import '../../domain/repositories/vehicle_repository.dart';
 import '../../domain/repositories/vehicle_repository_exception.dart';
@@ -423,6 +427,94 @@ class FakeVehicleRepository implements VehicleRepository {
     return record;
   }
 
+  @override
+  Future<List<VehicleRecord>> getOpenVehicleFaults() async {
+    await _wait();
+    final records =
+        _records
+            .where(
+              (record) =>
+                  record.type == VehicleRecordType.fault &&
+                  !record.isFaultResolved,
+            )
+            .toList(growable: false)
+          ..sort(
+            (first, second) => second.createdAt.compareTo(first.createdAt),
+          );
+    return List.unmodifiable(records);
+  }
+
+  @override
+  Future<VehicleRecord> reviewVehicleFault({
+    required String recordId,
+    required String reviewedByUserId,
+    required String reviewedByName,
+    required ReviewVehicleFaultRequest request,
+  }) async {
+    await _wait();
+    final recordIndex = _records.indexWhere((record) => record.id == recordId);
+    if (recordIndex == -1 ||
+        _records[recordIndex].type != VehicleRecordType.fault) {
+      throw const VehicleRepositoryException('Araç arıza kaydı bulunamadı.');
+    }
+    if (_records[recordIndex].isFaultResolved) {
+      throw const VehicleRepositoryException('Bu arıza daha önce çözüldü.');
+    }
+    if (request.note.trim().isEmpty) {
+      throw const VehicleRepositoryException(
+        'Şef değerlendirme açıklaması zorunludur.',
+      );
+    }
+
+    final now = DateTime.now();
+    final review = VehicleFaultReview(
+      id: 'vehicle-fault-review-${now.microsecondsSinceEpoch}',
+      decision: request.decision,
+      note: request.note.trim(),
+      reviewedByUserId: reviewedByUserId,
+      reviewedByName: reviewedByName.trim(),
+      reviewedAt: now,
+    );
+    final vehicleIndex = _vehicles.indexWhere(
+      (vehicle) => vehicle.id == _records[recordIndex].vehicleId,
+    );
+    if (vehicleIndex == -1) {
+      throw const VehicleRepositoryException('Araç kaydı bulunamadı.');
+    }
+
+    final updatedRecord = _records[recordIndex].addFaultReview(review);
+    _records[recordIndex] = updatedRecord;
+    _vehicles[vehicleIndex] = _copyVehicleWithStatus(
+      _vehicles[vehicleIndex],
+      _operationalStatusForVehicle(updatedRecord.vehicleId),
+    );
+    return updatedRecord;
+  }
+
+  VehicleOperationalStatus _operationalStatusForVehicle(String vehicleId) {
+    final openFaults = _records.where(
+      (record) =>
+          record.vehicleId == vehicleId &&
+          record.type == VehicleRecordType.fault &&
+          !record.isFaultResolved,
+    );
+    if (openFaults.any(
+      (record) =>
+          record.latestFaultReview?.decision ==
+          VehicleFaultReviewDecision.takeOutOfService,
+    )) {
+      return VehicleOperationalStatus.outOfService;
+    }
+    if (openFaults.any(
+      (record) =>
+          record.latestFaultReview?.decision ==
+          VehicleFaultReviewDecision.takeToMaintenance,
+    )) {
+      return VehicleOperationalStatus.maintenance;
+    }
+    return VehicleOperationalStatus.active;
+  }
+
   void _ensureInspectionNotes(VehicleInspection inspection) {
     if (inspection.hasIssue && inspection.notes.trim().isEmpty) {
       throw const VehicleRepositoryException(
@@ -440,6 +532,22 @@ class FakeVehicleRepository implements VehicleRepository {
     currentMileage: mileage,
     ownershipType: vehicle.ownershipType,
     operationalStatus: vehicle.operationalStatus,
+    contractorName: vehicle.contractorName,
+    type: vehicle.type,
+  );
+
+  Vehicle _copyVehicleWithStatus(
+    Vehicle vehicle,
+    VehicleOperationalStatus status,
+  ) => Vehicle(
+    id: vehicle.id,
+    licensePlate: vehicle.licensePlate,
+    brand: vehicle.brand,
+    model: vehicle.model,
+    modelYear: vehicle.modelYear,
+    currentMileage: vehicle.currentMileage,
+    ownershipType: vehicle.ownershipType,
+    operationalStatus: status,
     contractorName: vehicle.contractorName,
     type: vehicle.type,
   );

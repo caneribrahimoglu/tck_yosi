@@ -8,6 +8,7 @@ import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_operational_stat
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_ownership_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_record_type.dart';
+import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_fault_review_decision.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/update_vehicle_request.dart';
@@ -16,6 +17,7 @@ import 'package:tck_yosi/features/vehicles/domain/models/vehicle_inspection.dart
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_usage_session.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_record_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_record.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/review_vehicle_fault_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_load_status.dart';
@@ -168,6 +170,27 @@ void main() {
     expect(record?.type, VehicleRecordType.maintenance);
     expect(controller.assignedVehicleRecords, hasLength(1));
     expect(controller.assignedVehicle?.currentMileage, 275);
+
+    final faultRecord = await controller.createVehicleRecord(
+      currentUser: _recordDriver,
+      request: const CreateVehicleRecordRequest(
+        type: VehicleRecordType.fault,
+        title: 'Fren arızası',
+        description: 'Fren pedalında boşluk var.',
+        mileage: 280,
+      ),
+    );
+    final reviewed = await controller.reviewVehicleFault(
+      record: faultRecord!,
+      currentUser: _reviewChief,
+      decision: VehicleFaultReviewDecision.takeToMaintenance,
+      note: 'Araç servise yönlendirildi.',
+    );
+    expect(reviewed, isTrue);
+    expect(
+      controller.assignedVehicle?.operationalStatus,
+      VehicleOperationalStatus.maintenance,
+    );
 
     final returned = await controller.returnAssignedVehicle(
       userId: 'driver-001',
@@ -402,6 +425,19 @@ class _VehicleRepository implements VehicleRepository {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<List<VehicleRecord>> getOpenVehicleFaults() async => const [];
+
+  @override
+  Future<VehicleRecord> reviewVehicleFault({
+    required String recordId,
+    required String reviewedByUserId,
+    required String reviewedByName,
+    required ReviewVehicleFaultRequest request,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 final _vehicles = [
@@ -450,6 +486,14 @@ const _recordDriver = AppUser(
   fullName: 'Test Şoför',
   username: 'test.sofor',
   role: UserRole.driver,
+  permissions: {},
+);
+
+const _reviewChief = AppUser(
+  id: 'chief-001',
+  fullName: 'Test Şef',
+  username: 'test.sef',
+  role: UserRole.chief,
   permissions: {},
 );
 

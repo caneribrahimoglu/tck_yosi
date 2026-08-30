@@ -9,6 +9,7 @@ import '../../../shared/widgets/app_loading.dart';
 import '../../../shared/widgets/app_page_header.dart';
 import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/app_status_chip.dart';
+import '../../../shared/widgets/responsive_metric_strip.dart';
 import '../../../core/enums/app_snackbar_type.dart';
 import '../../auth/domain/enums/app_permission.dart';
 import '../../auth/domain/models/app_user.dart';
@@ -199,61 +200,37 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
 
   Widget _buildSummarySection(BuildContext context) {
     final controller = widget.technicalWorkController;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columnCount = switch (constraints.maxWidth) {
-          >= 1200 => 4,
-          _ => 2,
-        };
-
-        final totalSpacing = AppSpacing.md * (columnCount - 1);
-
-        final cardWidth = (constraints.maxWidth - totalSpacing) / columnCount;
-
-        return Wrap(
-          spacing: AppSpacing.md,
-          runSpacing: AppSpacing.md,
-          children: [
-            SizedBox(
-              width: cardWidth,
-              child: _ChiefSummaryCard(
-                title: 'Açık Operasyonlar',
-                value: controller.openWorkCount.toString(),
-                icon: Icons.dashboard_outlined,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            SizedBox(
-              width: cardWidth,
-              child: _ChiefSummaryCard(
-                title: 'Kritik Olaylar',
-                value: controller.criticalWorkCount.toString(),
-                icon: Icons.crisis_alert_rounded,
-                color: Colors.red,
-              ),
-            ),
-            SizedBox(
-              width: cardWidth,
-              child: _ChiefSummaryCard(
-                title: 'Atanmamış İşler',
-                value: controller.unassignedWorkCount.toString(),
-                icon: Icons.person_off_outlined,
-                color: Colors.orange,
-              ),
-            ),
-            SizedBox(
-              width: cardWidth,
-              child: _ChiefSummaryCard(
-                title: 'Devam Eden İşler',
-                value: controller.inProgressWorkCount.toString(),
-                icon: Icons.sync_rounded,
-                color: Colors.blue,
-              ),
-            ),
-          ],
-        );
-      },
+    return ResponsiveMetricStrip(
+      metrics: [
+        AppMetric(
+          label: 'Açık Operasyonlar',
+          compactLabel: 'Açık',
+          value: controller.openWorkCount.toString(),
+          icon: Icons.dashboard_outlined,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        AppMetric(
+          label: 'Kritik Olaylar',
+          compactLabel: 'Kritik',
+          value: controller.criticalWorkCount.toString(),
+          icon: Icons.crisis_alert_rounded,
+          color: Colors.red,
+        ),
+        AppMetric(
+          label: 'Atanmamış İşler',
+          compactLabel: 'Atanmamış',
+          value: controller.unassignedWorkCount.toString(),
+          icon: Icons.person_off_outlined,
+          color: Colors.orange,
+        ),
+        AppMetric(
+          label: 'Devam Eden İşler',
+          compactLabel: 'Devam Eden',
+          value: controller.inProgressWorkCount.toString(),
+          icon: Icons.sync_rounded,
+          color: Colors.blue,
+        ),
+      ],
     );
   }
 
@@ -542,93 +519,6 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _ChiefSummaryCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _ChiefSummaryCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 220;
-
-        final iconContainer = Container(
-          width: isCompact ? 40 : 48,
-          height: isCompact ? 40 : 48,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, size: isCompact ? 22 : 24, color: color),
-        );
-
-        if (isCompact) {
-          return AppCard(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    iconContainer,
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      value,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return AppCard(
-          child: Row(
-            children: [
-              iconContainer,
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      value,
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(title, style: Theme.of(context).textTheme.bodyMedium),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

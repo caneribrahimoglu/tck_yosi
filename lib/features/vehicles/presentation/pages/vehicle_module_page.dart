@@ -20,6 +20,7 @@ class VehicleModulePage extends StatefulWidget {
   final VehicleController controller;
   final ValueChanged<Vehicle>? onViewVehicle;
   final Future<void> Function()? onAddVehicle;
+  final Future<void> Function()? onOpenFaultReviews;
 
   const VehicleModulePage({
     super.key,
@@ -28,6 +29,7 @@ class VehicleModulePage extends StatefulWidget {
     required this.controller,
     this.onViewVehicle,
     this.onAddVehicle,
+    this.onOpenFaultReviews,
   });
 
   @override
@@ -106,6 +108,16 @@ class _VehicleModulePageState extends State<VehicleModulePage> {
                 subtitle:
                     'Kurum ve sözleşmeli araçlardan oluşan filonun güncel durumunu izleyin.',
                 actions: [
+                  if (widget.currentUser.hasPermission(
+                        AppPermission.reviewVehicleFaults,
+                      ) &&
+                      widget.onOpenFaultReviews != null)
+                    AppButton.secondary(
+                      label:
+                          'Arıza İncelemeleri (${widget.controller.pendingFaultReviewCount})',
+                      icon: Icons.car_crash_outlined,
+                      onPressed: widget.onOpenFaultReviews,
+                    ),
                   if (widget.currentUser.hasPermission(
                         AppPermission.manageVehicleFleet,
                       ) &&

@@ -21,6 +21,7 @@ import '../../vehicles/presentation/pages/create_vehicle_page.dart';
 import '../../vehicles/presentation/pages/vehicle_assignment_page.dart';
 import '../../vehicles/presentation/pages/vehicle_handover_page.dart';
 import '../../vehicles/presentation/pages/create_vehicle_record_page.dart';
+import '../../vehicles/presentation/pages/vehicle_fault_review_queue_page.dart';
 import '../../vehicles/domain/enums/vehicle_record_type.dart';
 import '../../vehicles/presentation/controllers/vehicle_controller.dart';
 import '../../vehicles/presentation/controllers/vehicle_detail_controller.dart';
@@ -185,6 +186,10 @@ class RoleDashboardResolver extends StatelessWidget {
               currentUser.hasPermission(AppPermission.manageVehicleFleet)
               ? () => _openCreateVehicle(context)
               : null,
+          onOpenFaultReviews:
+              currentUser.hasPermission(AppPermission.reviewVehicleFaults)
+              ? () => _openVehicleFaultReviews(context)
+              : null,
         ),
       ),
     );
@@ -199,6 +204,23 @@ class RoleDashboardResolver extends StatelessWidget {
         builder: (context) => CreateVehiclePage(controller: vehicleController),
       ),
     );
+  }
+
+  Future<void> _openVehicleFaultReviews(BuildContext context) async {
+    if (!currentUser.hasPermission(AppPermission.reviewVehicleFaults)) {
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => VehicleFaultReviewQueuePage(
+          currentUser: currentUser,
+          controller: vehicleController,
+        ),
+      ),
+    );
+    if (context.mounted) {
+      await vehicleController.load();
+    }
   }
 
   Future<void> _openVehicleDetail(

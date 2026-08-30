@@ -8,6 +8,7 @@ enum AppPermission {
   createFuelRecord,
   createVehicleFaultRecord,
   createVehicleMaintenanceRecord,
+  reviewVehicleFaults,
   createFieldReport,
   viewPersonnel,
   managePersonnel,

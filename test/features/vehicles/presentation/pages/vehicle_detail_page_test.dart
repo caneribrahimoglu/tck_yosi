@@ -7,7 +7,9 @@ import 'package:tck_yosi/features/vehicles/data/repositories/fake_vehicle_reposi
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_inspection.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_record_type.dart';
+import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_fault_review_decision.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_record_request.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/review_vehicle_fault_request.dart';
 import 'package:tck_yosi/features/vehicles/presentation/controllers/vehicle_detail_controller.dart';
 import 'package:tck_yosi/features/vehicles/presentation/pages/vehicle_detail_page.dart';
 
@@ -192,7 +194,7 @@ void main() {
       mileage: 48320,
       inspection: _allOkayInspection,
     );
-    await repository.createVehicleRecord(
+    final fault = await repository.createVehicleRecord(
       userId: 'user-driver-001',
       userName: 'Ahmet Yılmaz',
       request: const CreateVehicleRecordRequest(
@@ -200,6 +202,15 @@ void main() {
         title: 'Silecek arızası',
         description: 'Sağ silecek iz bırakıyor.',
         mileage: 48400,
+      ),
+    );
+    await repository.reviewVehicleFault(
+      recordId: fault.id,
+      reviewedByUserId: 'chief-vehicle-detail-test',
+      reviewedByName: 'Test Şef',
+      request: const ReviewVehicleFaultRequest(
+        decision: VehicleFaultReviewDecision.continueInService,
+        note: 'Bir sonraki bakımda değiştirilecek.',
       ),
     );
     final controller = VehicleDetailController(repository: repository);
@@ -211,6 +222,11 @@ void main() {
     expect(find.text('Arıza ve Bakım Geçmişi'), findsOneWidget);
     expect(find.text('Arıza: Silecek arızası'), findsOneWidget);
     expect(find.text('Sağ silecek iz bırakıyor.'), findsOneWidget);
+    expect(find.text('Kullanıma Devam'), findsOneWidget);
+    expect(
+      find.textContaining('Bir sonraki bakımda değiştirilecek.'),
+      findsOneWidget,
+    );
     expect(find.textContaining('Ahmet Yılmaz'), findsWidgets);
   });
 }

@@ -4,11 +4,13 @@ import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_operational_stat
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_ownership_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_type.dart';
 import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_record_type.dart';
+import 'package:tck_yosi/features/vehicles/domain/enums/vehicle_fault_review_decision.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/update_vehicle_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/vehicle_inspection.dart';
 import 'package:tck_yosi/features/vehicles/domain/models/create_vehicle_record_request.dart';
+import 'package:tck_yosi/features/vehicles/domain/models/review_vehicle_fault_request.dart';
 import 'package:tck_yosi/features/vehicles/domain/repositories/vehicle_repository_exception.dart';
 
 void main() {
@@ -472,6 +474,113 @@ void main() {
         ),
       ),
       throwsA(isA<VehicleRepositoryException>()),
+    );
+  });
+
+  test(
+    'arıza şef inceleme kuyruğuna düşer ve bakım kararı iz bırakır',
+    () async {
+      final repository = FakeVehicleRepository(
+        vehicles: [_vehicle('vehicle-001')],
+        delay: Duration.zero,
+      );
+      await repository.assignVehicle(
+        vehicleId: 'vehicle-001',
+        userId: 'driver-001',
+        userName: 'Test Şoför',
+      );
+      await repository.receiveVehicle(
+        userId: 'driver-001',
+        mileage: 120,
+        inspection: _inspection,
+      );
+      final fault = await repository.createVehicleRecord(
+        userId: 'driver-001',
+        userName: 'Test Şoför',
+        request: const CreateVehicleRecordRequest(
+          type: VehicleRecordType.fault,
+          title: 'Fren arızası',
+          description: 'Fren pedalında boşluk var.',
+          mileage: 130,
+        ),
+      );
+
+      expect(await repository.getOpenVehicleFaults(), [fault]);
+
+      final reviewed = await repository.reviewVehicleFault(
+        recordId: fault.id,
+        reviewedByUserId: 'chief-001',
+        reviewedByName: 'Test Şef',
+        request: const ReviewVehicleFaultRequest(
+          decision: VehicleFaultReviewDecision.takeToMaintenance,
+          note: 'Araç servise yönlendirildi.',
+        ),
+      );
+
+      expect(
+        reviewed.latestFaultReview?.decision,
+        VehicleFaultReviewDecision.takeToMaintenance,
+      );
+      expect(reviewed.latestFaultReview?.reviewedByName, 'Test Şef');
+      expect(reviewed.latestFaultReview?.note, 'Araç servise yönlendirildi.');
+      expect(
+        (await repository.getVehicleById('vehicle-001'))?.operationalStatus,
+        VehicleOperationalStatus.maintenance,
+      );
+    },
+  );
+
+  test('çözülen arıza açık kuyruktan çıkar ve araç aktifleşir', () async {
+    final repository = FakeVehicleRepository(
+      vehicles: [_vehicle('vehicle-001')],
+      delay: Duration.zero,
+    );
+    await repository.assignVehicle(
+      vehicleId: 'vehicle-001',
+      userId: 'driver-001',
+      userName: 'Test Şoför',
+    );
+    await repository.receiveVehicle(
+      userId: 'driver-001',
+      mileage: 120,
+      inspection: _inspection,
+    );
+    final fault = await repository.createVehicleRecord(
+      userId: 'driver-001',
+      userName: 'Test Şoför',
+      request: const CreateVehicleRecordRequest(
+        type: VehicleRecordType.fault,
+        title: 'Silecek arızası',
+        description: 'Silecek iz bırakıyor.',
+        mileage: 130,
+      ),
+    );
+    await repository.reviewVehicleFault(
+      recordId: fault.id,
+      reviewedByUserId: 'chief-001',
+      reviewedByName: 'Test Şef',
+      request: const ReviewVehicleFaultRequest(
+        decision: VehicleFaultReviewDecision.takeToMaintenance,
+        note: 'Silecek değiştirilecek.',
+      ),
+    );
+
+    final resolved = await repository.reviewVehicleFault(
+      recordId: fault.id,
+      reviewedByUserId: 'chief-001',
+      reviewedByName: 'Test Şef',
+      request: const ReviewVehicleFaultRequest(
+        decision: VehicleFaultReviewDecision.resolve,
+        note: 'Silecek değiştirildi ve kontrol edildi.',
+      ),
+    );
+
+    expect(resolved.faultReviews, hasLength(2));
+    expect(resolved.isFaultResolved, isTrue);
+    expect(await repository.getOpenVehicleFaults(), isEmpty);
+    expect(
+      (await repository.getVehicleById('vehicle-001'))?.operationalStatus,
+      VehicleOperationalStatus.active,
     );
   });
 }
