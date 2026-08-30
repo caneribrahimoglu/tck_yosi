@@ -2,7 +2,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.security import hash_password
+from app.core.security import (
+    PasswordPolicyError,
+    hash_password,
+    validate_new_password,
+)
 from app.models.user import User, UserRole
 
 
@@ -33,8 +37,11 @@ def _normalize_and_validate(
         raise BootstrapError("Kullanıcı adı boşluk içeremez.")
     if normalized_email and len(normalized_email) > 255:
         raise BootstrapError("E-posta en fazla 255 karakter olabilir.")
-    if len(password) < 12:
-        raise BootstrapError("Geçici parola en az 12 karakter olmalıdır.")
+
+    try:
+        validate_new_password(password)
+    except PasswordPolicyError as exc:
+        raise BootstrapError(str(exc)) from exc
 
     return normalized_full_name, normalized_username, normalized_email
 
