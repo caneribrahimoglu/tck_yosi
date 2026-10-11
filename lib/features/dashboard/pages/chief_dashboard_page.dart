@@ -273,7 +273,9 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
                 icon: Icons.fact_check_outlined,
                 onPressed: widget.onOpenCompletionQueue,
               ),
-            if (widget.currentUser.hasPermission(AppPermission.managePersonnel))
+            if (widget.currentUser.hasPermission(
+              AppPermission.manageTeamPermissions,
+            ))
               AppButton.secondary(
                 label: 'Ekip Yönetimi',
                 icon: Icons.groups_outlined,

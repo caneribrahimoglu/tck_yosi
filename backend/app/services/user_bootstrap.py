@@ -8,6 +8,7 @@ from app.core.security import (
     validate_new_password,
 )
 from app.models.user import User, UserRole
+from app.models.permission import INITIAL_CHIEF_PERMISSIONS
 
 
 class BootstrapError(ValueError):
@@ -78,6 +79,7 @@ def create_initial_chief(
         role=UserRole.chief,
         is_active=True,
         must_change_password=True,
+        permissions=list(INITIAL_CHIEF_PERMISSIONS),
     )
     session.add(user)
 

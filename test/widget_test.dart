@@ -1,9 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tck_yosi/app/app.dart';
+import 'package:tck_yosi/features/auth/data/services/fake_auth_service.dart';
 
 void main() {
   testWidgets('oturum yoksa login ekranı açılır', (WidgetTester tester) async {
-    await tester.pumpWidget(const TckYosiApp());
+    await tester.pumpWidget(TckYosiApp(authService: FakeAuthService()));
 
     await tester.pumpAndSettle();
 

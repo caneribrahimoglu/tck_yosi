@@ -3,6 +3,8 @@ import '../../../auth/domain/services/app_user_directory.dart';
 import '../../../technical_operations/domain/models/technical_work_actor_access.dart';
 import '../../../technical_operations/domain/repositories/technical_work_access_source.dart';
 import '../../domain/repositories/team_repository.dart';
+import '../../domain/models/team.dart';
+import '../../domain/models/team_membership.dart';
 
 class TeamTechnicalWorkAccessAdapter implements TechnicalWorkAccessSource {
   final TeamRepository _teamRepository;
@@ -31,15 +33,17 @@ class TeamTechnicalWorkAccessAdapter implements TechnicalWorkAccessSource {
       );
     }
 
-    final teamsFuture = _teamRepository.getTeams();
-    final membershipsFuture = _teamRepository.getMemberships();
-    final permissionsFuture = _teamRepository.getEffectivePermissions(
-      userId: userId,
-      directPermissions: user.permissions,
-    );
-    final teams = await teamsFuture;
-    final memberships = await membershipsFuture;
-    final effectivePermissions = await permissionsFuture;
+    final results = await Future.wait<Object>([
+      _teamRepository.getTeams(),
+      _teamRepository.getMemberships(),
+      _teamRepository.getEffectivePermissions(
+        userId: userId,
+        directPermissions: user.permissions,
+      ),
+    ]);
+    final teams = results[0] as List<Team>;
+    final memberships = results[1] as List<TeamMembership>;
+    final effectivePermissions = results[2] as Set<AppPermission>;
     final activeTeamIds = teams
         .where((team) => team.isActive && !team.isArchived)
         .map((team) => team.id)

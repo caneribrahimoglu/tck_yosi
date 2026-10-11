@@ -2,6 +2,8 @@ import '../../../auth/domain/services/app_user_directory.dart';
 import '../../../technical_operations/domain/models/technical_work_participant_names.dart';
 import '../../../technical_operations/domain/repositories/technical_work_participant_name_source.dart';
 import '../../domain/repositories/team_repository.dart';
+import '../../domain/models/team.dart';
+import '../../../auth/domain/models/app_user.dart';
 
 class TechnicalWorkParticipantNameAdapter
     implements TechnicalWorkParticipantNameSource {
@@ -19,10 +21,12 @@ class TechnicalWorkParticipantNameAdapter
     required Set<String> userIds,
     required Set<String> teamIds,
   }) async {
-    final teamsFuture = _teamRepository.getTeams();
-    final usersFuture = Future.wait(userIds.map(_userDirectory.findUserById));
-    final teams = await teamsFuture;
-    final users = await usersFuture;
+    final results = await Future.wait<Object>([
+      _teamRepository.getTeams(),
+      Future.wait(userIds.map(_userDirectory.findUserById)),
+    ]);
+    final teams = results[0] as List<Team>;
+    final users = results[1] as List<AppUser?>;
 
     return TechnicalWorkParticipantNames(
       userNames: Map.unmodifiable({

@@ -1,501 +1,113 @@
-# TCK YÖSİ - Architecture Guide
+# TCK YÖSİ — Mevcut mimari
 
----
+11 Ekim 2026 tarihinde `7f7cc6c` tabanı incelenerek güncellendi.
 
-# 1. Project Overview
-
-## Project Name
+## İki ayrı çalışma katmanı
 
 ```text
-tck_yosi
+Flutter auth UI → AuthController → SessionAuthService → ApiAuthService → FastAPI
+Flutter iş UI → ChangeNotifier controller → domain port/repository → fake adapter
+
+FastAPI route → dependency/service → SQLAlchemy session/model → PostgreSQL
 ```
 
-## Product Name
+Flutter auth, kullanıcı yönetimi ve ekip repository'si backend'e bağlıdır. İş/araç verisi henüz backend'e kaydedilmez. Domain arayüzleri korunur; testlerde fake repository'ler injection ile kullanılmaya devam eder.
 
-```text
-TCK YÖSİ
-```
-
-## Description
-
-TCK YÖSİ is a cross-platform management system developed for directorates and departments.
-
-The project is designed as a scalable commercial software product and follows modern software architecture principles.
-
-Target platforms:
-
-* Android
-* iOS
-* Windows
-* Web
-
----
-
-# 2. Project Vision
-
-The goal is to build a modular management platform capable of serving multiple organizations in the future.
-
-The system should remain maintainable even after years of development.
-
-Every architectural decision should support long-term scalability.
-
----
-
-# 3. Business Structure
-
-Real-world hierarchy
-
-```text
-Directorate
-    │
-    ├── Department
-    │       │
-    │       ├── Vehicles
-    │       ├── Drivers
-    │       ├── Personnel
-    │       ├── Assignments
-    │       └── Reports
-```
-
-Every business record should always belong to a Department.
-
-Departments belong to a Directorate.
-
-Future versions may support multiple directorates inside one installation.
-
----
-
-# 4. Architecture Style
-
-The project follows **Feature First Architecture**.
+## Dizinler ve sorumluluklar
 
 ```text
 lib/
-│
-├── app/
-│   ├── app.dart
-│   └── router.dart
-│
-├── core/
-│   ├── constants/
-│   ├── enums/
-│   ├── extensions/
-│   ├── theme/
-│   └── utils/
-│
-├── features/
-│   ├── auth/
-│   ├── dashboard/
-│   ├── directorates/
-│   ├── departments/
-│   ├── vehicles/
-│   ├── drivers/
-│   ├── personnel/
-│   ├── assignments/
-│   └── reports/
-│
-├── shared/
-│   ├── services/
-│   └── widgets/
-│
-└── main.dart
+  app/                        composition root ve uygulama kurulumu
+  core/                       tema, token, enum ve responsive yardımcıları
+  shared/widgets/             ortak Violet UI bileşenleri
+  features/
+    auth/                     kullanıcı, rol, permission, auth controller/gate
+    dashboard/                rol resolver'ı, şef ana sayfası ve operasyon ekranı
+    technical_operations/     teknik iş lifecycle ve geçmişleri
+    teams/                    ekip, üyelik, yetki ve feature adapterları
+    vehicles/                 filo, araç geçmişi ve araç operasyonları
+    personnel/                modül hazırlık sayfası
+    users/                    kullanıcı yönetimi repository/controller/UI
+
+backend/
+  app/api/                    route ve auth dependencies
+  app/core/                   ayarlar ve parola/JWT güvenliği
+  app/db/                     engine, session, declarative base
+  app/models/                 User, Team, TeamMembership ve permission enum
+  app/schemas/                HTTP giriş/çıkış modelleri
+  app/services/               auth ve ilk kullanıcı iş kuralları
+  app/cli/                    etkileşimli ilk şef oluşturma aracı
+  migrations/                 Alembic migration'ları
+  tests/                      backend servis/güvenlik testleri
 ```
 
-Every feature owns its own architecture.
+Feature'larda domain/data/presentation ayrımı uygulanır. Eski dashboard gibi yerlerde mevcut `pages/widgets` düzeni korunur; tek tip klasör görünümü için geniş refactor yapılmaz.
 
-Example
+## Flutter composition ve yaşam döngüsü
 
-```text
-vehicles/
-│
-├── data/
-├── models/
-├── pages/
-├── repositories/
-└── widgets/
-```
+`lib/app/app.dart`, auth servisini, paylaşılan repository'leri ve controller'ları kurar. Controller'ları sahiplenen uygulama root'u `dispose` eder. Sayfalar repository/controller kopyaları üretmez; bağımlılıkları injection ile alır.
 
-Modules should never become dependent on each other's internal structure.
+`AuthGate`, oturum durumuna göre login veya rol dashboard'unu gösterir. `RoleDashboardResolver` ilgili dashboardu seçer; şef için `ChiefHomePage` açılır. Şef ana sayfasından operasyon, araç ve personel child modülleri açılır. AuthGate, unauthenticated durumunu dinler ve frame sonunda root Navigator'ı ilk route'a kadar geri alır. Böylece LoginPage görünür olur; eski child ekran yeni kullanıcı oturumuna taşınmaz.
 
----
+Paylaşılan fake repository'ler sayesinde uygulama kapanmadığı sürece çıkış/giriş geçmiş kayıtları silmez. Bu yaşam döngüsü, kalıcı storage veya güvenli backend oturumu yerine geçmez.
 
-# 5. Layer Responsibilities
+`ApiAuthService` HTTP client, timeout, typed hata ve session-store portunu sahiplenir. Android/masaüstünde secure storage, web'de bellek içi store kullanılır. Saklanan veri yalnız token/expiry'dir; restore `/me` ister. HTTP redirect'leri takip edilmez. AuthController süre dolumunda oturumu bitirir; `/me` 401/403 de aynı root cleanup yolunu tetikler. `mustChangePassword` dashboard yerine parola ekranı açar. Hatalı/ağdan dönmeyen girişte demo servise otomatik fallback yoktur.
 
-## app/
+`ApiUserDirectory`, gerçek isim/rol havuzunu `/directory` üzerinden okur; mevcut actor `/me` ile yeniden doğrulanır. Başka hesaplar erişim actor'ı olarak değil, isim kaynağı olarak dönür. Eski demo operasyon kullanıcı ID'leri için yalnız inactive/yetkisiz isim fallback'i tutulur; gerçek kullanıcı/atama havuzuna girmez. Fake auth enjekte edilen testler için önceki directory köprüsü korunur.
 
-Responsible for application configuration.
+`ApiTeamRepository` ve `ApiUserManagementRepository`, `ApiAuthService.requestBusiness` üzerinden aynı bearer oturumunu kullanır. İstemci `actorPermissions` sunucuya gönderilmez; sunucu current user ve direct grants'i DB'den yükler. Stale bir oturumun geç dönen yanıtı yeni oturuma veri taşıyamaz. User controller da actor-generation kontrolüyle eski listeyi temizler.
 
-Contains:
+Backend yönetim policy'si mutasyondan önce aktiflik, parola değişimi ve doğrudan yönetim izni ister. Transaction'da actor/target row lock'ları, DB'de normalize ekip adı ve üyelik çifti unique constraint'leri bulunur. Team permission grant'leri şefin kendi direct grant listesiyle sınırlı ve korunan sistem izinlerinden arındırılmıştır. Korunan izinler legacy ekip verisinde bulunsa bile effective-permissions hesabına katılmaz.
 
-* MaterialApp
-* Router
-* Global Navigation
-* Application bootstrap
+Kullanıcı yönetimi kendi/diğer yönetici hesabını değiştirmez, yönetici rolü oluşturmaz; operational hesaplar boş direct grants ve zorunlu geçici parola değişimiyle açılır. Şefin `manageUsers` yetkisi explicit migration/bootstrap grant'idir; role fallback yoktur. Üyelik kaldırma pasifleştirir, yeniden ekleme aynı ID'yi korur. Ekip restore aynı ID/izin/üyelikle pasif döner.
 
----
+Teknik işler fake kalırken açık iş arşivleme kontrolü yerel `TechnicalWorkTeamArchiveGuard` ile yapılır. Backend henüz teknik iş tablosu bilmediğinden bu, cihazlar arası sunucu garantisi değildir; kalıcı iş migration'ı ve sunucu transaction guard sonraki teknik operasyon diliminde birlikte eklenmelidir.
 
-## core/
+## Domain ve feature sınırları
 
-Contains global resources.
+- Modeller immutable değerlerdir; UI isimleri domain kayıtlarına yazılmaz.
+- Controller, yükleme/gönderme/hata durumunu ve presentation state'ini yönetir.
+- Repository, kaynak veriden yetkiyi ve durum geçişini doğrular; sistem ID/zaman alanlarını üretir ve geçmişi korur.
+- Teknik operasyon domain'i teams implementasyonuna doğrudan bağlanmaz. Ekip hedefi, actor erişimi ve isim çözümleme için port/adaptor kullanılır.
+- `TeamAssignmentTargetAdapter`, `TeamTechnicalWorkAccessAdapter` ve `TechnicalWorkParticipantNameAdapter`, paylaşılan ekip/kullanıcı kaynaklarını bu portlara bağlar.
+- `TechnicalWorkTeamArchiveGuard`, açık teknik işi olan ekip arşivleme sınırını composition üzerinden kurar.
+- Role, doğrudan kullanıcı permission'ı ve ekip üyeliği/yetkisi ayrı kavramlardır; `AppUser.teamIds` üyelik source of truth'u değildir.
+- Etkin yetki, doğrudan yetkiler ve aktif üyelikle bağlı aktif/arşivlenmemiş ekip yetkilerinin birleşimidir. Explicit deny sistemi yoktur.
 
-Examples:
+## Teknik iş kuralları
 
-* Constants
-* Enums
-* Theme
-* Extensions
-* Utility classes
+- Temel akış: bildirim/inceleme → atama → `inProgress` → `awaitingCompletionApproval` → `completed`.
+- Tamamlama reddi işi `inProgress` durumuna döndürür; talep geçmişi korunur.
+- `inProgress` → `onHold` için gerekçe gerekir; devam `onHold` → `inProgress` geçişidir.
+- Beklemede ilerleme notu ve tamamlama talebi repository sınırında engellenir.
+- Başlatma ekip atamasını değiştirmez; `startedByUserId` ve `startedAt` ayrı saklanır.
+- İlerleme notları, tamamlama talepleri ve bekleme döngüleri ayrı immutable geçmiş kayıtlarıdır.
+- Mutasyon için aktif actor, uygun assignment/aktif ekip üyeliği ve ilgili explicit permission gerekir.
+- Detay/history okuma da actor ister. Global okuma `viewAllTechnicalWork` ile sağlanır; rol adı tek başına yetki değildir.
+- Tamamlama inceleme doğrudan `reviewTechnicalWorkCompletion` gerektirir; ekipten devredilemez.
+- Authorization durum hatalarından önce yapılır; typed hatalar controller'da güvenli kullanıcı mesajlarına çevrilir.
+- Fake repository'lerde eşzamanlı submission/karar için in-flight korumaları ve yeniden doğrulama bulunur. Backend'e geçişte bunların transaction/constraint karşılığı gerekir.
 
-Core never contains business logic.
+Teknik işlerin mevcut geniş liste okuma API'leri, detay okumaya getirilen actor sınırıyla aynı ölçüde ele alınmış değildir. Bu önceden kalan borç, backend listelerinin yetkilendirme tasarımında kapatılmalıdır.
 
----
+## Ekip ve araç kuralları
 
-## features/
+Ekip üyelikleri ayrı kayıtlardır; kullanıcı birden fazla ekibe katılabilir. Adlar trim/case-insensitive benzersizlikle kontrol edilir. Arşivli ekip mutable değildir; tek dönüş geri yüklemedir. Restore kimlik/üyelik/yetkileri korur, ekibi pasif yapar. Merkezi `TeamPermissionPolicy`, ekip yönetimi ve grant edilebilir yetkileri sınırlar.
 
-Contains business modules.
+Araç domain'i kuruma ait/sözleşmeli ayrımı, tür, kilometre ve operasyon durumunu taşır. Sözleşmeli araçta yüklenici zorunludur. Atama, kullanım/teslim, kontrol, arıza/bakım ve arıza değerlendirme kayıtları ayrı domain modelleridir. Görünen sayaçlar ve filtreler controller state'inden türetilir.
 
-Each module manages its own:
+## Backend sınırı
 
-* Models
-* Pages
-* Widgets
-* Repositories
+Kalıcı modeller `User`, `Team` ve `TeamMembership`'tir. Kullanıcı direct permission'ları ve ekip izinleri ayrı JSON listelerinde; üyelikler ayrı kayıtlarla saklanır. Araç/teknik iş tabloları henüz yoktur. UserResponse'daki permission enum değerleri Flutter AppPermission sözleşmesiyle eşleşir; role bakarak yetki üretilmez.
 
-Every feature should be independently maintainable.
+- Parolalar Argon2 ile hash'lenir; yeni parola minimum 12 karakterdir.
+- JWT erişim tokenı HS256 ile imzalanır; örnek ayarda ömür 30 dakikadır.
+- Auth dependency tokenı doğrular ve kullanıcıyı veritabanından yeniden okur; eksik/pasif actor reddedilir.
+- Zorunlu parola değişimi dependency'si bütün yeni kullanıcı/ekip uçlarında uygulanır; gelecekteki iş endpoint'leri de bu sınırı kullanmalıdır.
+- Health/auth, kullanıcı yönetimi ve ekip/üyelik/yetki uçları vardır. Refresh token, revocation/logout ve iş/araç API'leri henüz yoktur.
+- Ayarlar environment/`.env` üzerinden alınır; gerçek secret değerleri source control'e yazılmaz.
+- API adresi `API_BASE_URL` dart-define ile seçilir. Yerel HTTP yalnız Flutter debug'da kabul edilir; release/profile HTTPS ister. CORS yalnız açıkça yapılandırılmış origin'lere izin verir.
 
----
+## Geliştirme ilkeleri
 
-## shared/
-
-Contains reusable components shared by multiple modules.
-
-Examples
-
-* CustomButton
-* LoadingWidget
-* DialogService
-* DateFormatter
-
-If a widget belongs to only one feature, it should stay inside that feature.
-
----
-
-# 6. Coding Principles
-
-The project follows:
-
-* Single Responsibility Principle (SRP)
-* Separation of Concerns
-* Feature Isolation
-* Reusable Components
-* Clean Code
-* Readability First
-
-Every file should have only one clear responsibility.
-
----
-
-# 7. Naming Rules
-
-## Files
-
-Use snake_case
-
-```text
-vehicle_repository.dart
-vehicle_list_page.dart
-driver_card.dart
-```
-
----
-
-## Classes
-
-Use PascalCase
-
-```dart
-class Vehicle {}
-
-class VehicleRepository {}
-
-class DashboardPage {}
-```
-
----
-
-## Variables
-
-Use camelCase
-
-```dart
-final currentVehicle;
-
-final totalKm;
-```
-
----
-
-## Constants
-
-Prefer lowerCamelCase for Dart constants.
-
-```dart
-const appName = 'TCK YÖSİ';
-```
-
----
-
-# 8. Model Rules
-
-Models represent business entities.
-
-Examples
-
-* Directorate
-* Department
-* Vehicle
-* Driver
-* Personnel
-
-Rules
-
-* Immutable
-* final fields
-* const constructors whenever possible
-* No unnecessary properties
-
-Example
-
-```dart
-class Vehicle {
-
-  final String id;
-  final String plate;
-  final bool isActive;
-
-  const Vehicle({
-    required this.id,
-    required this.plate,
-    required this.isActive,
-  });
-
-}
-```
-
----
-
-# 9. Repository Rules
-
-Pages never communicate directly with Firebase.
-
-Architecture flow
-
-```text
-UI
-
-↓
-
-Controller / ViewModel
-
-↓
-
-Repository
-
-↓
-
-Firebase
-```
-
-Repositories are responsible for data access only.
-
----
-
-# 10. Firebase Rules
-
-Never write Firebase code inside Widgets.
-
-Wrong
-
-```dart
-FirebaseFirestore.instance.collection('vehicles').get();
-```
-
-Correct
-
-```text
-Page
-
-↓
-
-Repository
-
-↓
-
-Firebase
-```
-
-Collections
-
-```text
-directorates
-
-departments
-
-vehicles
-
-drivers
-
-personnel
-
-assignments
-```
-
----
-
-# 11. UI Rules
-
-Widgets display data.
-
-Business logic belongs outside UI.
-
-Large pages should be split into reusable widgets.
-
-Example
-
-```text
-dashboard/
-
-pages/
-
-widgets/
-
-models/
-
-repositories/
-```
-
-DashboardPage should become an orchestrator instead of a very large file.
-
----
-
-# 12. Git Rules
-
-Preferred commits
-
-```text
-feat: create dashboard page
-
-feat: add vehicle repository
-
-fix: correct department filter
-
-refactor: split dashboard widgets
-
-docs: update architecture guide
-```
-
-Avoid
-
-```text
-update
-
-last version
-
-changes
-
-fix
-```
-
----
-
-# 13. Current Project Status
-
-Completed
-
-* Flutter project created
-* Feature First Architecture established
-* Folder structure prepared
-* ARCHITECTURE.md created
-* Application entry point created
-* app.dart created
-* DashboardPage created
-* First application successfully running
-
-Current flow
-
-```text
-main.dart
-
-↓
-
-runApp()
-
-↓
-
-TckYosiApp
-
-↓
-
-MaterialApp
-
-↓
-
-DashboardPage
-
-↓
-
-Scaffold
-```
-
----
-
-# 14. Future Roadmap
-
-Flutter Foundation
-
-* Widget Tree
-* BuildContext
-* StatelessWidget
-* StatefulWidget
-* Theme
-* Router
-* Navigation
-
-Business Modules
-
-* Authentication
-* Directorate Management
-* Department Management
-* Vehicle Management
-* Driver Management
-* Personnel Management
-* Assignments
-* Reports
-
-Infrastructure
-
-* Firebase Authentication
-* Cloud Firestore
-* Firebase Storage
-* Push Notifications
-
-Future Backend
-
-* FastAPI
-* PostgreSQL
-* REST API
-* Offline Synchronization
-
----
-
-# 15. Golden Rules
-
-* Think before coding.
-* Keep files small.
-* Every architectural decision must have a reason.
-* Build simple first.
-* Scale only when necessary.
-* Never mix UI with business logic.
-* Prefer readability over clever code.
-* Design for long-term maintainability.
-* Write code as if another senior developer will maintain it.
+İş kuralı widget'a gömülmez. UI görünürlüğü güvenlik yerine geçmez. Korunan yönetim yetkileri ekip grant listesine gelişigüzel eklenmez. Yeni dilimler mevcut port/controller/UI kitini kullanır; gereksiz paket ve geniş refactor eklenmez. Güvenlik, durum geçişi, concurrency ve navigasyon testleri ilgili sınırda yazılır.

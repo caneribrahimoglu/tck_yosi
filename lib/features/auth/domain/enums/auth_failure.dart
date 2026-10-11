@@ -1,1 +1,8 @@
-enum AuthFailure { invalidCredentials, inactiveAccount, networkError, unknown }
+enum AuthFailure {
+  invalidCredentials,
+  inactiveAccount,
+  networkError,
+  invalidPassword,
+  sessionExpired,
+  unknown,
+}

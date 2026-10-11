@@ -6,6 +6,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    JSON,
     Enum as SqlEnum,
     String,
     Uuid,
@@ -84,6 +85,9 @@ class User(Base):
         nullable=False,
         default=True,
         server_default=true(),
+    )
+    permissions: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list, server_default="[]"
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

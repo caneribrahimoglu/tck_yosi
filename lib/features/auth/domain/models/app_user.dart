@@ -8,6 +8,7 @@ class AppUser {
   final UserRole role;
   final Set<AppPermission> permissions;
   final bool isActive;
+  final bool mustChangePassword;
 
   const AppUser({
     required this.id,
@@ -16,6 +17,7 @@ class AppUser {
     required this.role,
     required this.permissions,
     this.isActive = true,
+    this.mustChangePassword = false,
   });
 
   bool hasPermission(AppPermission permission) {

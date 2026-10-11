@@ -1,383 +1,106 @@
-# TCK YÖSİ - Decisions Log
+# TCK YÖSİ — Mimari karar kaydı
 
-> This document records important architectural and technical decisions made during the development of TCK YÖSİ.
+11 Ekim 2026 tarihinde `7f7cc6c` tabanına göre düzenlendi. İlk kararların tarihleri korunmuştur. Sonradan eklenen kararların kesin kabul tarihleri bu belgede bilinmiyorsa tarih uydurulmamış, kod referansı verilmiştir.
 
-The purpose of this file is to preserve the reasoning behind decisions so they remain understandable months or years later.
+## ADR-001 — Feature-first mimari
 
----
+Tarih: 9 Temmuz 2026. Durum: kabul edildi, uygulanıyor.
 
-# Decision Format
+Her iş modülü kendi domain, veri erişimi ve presentation sorumluluklarını taşır. Ortak tema/tokenlar `core`, ortak UI bileşenleri `shared` altında bulunur. Mevcut dashboard klasörleri için sırf aynı görünüm uğruna toplu taşıma yapılmaz.
 
-Each decision should include:
+Sonuç: bağımsız test ve geliştirme kolaylaşır; feature'lar birbirlerinin implementasyonlarına bağlanmamalıdır.
 
-* ID
-* Date
-* Title
-* Status
-* Context
-* Decision
-* Consequences
+## ADR-002 — İlk backend olarak Firebase
 
-Possible Status values:
+Tarih: 9 Temmuz 2026. Durum: güncel planın yerini ADR-007 aldı.
 
-* Accepted
-* Proposed
-* Rejected
-* Deprecated
-* Superseded
+İlk plan Firebase Authentication/Firestore/Storage kullanmaktı. Mevcut uygulamada bu entegrasyon kurulmadı. Kodda FastAPI/PostgreSQL backend oluşturulduğundan Firebase artık güncel geliştirme varsayımı değildir. Eski karar, proje geçmişini açıklamak için saklanmıştır.
 
----
+## ADR-003 — Repository/port sınırı
 
-# ADR-001
+Tarih: 9 Temmuz 2026. Durum: kabul edildi, uygulanıyor.
 
-## Date
+UI veriye controller üzerinden ulaşır; controller domain arayüzüne bağlıdır. Fake adapter geçici geliştirme aracıdır. API'ye geçişte presentation/domain'i backend teknolojisine bağlamak yerine adapter değiştirilir.
 
-2026-07-09
+Repository yalnız veri getirmez: mevcut fake implementasyonlarda authorization, geçiş, benzersizlik ve history bütünlüğü kurallarının nihai sınırıdır. Gerçek API'de bu doğrulamalar sunucuya taşınmalı; istemci kontrolü tek başına yeterli sayılmamalıdır.
 
-## Title
+## ADR-004 — Composition root ve kaynak sahipliği
 
-Feature First Architecture
+Tarih: 9 Temmuz 2026; mevcut uygulamayla açıklama güncellendi. Durum: kabul edildi.
 
-## Status
+`main.dart` minimal kalır; `app/app.dart` uygulama kurulumu ve paylaşılan bağımlılıkları sahiplenir. Repository/controller'lar sayfalarda yeniden oluşturulmaz. Root, sahip olduğu controller'ları dispose eder.
 
-Accepted
+Sonuç: aynı uygulama ömründe state/geçmiş paylaşılır. Logout authenticated route ağacını kaldırırken uygulama repository'lerini yeniden oluşturmak zorunda değildir.
 
-## Context
+## ADR-005 — Tek sorumluluk ve okunabilirlik
 
-The project is expected to grow into a large commercial application with many independent modules.
+Tarih: 9 Temmuz 2026. Durum: kabul edildi.
 
-A traditional layer-based structure would become difficult to maintain as the project grows.
+Bir dosyanın görevi açık olmalıdır. Büyük ekranlar focused widget'lara bölünür; iş mantığı controller/domain/repository sınırında tutulur. Kullanıcı eğitimi ve bakım açısından gereksiz soyutlama/framework eklenmez.
 
-## Decision
+## ADR-006 — Proje hafızasının bakımı
 
-The project will follow **Feature First Architecture**.
+Tarih: 9 Temmuz 2026. Durum: kabul edildi; 11 Ekim 2026'da belgeler güncellendi.
 
-Every business module owns its own:
+README mevcut ürünü ve çalıştırmayı; ROADMAP tamamlanan/önerilen işleri; ARCHITECTURE mevcut yapıyı; CHANGELOG teslim geçmişini; DECISIONS önemli kararları anlatır. Yeni bir mimari/ürün dilimi bu belgelerle birlikte değerlendirilir. Test sonucu tarih/referans olmadan güncel başarı gibi sunulmaz.
 
-* Models
-* Pages
-* Repositories
-* Widgets
+## ADR-007 — FastAPI/PostgreSQL backend temeli
 
-Example
+Referans: `45c352d`, `7f7cc6c`. Durum: kodda uygulanmış yön.
 
-```text
-vehicles/
-├── data/
-├── models/
-├── pages/
-├── repositories/
-└── widgets/
-```
+Backend FastAPI, SQLAlchemy, PostgreSQL ve Alembic kullanır. Kullanıcı tablosu ve güvenli auth servisleri kurulmuştur. Commitlenmemiş auth entegrasyonunda Flutter gerçek servise bağlandı; iş domain'leri halen fake repository'lerdedir.
 
-## Consequences
+Sonuç: domain API'leri ve kalıcı yetki/üyelik modeli sonraki dilimlerde tasarlanmalıdır. Migration, transaction ve constraint'ler fake repository invariantlarını korumalıdır.
 
-Advantages
+## ADR-008 — Rol, permission ve üyeliği ayırma
 
-* Better scalability
-* Easier maintenance
-* Independent modules
-* Clear project structure
+Referans: TCK-TEAM-001 ve teknik operasyon dilimleri. Durum: Flutter ve backend'de ayrı direct permission / ekip / üyelik modeli mevcut.
 
-Trade-offs
+Rol ekran seçimi için kullanılır; explicit permission ve aktif assignment/üyelik erişimi iş yapma hakkını belirler. Doğrudan kullanıcı ve aktif ekip yetkileri birleşir; explicit deny yoktur. Korunan sistem yetkileri ekip üzerinden devredilmez.
 
-* Slightly more folders
-* New developers need to understand the architecture
+Ekipler ayrı üyelik kayıtlarıyla tutulur; `AppUser` içine team ID listesini source of truth olarak gömmeyiz. Feature sınırları port/adaptor ile korunur.
 
----
+## ADR-009 — Kimliği ve işlem geçmişini koruma
 
-# ADR-002
+Referans: TCK-TEAM-001, TCK-TECH-007…010, TCK-VEHICLE-005…008. Durum: uygulanıyor.
 
-## Date
+Ekiplerde hard delete yerine archive/restore kullanılır. Restore pasif döner. Teknik işin ekip ataması başlatan kullanıcıya çevrilmez; başlatan/zaman ayrı saklanır. İlerleme, bekleme/devam, tamamlama ve araç operasyon geçmişleri ayrı kayıtlarla korunur.
 
-2026-07-09
+Domain kayıtlarına display name yazılmaz; isimler mevcut kullanıcı/ekip kaynaklarından presentation sınırında çözülür.
 
-## Title
+## ADR-010 — Güvenli işlem ve eşzamanlılık sınırı
 
-Firebase as Initial Backend
+Referans: TCK-TECH-007…011 ve repository review düzeltmeleri. Durum: fake repository'lerde uygulanıyor.
 
-## Status
+Actor erişimi state-specific hatadan önce doğrulanır. Mutasyon current source of truth'a göre yeniden kontrol edilir; çift submission/kararlar in-flight guard ve typed hatalarla ele alınır. UI yalnız yükleme ve güvenli hata mesajı sunar.
 
-Accepted
+Detay/history okuma actor gerektirir; global okuma explicit permission ile verilir. Eski geniş liste okuma borcu backend tasarımında ayrıca kapatılmalıdır. Bellek içi guard gerçek sunucuda transaction/constraint yerine geçmez.
 
-## Context
+## ADR-011 — Gerçek auth adapterı ve güvenli oturum
 
-The project needs rapid development without spending time building a backend from scratch.
+Referans: 11 Ekim 2026 tarihli auth entegrasyonu. Durum: uygulandı; gerçek giriş/restore/logout manuel kabulü tamamlandı.
 
-## Decision
+Varsayılan giriş `ApiAuthService` olur; fake auth yalnız testlerde injection ile kullanılır. Native platformlarda token/expiry secure storage'da, web'de yalnız bellekte tutulur. Parola saklanmaz; restore `/me` ile doğrulanır. Refresh/revocation bu dilime eklenmez. Süre dolumu ve unauthorized yanıt root logout/navigasyon yolunu kullanır. Zorunlu parola değişimi tamamlanmadan dashboard açılmaz.
 
-Phase 1 backend will use Firebase.
+Yetkiler backend User JSON alanında explicit saklanır. Migration en eski bootstrap şef hesabına sabit başlangıç grant listesini yazar; diğer hesaplar boş kalır. Runtime rolü şef olmak kendiliğinden grant üretmez. Gerçek kullanıcı ID'si demo kişiye çevrilmez; demo/önceki actor isimleri yalnız display için tutulur ve aktif yetkili actor olarak dönmez.
 
-Services
+`http` ve `flutter_secure_storage`, ağ ve güvenli native saklama için eklendi. Ayrı state-management framework eklenmedi. Debug yerel HTTP kullanabilir; release/profile HTTPS URL gerektirir. Web kalıcı oturumu gelecekte backend HttpOnly-cookie kararıyla ele alınabilir.
 
-* Firebase Authentication
-* Cloud Firestore
-* Firebase Storage
+## Henüz karara bağlanmamış başlıklar
 
-## Consequences
+- Refresh ve server-side logout/revocation; kalıcı web oturumu.
+- Kurum/şeflik veri izolasyonu ve denetim kayıtları.
+- Domain migration sırası ve eşzamanlılık/transaction ayrıntıları.
+- Offline veri, senkronizasyon, dosya depolama, bildirim ve üretim dağıtımı.
 
-Advantages
+ROADMAP'teki öneriler, bu başlıklar için kabul edilmiş ayrıntılı teknik karar sayılmaz.
 
-* Faster development
-* Less infrastructure
-* Cross-platform support
+## ADR-012 — Şef kullanıcı yönetimi ve kalıcı ekip temeli
 
-Trade-offs
+Referans: 11 Ekim 2026, kullanıcı onayıyla şefin kullanıcı yönetimi yapması. Durum: kodlandı; kullanıcı cihaz manuel kontrolünde çalıştığını doğruladı.
 
-* Vendor dependency
-* Some limitations for complex reporting
+`manageUsers` başlangıç şefine doğrudan verilir, role göre otomatik runtime grant yoktur. Kullanıcı yönetimi operational hesaplarla sınırlıdır; kendi/başka yönetici hesabını kilitleme ve yeni yönetici yaratma bu ekrandan yapılmaz. Direct grant'ler şefin sahip olduklarıyla sınırlıdır; `manageUsers`/`manageTeamPermissions` bu ekran üzerinden başka hesaba devredilmez. Yönetim yetkileri hiçbir durumda ekipten devredilemez.
 
-Future migration planned:
+Team ve TeamMembership ayrı PostgreSQL tablolarıdır. Normalize ad/üyelik çifti DB'de benzersizdir; archive/restore ile ID ve geçmiş bağları korunur. Üyelik çıkarma soft-deactivate, yeniden ekleme reactivation'dır. Etkin izin yalnız current session için backend'de direct izinler + aktif üyeliklerin aktif/arşivlenmemiş ekip izinlerinden hesaplanır; legacy protected ekip izinleri fail-closed filtrelenir.
 
-```text
-FastAPI
-
-↓
-
-PostgreSQL
-```
-
----
-
-# ADR-003
-
-## Date
-
-2026-07-09
-
-## Title
-
-Repository Pattern
-
-## Status
-
-Accepted
-
-## Context
-
-Business logic should not depend directly on Firebase.
-
-Future backend changes should require minimal UI changes.
-
-## Decision
-
-All data access must go through repositories.
-
-Architecture
-
-```text
-UI
-
-↓
-
-Controller / ViewModel
-
-↓
-
-Repository
-
-↓
-
-Firebase
-```
-
-## Consequences
-
-Advantages
-
-* Easier testing
-* Easier backend migration
-* Better separation of concerns
-
----
-
-# ADR-004
-
-## Date
-
-2026-07-09
-
-## Title
-
-Application Entry Structure
-
-## Status
-
-Accepted
-
-## Context
-
-Avoid placing application configuration inside main.dart.
-
-## Decision
-
-Application startup flow will be:
-
-```text
-main.dart
-
-↓
-
-runApp()
-
-↓
-
-TckYosiApp
-
-↓
-
-MaterialApp
-
-↓
-
-DashboardPage
-```
-
-main.dart should remain minimal.
-
-Application configuration belongs inside:
-
-```text
-app/app.dart
-```
-
-## Consequences
-
-Advantages
-
-* Cleaner startup
-* Easier maintenance
-* Better separation of responsibilities
-
----
-
-# ADR-005
-
-## Date
-
-2026-07-09
-
-## Title
-
-One Responsibility Per File
-
-## Status
-
-Accepted
-
-## Context
-
-Large Flutter projects often become difficult to maintain when files have multiple responsibilities.
-
-## Decision
-
-Each file should have a single responsibility.
-
-Examples
-
-```text
-DashboardPage
-```
-
-Displays dashboard.
-
-```text
-VehicleRepository
-```
-
-Accesses vehicle data.
-
-```text
-Vehicle
-```
-
-Represents a vehicle.
-
-## Consequences
-
-Advantages
-
-* Easier navigation
-* Smaller files
-* Better readability
-* Simpler maintenance
-
----
-
-# ADR-006
-
-## Date
-
-2026-07-09
-
-## Title
-
-Documentation First
-
-## Status
-
-Accepted
-
-## Context
-
-The project is expected to continue for years.
-
-Without documentation, architectural decisions may be forgotten.
-
-## Decision
-
-The following documents will always be maintained:
-
-* README.md
-* ARCHITECTURE.md
-* ROADMAP.md
-* CHANGELOG.md
-* DECISIONS.md
-
-Documentation should be updated whenever significant changes are introduced.
-
-## Consequences
-
-Advantages
-
-* Easier onboarding
-* Better project memory
-* Clear development direction
-* Long-term maintainability
-
----
-
-# Future Decisions
-
-This section will contain future architectural decisions.
-
-Examples
-
-* State Management selection
-* Dependency Injection
-* Offline database
-* API strategy
-* Synchronization strategy
-* Push notification architecture
-* Logging system
-* Error handling strategy
-* Testing strategy
-* CI/CD pipeline
-* Localization
-* Security policies
-
----
-
-# Decision Rules
-
-A new decision should be recorded when:
-
-* Project architecture changes.
-* A new technology is adopted.
-* A significant design choice is made.
-* An existing architectural decision is replaced.
-* A long-term technical direction is established.
-
-Small implementation details should **not** be recorded here.
-
-This document is intended for decisions that influence the long-term evolution of the project.
+Kullanıcı/ekip API'leri aynı auth transport'u kullanır. İş/araç fake adapterlarını bu dilimde topluca değiştirmeyiz. Eski fake isimler yalnız display compatibility kaynağıdır; gerçek hesap/üyelik yaratılmaz. Açık teknik iş arşivleme guard'ının sunucu karşılığı, teknik operasyon backend dilimine bırakılır; yerel guard geçici olarak korunur.

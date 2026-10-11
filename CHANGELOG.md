@@ -1,187 +1,95 @@
-# Changelog
+# TCK YÖSİ — Değişiklik geçmişi
 
-All notable changes to **TCK YÖSİ** will be documented in this file.
+## Unreleased — Gerçek kullanıcı, ekip ve yetki yönetimi
 
-This project follows a chronological changelog format.
+- Kullanıcı onayıyla mevcut şefe doğrudan `manageUsers`; ekip üzerinden devredilemez.
+- Şef Personel Yönetiminden gerçek kullanıcı oluşturma, aktif/pasif, geçici parola ve doğrudan yetki yönetimi yapar. Yeni/parolası yenilenen kullanıcı ilk girişte değiştirmek zorundadır.
+- Yönetim uçları persisted direct izinleri yeniden doğrular; own/admin account koruması ve grant-subset sınırı merkezi policy'dedir.
+- Team ve ayrı TeamMembership tabloları, DB name/member unique constraint'leri; `c9a4237b1d02` migration'ı yerel PostgreSQL'e uygulandı.
+- Ekip ekranı gerçek repository'ye bağlı; archive/restore, aktiflik, üyelik reactivation ve yetkiler korunur. Teknik Ekip başlangıç kaydı üyesizdir; demo kişi hesabı yaratılmaz.
+- İsim havuzu ve mühendis/ekip atama hedefleri gerçek kayıtları kullanır. Araçlar/teknik işler fake kalır; açık iş arşiv guard'ı henüz yalnız mevcut yerel adapterda garanti edilir.
+- Kullanıcı ve ekip sunucu sınırı, migration, controller, adapter, mobil form ve gerçek auth navigasyon testleri eklendi.
 
----
-# Changelog
+11 Ekim 2026: gerçek auth giriş/oturum koruma/çıkış temizliği kullanıcı tarafından manuel kabul edildi. Kullanıcı/ekip ekranları için kullanıcı manuel testte “sorun yok çalışıyor” bildirdi. Dart format, Flutter analyze ve diff kontrolü temiz; 278 Flutter testi, 54 backend testi geçti. Android debug APK derlendi; gerçek PostgreSQL migration ve yerel şef kullanıcı/ekip API okumaları doğrulandı.
 
-Tüm önemli değişiklikler bu dosyada tutulur.
+Bu kayıt 11 Ekim 2026 tarihinde Git geçmişi ve kod üzerinden yeniden düzenlendi. Görev numaraları teslim dilimlerini ifade eder; uygulamanın `pubspec.yaml` sürümü üretim release'i kanıtı değildir. Aşağıdaki kayıtlar commit referanslıdır; bağımsız test çalıştırma raporu değildir.
 
-Bu proje, Semantic Versioning mantığına benzer şekilde geliştirme oturumları baz alınarak kayıt altına alınmaktadır.
+## Unreleased — Gerçek Flutter auth entegrasyonu
 
----
+- Varsayılan giriş API servisine bağlandı; token/expiry için native secure storage ve web memory store eklendi.
+- `/me` ile restore/doğrulama, süre dolumunda root logout, ağ/giriş hatası eşlemesi ve zorunlu parola değişimi ekranı.
+- Explicit user permission alanı ve `b82d1f9c0a41` migration'ı; yerel PostgreSQL'e uygulandı.
+- Gerçek UUID'yi koruyan session-user directory; demo/önceki kullanıcılar display-only, gerçek actor'ın yerine geçmez.
+- Android debug yerel HTTP, release/profile HTTPS sınırı, configurable API adresi ve explicit CORS origins.
+- API/controller/widget, permission migration ve backend HTTP sınırı testleri eklendi. İş/ekip/araç domain'leri hâlâ uygulama belleğindedir.
 
-## Unreleased
+Auth diliminin yerel doğrulaması (11 Ekim 2026, `7f7cc6c` üzerindeki teslim): Dart format ve Flutter analyze temiz; o aşamada 264 Flutter testi ve 22 backend testi geçti. Android debug APK derlemesi ve PostgreSQL/API health kontrolü başarılı. Gerçek şefle giriş, oturum koruma ve çıkış temizliği daha sonra kullanıcı tarafından doğrulandı; güncel toplamlar yukarıdaki kullanıcı/ekip teslimindedir.
 
-### Added
+## Unreleased — Proje hafızası güncellemesi
 
-- Design System için `AppCard` ortak bileşeni oluşturuldu.
-- `AppCard` içerisine standart:
-    - Border Radius
-    - Padding
-    - Shadow
-    - Ripple Effect
-    - Material Surface
-      yapısı eklendi.
-- Dashboard kartları `AppCard` kullanacak şekilde refactor edildi.
+- README, ROADMAP, ARCHITECTURE ve DECISIONS mevcut kodla uyumlu hale getirildi.
+- Eski Firebase planı ile güncel FastAPI/PostgreSQL yönü ayrıldı.
+- Flutter'ın fake auth/repository kullandığı, backend bağlantısının henüz yapılmadığı kaydedildi.
+- Tamamlanan dikey dilimler, açık güvenlik/kalıcılık başlıkları ve önerilen devam sırası belgelendi.
+- Eski ilerleme yüzdeleri ve güncel test sonucu gibi görünen tarih/referanssız iddialar kaldırıldı.
 
-### Changed
+Bu dokümantasyon tesliminde uygulama kodu değiştirilmedi; Flutter/backend testleri yeniden çalıştırılmadı.
 
-- Dashboard içerisindeki magic number'lar kaldırıldı.
-- Padding değerleri `AppSpacing` üzerinden yönetilmeye başlandı.
-- Radius değerleri `AppRadius` üzerinden yönetilmeye başlandı.
-- Ortak tasarım tokenlarının kullanım oranı artırıldı.
+## Backend — Güvenli kimlik doğrulama (`7f7cc6c`)
 
-### Fixed
+- Giriş, mevcut kullanıcı ve parola değiştirme HTTP uçları.
+- Süreli JWT erişim tokenı, aktif kullanıcı dependency'si ve zorunlu parola değişimi sınırı.
+- Parola politikası ve auth servis testleri.
+- Flutter'ın backend'e bağlanması bu teslimin parçası değildir.
 
-- Widget testi yeni uygulama mimarisine göre güncellendi.
-- `flutter analyze` temiz hale getirildi.
-- `flutter test` başarıyla çalışır duruma getirildi.
+## Backend — Temel kurulum (`45c352d`)
 
-# [Unreleased]
+- FastAPI uygulaması, health uçları ve environment ayarları.
+- PostgreSQL/SQLAlchemy altyapısı, User modeli ve Alembic migration.
+- Argon2 parola hash'i ve etkileşimli ilk şef oluşturma aracı.
+- Bootstrap ve güvenlik testleri.
 
-## Added
+## Araç modülü
 
-* Project documentation improvements
-* Planned Flutter lessons
-* Future module planning
+| Commit | Referans | Kapsam |
+| --- | --- | --- |
+| `b5f7a3b` | TCK-VEHICLE-008 | Arıza değerlendirme akışı. |
+| `2d8ec1b` | TCK-VEHICLE-007 | Arıza ve bakım kayıtları. |
+| `6103933` | TCK-VEHICLE-006 | Teslim ve kontrol akışı. |
+| `f66e40e` | TCK-VEHICLE-005 | Personel ataması ve atama geçmişi. |
+| `02d0e99` | TCK-VEHICLE-004 | Araç düzenleme ve durum yönetimi. |
+| `ab7c87d` | TCK-VEHICLE-003 | Güvenli araç kayıt/ekleme. |
+| `f15dd39` | TCK-VEHICLE-002 | Responsive araç detay ekranı. |
+| `f6d3f81` | TCK-VEHICLE-001 | Araç domain/repository/controller, filo sayfası, arama/filtre/sayaçlar. |
 
----
+Araç verisi paylaşılan fake repository'de tutulur; kalıcı araç backend'i henüz yoktur.
 
-# [0.1.0] - 2026-07-09
+## Teknik operasyonlar, ekipler ve navigasyon
 
-## Initial Project Setup
+| Commit | Referans | Kapsam |
+| --- | --- | --- |
+| `079411a` | TCK-TECH-011 | Eşzamanlı ilerleme gönderimi koruması düzeltmesi. |
+| `e9342e9` | TCK-NAV-001 | Şef modül ana sayfası, gerçek navigasyon ve logout route temizliği. |
+| `969cd04` | TCK-TECH-010 | Güvenli beklemeye alma/devam ve döngü geçmişi. |
+| `1e699d6` | TCK-TECH-009 | Tamamlama talebi, onay kuyruğu ve onay/red geçmişi. |
+| `0e13679` | TCK-TECH-008 | Yetkili detay okuma ve ilerleme notları. |
+| `279edfe` | TCK-TECH-007 | Aktif ekip üyesine iş görünürlüğü, güvenli başlatma ve operasyon metadata'sı. |
+| `02bf2cc` | TCK-TEAM-001 | Ekip/üyelik/yetki, archive/restore, isim invariantları ve güvenlik policy'si. |
+| `2ec33ec` | TCK-TECH-006 | Şefin inceleme, öncelik ve kullanıcı/ekip ataması. |
+| `5428435` | TCK-TECH-005 | Rol bazlı saha bildirimi oluşturma akışı. |
+| `90f6f57` | TCK-TECH-004 | Saha bildirimi controller'ı. |
+| `53bd63b` | TCK-TECH-003 | Saha bildirimi repository desteği. |
+| `975c87a` | TCK-AUTH-004 | Responsive şef operasyon dashboard'u. |
 
-### Added
+## İlk proje temeli
 
-* Flutter project created
-* Android Studio configured
-* Project successfully running
-* First emulator test completed
+9 Temmuz 2026 tarihli önceki belgelerde kaydedilen başlangıç:
 
-### Architecture
+- Flutter proje kurulumu ve feature-first mimari.
+- Tema/tokenlar, responsive dashboard ve ortak `AppCard` dahil UI bileşenleri.
+- Widget testleri ve proje belgeleri.
+- Firebase başlangıç planı; mevcut backend yönü daha sonra FastAPI/PostgreSQL oldu.
 
-* Feature First Architecture selected
-* Folder structure created
-* Shared module structure established
-* Repository pattern planned
+## Kayıt kuralı
 
-### Documentation
-
-* README.md created
-* ARCHITECTURE.md created
-* ROADMAP.md created
-* CHANGELOG.md created
-
-### Flutter Foundation
-
-Created:
-
-```text
-lib/
-├── main.dart
-├── app/
-│   ├── app.dart
-│   └── router.dart
-```
-
-Created Dashboard module
-
-```text
-features/
-└── dashboard/
-    ├── models/
-    ├── pages/
-    ├── repositories/
-    └── widgets/
-```
-
-Created additional feature modules
-
-* Authentication
-* Directorates
-* Departments
-* Vehicles
-* Drivers
-* Personnel
-* Assignments
-* Reports
-
-### Learning
-
-Studied
-
-* Flutter project structure
-* main()
-* runApp()
-* MaterialApp
-* Scaffold
-* StatelessWidget
-* Widget basics
-* Feature First Architecture
-* Single Responsibility Principle
-
-### Current Status
-
-Application flow
-
-```text
-main.dart
-
-↓
-
-runApp()
-
-↓
-
-TckYosiApp
-
-↓
-
-MaterialApp
-
-↓
-
-DashboardPage
-
-↓
-
-Scaffold
-```
-
-Application launches successfully.
-
----
-
-# Version History
-
-| Version | Status     | Description                |
-| ------- | ---------- | -------------------------- |
-| 0.1.0   | ✅ Released | Flutter foundation started |
-| 0.2.0   | ⏳ Planned  | Authentication             |
-| 0.3.0   | ⏳ Planned  | Directorate Module         |
-| 0.4.0   | ⏳ Planned  | Department Module          |
-| 0.5.0   | ⏳ Planned  | Vehicle Module             |
-| 0.6.0   | ⏳ Planned  | Driver Module              |
-| 0.7.0   | ⏳ Planned  | Personnel Module           |
-| 0.8.0   | ⏳ Planned  | Assignment Module          |
-| 0.9.0   | ⏳ Planned  | Reports                    |
-| 1.0.0   | 🎯 Target  | First Production Release   |
-
----
-
-# Changelog Rules
-
-Every completed development session should update this file.
-
-Entries should include:
-
-* New features
-* Fixed bugs
-* Refactoring
-* Documentation updates
-* Breaking changes (if any)
-
-Commit messages and changelog entries should remain consistent whenever possible.
+Her yeni teslimde kapsam, commit/görev referansı, önemli düzeltmeler ve gerçek doğrulama sonuçları eklenir. Test sayıları yalnız çalıştırıldıkları taban ve tarih ile kaydedilir. Tamamlanmamış backend bağlantıları veya planlanan özellikler teslim edilmiş gibi yazılmaz.

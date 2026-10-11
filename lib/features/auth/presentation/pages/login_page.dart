@@ -6,7 +6,7 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../../shared/widgets/app_text_field.dart';
-import '../../domain/enums/auth_failure.dart';
+import '../auth_failure_message.dart';
 import '../controllers/auth_controller.dart';
 
 class LoginPage extends StatefulWidget {
@@ -55,19 +55,8 @@ class _LoginPageState extends State<LoginPage> {
     AppSnackbar.show(
       context: context,
       type: AppSnackbarType.error,
-      message: _failureMessage(widget.authController.failure),
+      message: authFailureMessage(widget.authController.failure),
     );
-  }
-
-  String _failureMessage(AuthFailure? failure) {
-    return switch (failure) {
-      AuthFailure.invalidCredentials => 'Kullanıcı adı veya parola hatalı.',
-      AuthFailure.inactiveAccount =>
-        'Hesabınız aktif değil. Sistem yöneticisiyle iletişime geçin.',
-      AuthFailure.networkError =>
-        'Sunucuya ulaşılamadı. Lütfen bağlantınızı kontrol edin.',
-      AuthFailure.unknown || null => 'Beklenmeyen bir hata oluştu.',
-    };
   }
 
   @override
@@ -111,6 +100,17 @@ class _LoginPageState extends State<LoginPage> {
                               style: Theme.of(context).textTheme.bodyLarge,
                             ),
                             const SizedBox(height: AppSpacing.xl),
+                            if (widget.authController.failure != null) ...[
+                              Text(
+                                authFailureMessage(
+                                  widget.authController.failure,
+                                ),
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                            ],
                             AppTextField(
                               controller: _usernameController,
                               label: 'Kullanıcı adı',

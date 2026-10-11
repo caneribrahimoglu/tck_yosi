@@ -3,6 +3,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 from app.models.user import UserRole
+from app.models.permission import AppPermission
 
 
 class LoginRequest(BaseModel):
@@ -20,6 +21,7 @@ class UserResponse(BaseModel):
     role: UserRole
     is_active: bool
     must_change_password: bool
+    permissions: list[AppPermission]
 
 
 class TokenResponse(BaseModel):

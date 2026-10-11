@@ -13,6 +13,8 @@ import '../../../vehicles/presentation/controllers/vehicle_detail_controller.dar
 import '../controllers/auth_controller.dart';
 import '../controllers/auth_status.dart';
 import '../pages/login_page.dart';
+import '../pages/change_password_page.dart';
+import '../../../users/presentation/user_management_controller.dart';
 
 class AuthGate extends StatefulWidget {
   final AuthController authController;
@@ -24,6 +26,8 @@ class AuthGate extends StatefulWidget {
   final TeamController teamController;
   final VehicleController vehicleController;
   final VehicleDetailController vehicleDetailController;
+  final bool demoBusinessData;
+  final UserManagementController? userManagementController;
 
   const AuthGate({
     super.key,
@@ -36,6 +40,8 @@ class AuthGate extends StatefulWidget {
     required this.teamController,
     required this.vehicleController,
     required this.vehicleDetailController,
+    this.demoBusinessData = false,
+    this.userManagementController,
   });
 
   @override
@@ -88,9 +94,14 @@ class _AuthGateState extends State<AuthGate> {
       animation: widget.authController,
       builder: (context, child) {
         final currentUser = widget.authController.currentUser;
-        if (currentUser != null) {
-          widget.teamController.updateActorPermissions(currentUser.permissions);
-        }
+        widget.userManagementController?.updateActor(
+          widget.authController.isAuthenticated ? currentUser : null,
+        );
+        widget.teamController.updateActorPermissions(
+          widget.authController.isAuthenticated
+              ? currentUser!.permissions
+              : const {},
+        );
         return switch (widget.authController.status) {
           AuthStatus.initial || AuthStatus.checkingSession => const Scaffold(
             body: AppLoading(message: 'Oturum kontrol ediliyor...'),
@@ -98,21 +109,48 @@ class _AuthGateState extends State<AuthGate> {
           AuthStatus.unauthenticated || AuthStatus.authenticating => LoginPage(
             authController: widget.authController,
           ),
-          AuthStatus.authenticated => RoleDashboardResolver(
-            currentUser: widget.authController.currentUser!,
-            onLogout: widget.authController.logout,
-            technicalWorkController: widget.technicalWorkController,
-            technicalWorkDetailController: widget.technicalWorkDetailController,
-            technicalWorkCompletionController:
-                widget.technicalWorkCompletionController,
-            technicalWorkHoldController: widget.technicalWorkHoldController,
-            fieldReportController: widget.fieldReportController,
-            teamController: widget.teamController,
-            vehicleController: widget.vehicleController,
-            vehicleDetailController: widget.vehicleDetailController,
+          AuthStatus.passwordChangeRequired => ChangePasswordPage(
+            controller: widget.authController,
           ),
+          AuthStatus.authenticated => _authenticatedDashboard(),
         };
       },
+    );
+  }
+
+  Widget _authenticatedDashboard() {
+    final dashboard = RoleDashboardResolver(
+      currentUser: widget.authController.currentUser!,
+      onLogout: widget.authController.logout,
+      technicalWorkController: widget.technicalWorkController,
+      technicalWorkDetailController: widget.technicalWorkDetailController,
+      technicalWorkCompletionController:
+          widget.technicalWorkCompletionController,
+      technicalWorkHoldController: widget.technicalWorkHoldController,
+      fieldReportController: widget.fieldReportController,
+      teamController: widget.teamController,
+      vehicleController: widget.vehicleController,
+      vehicleDetailController: widget.vehicleDetailController,
+      userManagementController: widget.userManagementController,
+    );
+    if (!widget.demoBusinessData) return dashboard;
+    return Column(
+      children: [
+        SafeArea(
+          bottom: false,
+          child: Material(
+            color: Theme.of(context).colorScheme.secondaryContainer,
+            child: const Padding(
+              padding: EdgeInsets.all(8),
+              child: Text(
+                'Giriş, kullanıcılar ve ekipler gerçek sunucu kayıtlarıdır. İş ve araç verileri geçici demodur.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+        Expanded(child: dashboard),
+      ],
     );
   }
 }

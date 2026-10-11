@@ -7,6 +7,7 @@ import '../../domain/models/create_field_report_request.dart';
 import '../../domain/enums/assignment_target_type.dart';
 import '../../domain/models/assignment_target.dart';
 import '../../domain/repositories/team_assignment_target_source.dart';
+import '../../domain/repositories/individual_assignment_target_source.dart';
 import '../../domain/repositories/technical_work_access_source.dart';
 import '../../domain/errors/technical_work_start_exception.dart';
 import '../../domain/errors/technical_work_progress_exception.dart';
@@ -32,6 +33,7 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
   ];
   final List<TechnicalWork> _works;
   final TeamAssignmentTargetSource? _teamAssignmentTargetSource;
+  final IndividualAssignmentTargetSource? _individualAssignmentTargetSource;
   final TechnicalWorkAccessSource? _technicalWorkAccessSource;
   final DateTime Function() _now;
   final Set<String> _startingWorkIds = {};
@@ -50,6 +52,7 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
   FakeTechnicalWorkRepository({
     List<TechnicalWork>? works,
     TeamAssignmentTargetSource? teamAssignmentTargetSource,
+    IndividualAssignmentTargetSource? individualAssignmentTargetSource,
     TechnicalWorkAccessSource? technicalWorkAccessSource,
     List<TechnicalWorkProgressNote>? progressNotes,
     List<TechnicalWorkCompletionRequest>? completionRequests,
@@ -58,6 +61,7 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
     this.delay = const Duration(milliseconds: 500),
   }) : _works = List.of(works ?? FakeTechnicalWorkData.works),
        _teamAssignmentTargetSource = teamAssignmentTargetSource,
+       _individualAssignmentTargetSource = individualAssignmentTargetSource,
        _technicalWorkAccessSource = technicalWorkAccessSource,
        _progressNotes = List.of(progressNotes ?? const []),
        _nextProgressNoteNumber = (progressNotes ?? const []).length + 1,
@@ -266,7 +270,11 @@ class FakeTechnicalWorkRepository implements TechnicalWorkRepository {
     await _simulateNetworkDelay();
     final teamTargets =
         await _teamAssignmentTargetSource?.getActiveTeamTargets() ?? const [];
-    return List.unmodifiable([..._individualAssignmentTargets, ...teamTargets]);
+    final individuals =
+        await _individualAssignmentTargetSource
+            ?.getIndividualAssignmentTargets() ??
+        _individualAssignmentTargets;
+    return List.unmodifiable([...individuals, ...teamTargets]);
   }
 
   @override

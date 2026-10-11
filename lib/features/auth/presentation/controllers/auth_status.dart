@@ -4,4 +4,5 @@ enum AuthStatus {
   unauthenticated,
   authenticating,
   authenticated,
+  passwordChangeRequired,
 }

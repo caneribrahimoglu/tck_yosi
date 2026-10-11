@@ -26,6 +26,8 @@ import '../../vehicles/domain/enums/vehicle_record_type.dart';
 import '../../vehicles/presentation/controllers/vehicle_controller.dart';
 import '../../vehicles/presentation/controllers/vehicle_detail_controller.dart';
 import '../../personnel/presentation/pages/personnel_module_page.dart';
+import '../../users/presentation/user_management_controller.dart';
+import '../../users/presentation/user_management_page.dart';
 import '../pages/chief_home_page.dart';
 import '../pages/chief_dashboard_page.dart';
 import '../pages/dashboard_page.dart';
@@ -43,6 +45,7 @@ class RoleDashboardResolver extends StatelessWidget {
   final TeamController teamController;
   final VehicleController vehicleController;
   final VehicleDetailController? vehicleDetailController;
+  final UserManagementController? userManagementController;
 
   const RoleDashboardResolver({
     super.key,
@@ -56,6 +59,7 @@ class RoleDashboardResolver extends StatelessWidget {
     required this.teamController,
     required this.vehicleController,
     this.vehicleDetailController,
+    this.userManagementController,
   });
 
   Future<void> _openFieldReport(BuildContext context) async {
@@ -78,6 +82,7 @@ class RoleDashboardResolver extends StatelessWidget {
   }
 
   Future<void> _openTeamManagement(BuildContext context) async {
+    if (!currentUser.hasPermission(AppPermission.manageTeamPermissions)) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (context) => TeamManagementPage(controller: teamController),
@@ -298,7 +303,14 @@ class RoleDashboardResolver extends StatelessWidget {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (context) =>
-            PersonnelModulePage(currentUser: currentUser, onLogout: onLogout),
+            userManagementController != null &&
+                currentUser.hasPermission(AppPermission.manageUsers)
+            ? UserManagementPage(
+                currentUser: currentUser,
+                onLogout: onLogout,
+                controller: userManagementController!,
+              )
+            : PersonnelModulePage(currentUser: currentUser, onLogout: onLogout),
       ),
     );
   }

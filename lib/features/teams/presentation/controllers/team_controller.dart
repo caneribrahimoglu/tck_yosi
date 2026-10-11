@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../../core/network/api_exception.dart';
 
 import '../../../auth/domain/enums/app_permission.dart';
 import '../../domain/models/team.dart';
@@ -64,13 +65,15 @@ class TeamController extends ChangeNotifier {
   }
 
   List<TeamMembership> membershipsFor(String teamId) => _memberships
-      .where((membership) => membership.teamId == teamId)
+      .where((membership) => membership.teamId == teamId && membership.isActive)
       .toList(growable: false);
 
   bool isMember({required String teamId, required String userId}) {
     return _memberships.any(
       (membership) =>
-          membership.teamId == teamId && membership.userId == userId,
+          membership.teamId == teamId &&
+          membership.userId == userId &&
+          membership.isActive,
     );
   }
 
@@ -302,7 +305,9 @@ class TeamController extends ChangeNotifier {
         _archivedNameConflict = error;
         _errorMessage = 'Bu isimde arşivlenmiş bir ekip bulunuyor.';
       } else {
-        _errorMessage = error is StateError
+        _errorMessage = error is ApiException
+            ? error.userMessage
+            : error is StateError
             ? error.message
             : 'Ekip işlemi tamamlanamadı.';
       }

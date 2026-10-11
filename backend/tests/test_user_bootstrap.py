@@ -4,6 +4,7 @@ import pytest
 
 from app.core.security import verify_password
 from app.models.user import UserRole
+from app.models.permission import INITIAL_CHIEF_PERMISSIONS
 from app.services.user_bootstrap import BootstrapError, create_initial_chief
 
 
@@ -25,6 +26,9 @@ def test_create_initial_chief_hashes_password_and_sets_safe_defaults() -> None:
     assert user.role is UserRole.chief
     assert user.is_active is True
     assert user.must_change_password is True
+    assert user.permissions == list(INITIAL_CHIEF_PERMISSIONS)
+    assert "viewVehicleFleet" in user.permissions
+    assert "manageUsers" in user.permissions
     assert user.password_hash != "Guvenli-Gecici-2026"
     assert verify_password("Guvenli-Gecici-2026", user.password_hash)
     session.add.assert_called_once_with(user)
