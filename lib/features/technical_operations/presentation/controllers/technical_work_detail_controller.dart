@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../domain/repositories/technical_work_repository_capabilities.dart';
 
 import '../../domain/errors/technical_work_progress_exception.dart';
 import '../../domain/errors/technical_work_detail_read_exception.dart';
@@ -24,6 +25,32 @@ class TechnicalWorkDetailController extends ChangeNotifier {
   String? _currentUserId;
   bool _canAddProgress = false;
   String? _errorMessage;
+  int _generation = 0;
+  bool _disposed = false;
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _generation++;
+    super.dispose();
+  }
+
+  void resetSession() {
+    _generation++;
+    _work = null;
+    _notes = const [];
+    _userNames = const {};
+    _teamNames = const {};
+    _currentUserId = null;
+    _canAddProgress = false;
+    _loadStatus = TechnicalWorkLoadStatus.initial;
+    notifyListeners();
+  }
 
   TechnicalWorkDetailController({
     required TechnicalWorkRepository repository,
@@ -41,6 +68,9 @@ class TechnicalWorkDetailController extends ChangeNotifier {
   List<TechnicalWorkProgressNote> get notes => _notes;
 
   bool get canAddProgress => _canAddProgress;
+  bool get supportsExecution =>
+      _repository is! TechnicalWorkRepositoryCapabilities ||
+      (_repository as TechnicalWorkRepositoryCapabilities).supportsExecution;
 
   bool get isSubmitting =>
       _submissionStatus == TechnicalWorkProgressSubmissionStatus.submitting;
@@ -75,6 +105,12 @@ class TechnicalWorkDetailController extends ChangeNotifier {
   }
 
   Future<void> load({required String workId, required String userId}) async {
+    final generation = ++_generation;
+    _work = null;
+    _notes = const [];
+    _userNames = const {};
+    _teamNames = const {};
+    _canAddProgress = false;
     _loadStatus = TechnicalWorkLoadStatus.loading;
     _submissionStatus = TechnicalWorkProgressSubmissionStatus.initial;
     _currentUserId = userId;
@@ -82,22 +118,31 @@ class TechnicalWorkDetailController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _work = await _repository.getWorkById(
+      final work = await _repository.getWorkById(
         workId: workId,
         actorUserId: userId,
       );
-      _notes = List.unmodifiable(
-        await _repository.getProgressNotes(workId: workId, actorUserId: userId),
-      );
-      _canAddProgress = await _repository.canUserAddProgress(
-        workId: workId,
-        userId: userId,
-      );
+      if (_disposed || generation != _generation) return;
+      _work = work;
+      _notes = !supportsExecution
+          ? const []
+          : List.unmodifiable(
+              await _repository.getProgressNotes(
+                workId: workId,
+                actorUserId: userId,
+              ),
+            );
+      _canAddProgress =
+          supportsExecution &&
+          await _repository.canUserAddProgress(workId: workId, userId: userId);
       await _resolveNames();
+      if (_disposed || generation != _generation) return;
       _loadStatus = TechnicalWorkLoadStatus.loaded;
     } on TechnicalWorkDetailReadNotAllowedException {
+      if (_disposed || generation != _generation) return;
       _setLoadFailure();
     } catch (_) {
+      if (_disposed || generation != _generation) return;
       _setLoadFailure();
     }
     notifyListeners();
@@ -153,6 +198,7 @@ class TechnicalWorkDetailController extends ChangeNotifier {
   }
 
   Future<void> _resolveNames() async {
+    final generation = _generation;
     final work = _work;
     if (work == null) {
       return;
@@ -169,6 +215,7 @@ class TechnicalWorkDetailController extends ChangeNotifier {
         userIds: userIds,
         teamIds: teamIds,
       );
+      if (_disposed || generation != _generation) return;
       _userNames = names.userNames;
       _teamNames = names.teamNames;
     } catch (_) {

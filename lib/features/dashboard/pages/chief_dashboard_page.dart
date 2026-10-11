@@ -265,9 +265,10 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
                 icon: Icons.add_location_alt_outlined,
                 onPressed: widget.onCreateFieldReport,
               ),
-            if (widget.currentUser.hasPermission(
-              AppPermission.reviewTechnicalWorkCompletion,
-            ))
+            if (widget.technicalWorkController.supportsExecution &&
+                widget.currentUser.hasPermission(
+                  AppPermission.reviewTechnicalWorkCompletion,
+                ))
               AppButton.secondary(
                 label: 'Onay Kuyruğu',
                 icon: Icons.fact_check_outlined,
@@ -457,6 +458,13 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
   }
 
   Widget _buildApprovalQueueCard(BuildContext context) {
+    if (!widget.technicalWorkController.supportsExecution) {
+      return const AppCard(
+        child: Text(
+          'Tamamlama ve onay akışı hazırlanıyor. Bu aşamada saha bildirimi ve atama kullanılabilir.',
+        ),
+      );
+    }
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -684,6 +692,7 @@ class _WorkAssignmentDialogState extends State<_WorkAssignmentDialog> {
 
     final succeeded = await widget.controller.assignWork(
       workId: widget.work.id,
+      expectedRevision: widget.work.revision,
       priority: _priority,
       target: _target!,
     );

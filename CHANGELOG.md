@@ -1,6 +1,18 @@
 # TCK YÖSİ — Değişiklik geçmişi
 
-## Unreleased — Gerçek kullanıcı, ekip ve yetki yönetimi
+## 11 Ekim 2026 — İlk teknik operasyon backend dilimi (`840b757` sonrası)
+
+- Saha bildirimleri, yetkili liste/detay ve gerçek mühendis/ekip ataması FastAPI/PostgreSQL'e taşındı; fake iş seed'i gerçek veriye aktarılmaz.
+- TechnicalWork ve append-only TechnicalWorkAssignment tabloları; `d1b9e206f734` migration'ı yerel veritabanına uygulandı, Alembic model karşılaştırması temiz.
+- Actor/effective create permission, global direct read/assign izinleri, current target/state validation, revision conflict ve aynı actor/submission için idempotency.
+- Açık iş ekip archive guard'ı artık sunucu transaction sınırında; gerçek PostgreSQL'de duplicate report, duplicate assignment ve archive/assignment yarış testleri.
+- ApiTechnicalWorkRepository composition, güvenli paralel load, logout sonrası iş state temizliği, isim çözümleme ve retry key koruması.
+- Gerçek işlerde start/progress/hold/completion fake fallback yok; capability ve hazırlık mesajları. Araçlar demo kalır; mevcut izole fake lifecycle testleri korunur.
+- Tam şef bildirim/ekip ataması → logout → mühendis görünürlüğü/detay akışı ve dar ekran testi eklendi.
+
+11 Ekim 2026 doğrulaması: 287 Flutter testi, PostgreSQL yarış testleri dahil 92 backend testi geçti. Dart format, Flutter analyze, diff kontrolü ve Android debug APK derlemesi temiz. Kullanıcı yeni dilimi manuel testte “evet çalışıyor, sorun yok” diye kabul etti ve çalışan aşamanın commit ile sabitlenmesini onayladı. Push yapılmadı.
+
+## Gerçek kullanıcı, ekip ve yetki yönetimi (`840b757`)
 
 - Kullanıcı onayıyla mevcut şefe doğrudan `manageUsers`; ekip üzerinden devredilemez.
 - Şef Personel Yönetiminden gerçek kullanıcı oluşturma, aktif/pasif, geçici parola ve doğrudan yetki yönetimi yapar. Yeni/parolası yenilenen kullanıcı ilk girişte değiştirmek zorundadır.

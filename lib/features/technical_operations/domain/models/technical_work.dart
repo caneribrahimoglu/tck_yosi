@@ -6,6 +6,7 @@ class TechnicalWork {
   static const Object _notProvided = Object();
 
   final String id;
+  final int revision;
   final String title;
   final String description;
   final String location;
@@ -23,6 +24,7 @@ class TechnicalWork {
 
   const TechnicalWork({
     required this.id,
+    this.revision = 0,
     required this.title,
     required this.description,
     required this.location,
@@ -42,6 +44,7 @@ class TechnicalWork {
   bool get isAssigned => assignedToUserId != null || assignedToTeamId != null;
 
   TechnicalWork copyWith({
+    int? revision,
     TechnicalWorkPriority? priority,
     TechnicalWorkStatus? status,
     Object? assignedToUserId = _notProvided,
@@ -52,6 +55,7 @@ class TechnicalWork {
   }) {
     return TechnicalWork(
       id: id,
+      revision: revision ?? this.revision,
       title: title,
       description: description,
       location: location,

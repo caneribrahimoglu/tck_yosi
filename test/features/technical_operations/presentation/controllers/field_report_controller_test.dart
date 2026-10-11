@@ -184,6 +184,7 @@ class _FailingTechnicalWorkRepository implements TechnicalWorkRepository {
   @override
   Future<TechnicalWork> assignWork({
     required String workId,
+    int? expectedRevision,
     required TechnicalWorkPriority priority,
     required AssignmentTarget target,
   }) async {

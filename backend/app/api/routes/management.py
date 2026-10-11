@@ -10,6 +10,7 @@ from app.core.security import PasswordPolicyError, hash_password, validate_new_p
 from app.models.permission import AppPermission
 from app.models.team import Team, TeamMembership
 from app.models.user import User
+from app.models.technical_work import TechnicalWork
 from app.schemas.auth import MessageResponse, UserResponse
 from app.schemas.management import (
     ActiveInput, DirectoryUserResponse, MemberInput, MembershipResponse,
@@ -173,6 +174,10 @@ def team_active(team_id: UUID, data: ActiveInput, session: DatabaseSession, acto
 def archive_team(team_id: UUID, session: DatabaseSession, actor: BusinessUser):
     require_manager(session, actor.id, AppPermission.manageTeamPermissions)
     team = get_team(session, team_id, mutable=False)
+    if not team.is_archived and session.scalar(select(TechnicalWork.id).where(
+            TechnicalWork.assigned_to_team_id == team_id,
+            TechnicalWork.status.not_in(("completed", "cancelled"))).limit(1)) is not None:
+        fail("team_has_open_work")
     team.is_archived, team.is_active = True, False
     commit(session, "team_conflict")
     return team

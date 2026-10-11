@@ -339,7 +339,14 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
                   _buildHoldSection(context),
                   const SizedBox(height: AppSpacing.lg),
                 ],
-                _buildProgressSection(context),
+                if (widget.controller.supportsExecution)
+                  _buildProgressSection(context)
+                else
+                  const AppCard(
+                    child: Text(
+                      'Bildirim ve atama sunucuda saklanır. İşi başlatma, ilerleme, bekleme ve tamamlama akışları sonraki aşamada eklenecek.',
+                    ),
+                  ),
                 if (widget.completionController != null) ...[
                   const SizedBox(height: AppSpacing.lg),
                   _buildCompletionSection(context),

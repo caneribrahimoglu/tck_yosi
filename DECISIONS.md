@@ -1,6 +1,6 @@
 # TCK YÖSİ — Mimari karar kaydı
 
-11 Ekim 2026 tarihinde `7f7cc6c` tabanına göre düzenlendi. İlk kararların tarihleri korunmuştur. Sonradan eklenen kararların kesin kabul tarihleri bu belgede bilinmiyorsa tarih uydurulmamış, kod referansı verilmiştir.
+11 Ekim 2026: `840b757` ve bu teslimdeki ilk teknik backend dilimine göre güncellendi. İlk kararların tarihleri korunmuştur; geçmiş kararlar o teslimin kapsamını anlatır.
 
 ## ADR-001 — Feature-first mimari
 
@@ -48,7 +48,7 @@ README mevcut ürünü ve çalıştırmayı; ROADMAP tamamlanan/önerilen işler
 
 Referans: `45c352d`, `7f7cc6c`. Durum: kodda uygulanmış yön.
 
-Backend FastAPI, SQLAlchemy, PostgreSQL ve Alembic kullanır. Kullanıcı tablosu ve güvenli auth servisleri kurulmuştur. Commitlenmemiş auth entegrasyonunda Flutter gerçek servise bağlandı; iş domain'leri halen fake repository'lerdedir.
+Backend FastAPI, SQLAlchemy, PostgreSQL ve Alembic kullanır. Auth/kullanıcı/ekip entegrasyonu `840b757`'de; ilk teknik bildirim/atama backend dilimi mevcut çalışma ağacındadır. Araç ve kalan teknik lifecycle fake/test implementasyonunda kalır.
 
 Sonuç: domain API'leri ve kalıcı yetki/üyelik modeli sonraki dilimlerde tasarlanmalıdır. Migration, transaction ve constraint'ler fake repository invariantlarını korumalıdır.
 
@@ -104,3 +104,13 @@ Referans: 11 Ekim 2026, kullanıcı onayıyla şefin kullanıcı yönetimi yapma
 Team ve TeamMembership ayrı PostgreSQL tablolarıdır. Normalize ad/üyelik çifti DB'de benzersizdir; archive/restore ile ID ve geçmiş bağları korunur. Üyelik çıkarma soft-deactivate, yeniden ekleme reactivation'dır. Etkin izin yalnız current session için backend'de direct izinler + aktif üyeliklerin aktif/arşivlenmemiş ekip izinlerinden hesaplanır; legacy protected ekip izinleri fail-closed filtrelenir.
 
 Kullanıcı/ekip API'leri aynı auth transport'u kullanır. İş/araç fake adapterlarını bu dilimde topluca değiştirmeyiz. Eski fake isimler yalnız display compatibility kaynağıdır; gerçek hesap/üyelik yaratılmaz. Açık teknik iş arşivleme guard'ının sunucu karşılığı, teknik operasyon backend dilimine bırakılır; yerel guard geçici olarak korunur.
+
+## ADR-013 — Teknik backend'e aşamalı ve fail-closed geçiş
+
+Referans: 11 Ekim 2026, `840b757` sonrası teknik backend ilk dilimi. Durum: kodlandı; kullanıcı cihaz üstü manuel kontrolünde çalıştığını doğruladı.
+
+İlk dilim bildirim, actor-scope liste/detay, gerçek mühendis/ekip ataması ve audit ile sınırlıdır. Tam fake lifecycle korunur ama gerçek işlerde kullanılmaz; capability portu ve hazırlık mesajı bu sınırı açıklar. İleride başlatma/ilerleme/bekleme, ardından tamamlama/onay ayrı backend dilimleri olacaktır. Yeni framework/paket eklenmez.
+
+Liste ve detail/history aynı read scope'u uygular; kendi bildirimini okuma creator'a açıktır, global okuma direct viewAllTechnicalWork gerektirir. Global atama için direct assignTechnicalWork + viewAllTechnicalWork gerekir; delegable team grant veya rol tek başına tüm işleri yeniden atama hakkı vermez. Request-body creator/permission/status/system alanları reddedilir.
+
+Actor/submission unique anahtarı retry duplicate'lerini önler. UI aynı form tekrarında key'i korur; yeniden açılışta taslak/outbox henüz yoktur. Atama captured revision ve row lock ile güncel veriye karşı doğrulanır; iki hedef aynı anda saklanamaz. Atama geçmişi immutable audit kayıtlarında tutulur. Ekip archive ile assignment aynı hedef lock sırasını kullanır; server open-work guard nihai otoritedir. Üç gerçek PostgreSQL concurrency testi ayrı test şemasında uygulama verisine dokunmadan çalışır.

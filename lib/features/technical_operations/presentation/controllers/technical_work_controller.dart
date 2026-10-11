@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import '../../../../core/network/api_exception.dart';
+import '../../domain/repositories/technical_work_repository_capabilities.dart';
 
 import '../../domain/enums/technical_work_status.dart';
 import '../../domain/models/technical_work.dart';
@@ -26,6 +28,45 @@ class TechnicalWorkController extends ChangeNotifier {
   Map<String, String> _userNames = const {};
   Map<String, String> _teamNames = const {};
   String? _errorMessage;
+  String? _currentUserId;
+  int _loadGeneration = 0;
+  int _sessionGeneration = 0;
+  bool _disposed = false;
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _loadGeneration++;
+    _sessionGeneration++;
+    super.dispose();
+  }
+
+  void resetSession() {
+    _loadGeneration++;
+    _sessionGeneration++;
+    _currentUserId = null;
+    _allWorks = const [];
+    _assignedWorks = const [];
+    _assignmentTargets = const [];
+    _userNames = const {};
+    _teamNames = const {};
+    _canCurrentUserStartTechnicalWork = false;
+    _isAssigning = false;
+    _startingWorkId = null;
+    _startStatus = TechnicalWorkStartStatus.initial;
+    _status = TechnicalWorkLoadStatus.initial;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  bool get supportsExecution =>
+      _repository is! TechnicalWorkRepositoryCapabilities ||
+      (_repository as TechnicalWorkRepositoryCapabilities).supportsExecution;
 
   TechnicalWorkController({
     required TechnicalWorkRepository repository,
@@ -100,23 +141,33 @@ class TechnicalWorkController extends ChangeNotifier {
   }
 
   Future<void> load(String userId) async {
+    if (_status == TechnicalWorkLoadStatus.loading &&
+        _currentUserId == userId) {
+      return;
+    }
+    final generation = ++_loadGeneration;
+    _currentUserId = userId;
     _status = TechnicalWorkLoadStatus.loading;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final allWorksFuture = _repository.getAllWorks();
-      final assignedWorksFuture = _repository.getAssignedWorks(userId);
-      final canStartFuture = _repository.canUserStartTechnicalWork(userId);
-      _allWorks = List.unmodifiable(await allWorksFuture);
-      _assignedWorks = List.unmodifiable(await assignedWorksFuture);
-      _canCurrentUserStartTechnicalWork = await canStartFuture;
+      final results = await Future.wait<Object>([
+        _repository.getAllWorks(),
+        _repository.getAssignedWorks(userId),
+        _repository.canUserStartTechnicalWork(userId),
+      ]);
+      if (_disposed || generation != _loadGeneration) return;
+      _allWorks = List.unmodifiable(results[0] as List<TechnicalWork>);
+      _assignedWorks = List.unmodifiable(results[1] as List<TechnicalWork>);
+      _canCurrentUserStartTechnicalWork = results[2] as bool;
       await _refreshParticipantNames();
-      _assignmentTargets = List.unmodifiable(
-        await _repository.getAssignmentTargets(),
-      );
+      final targets = await _repository.getAssignmentTargets();
+      if (_disposed || generation != _loadGeneration) return;
+      _assignmentTargets = List.unmodifiable(targets);
       _status = TechnicalWorkLoadStatus.loaded;
     } catch (_) {
+      if (_disposed || generation != _loadGeneration) return;
       _allWorks = const [];
       _assignedWorks = const [];
       _assignmentTargets = const [];
@@ -139,6 +190,7 @@ class TechnicalWorkController extends ChangeNotifier {
     }
 
     _startingWorkId = workId;
+    final generation = _sessionGeneration;
     _startStatus = TechnicalWorkStartStatus.starting;
     _errorMessage = null;
     notifyListeners();
@@ -148,27 +200,33 @@ class TechnicalWorkController extends ChangeNotifier {
         workId: workId,
         actorUserId: actorUserId,
       );
+      if (_disposed || generation != _sessionGeneration) return false;
       _replaceWorkInState(updatedWork);
       await _refreshParticipantNames();
       _startStatus = TechnicalWorkStartStatus.success;
       return true;
     } on TechnicalWorkAlreadyStartedException {
+      if (_disposed || generation != _sessionGeneration) return false;
       _startStatus = TechnicalWorkStartStatus.alreadyStarted;
       _errorMessage = 'İş zaten başlatıldı.';
       await _refreshWorkLists(actorUserId);
       return false;
     } catch (_) {
+      if (_disposed || generation != _sessionGeneration) return false;
       _startStatus = TechnicalWorkStartStatus.failure;
       _errorMessage = 'Teknik iş başlatılamadı.';
       return false;
     } finally {
-      _startingWorkId = null;
-      notifyListeners();
+      if (!_disposed && generation == _sessionGeneration) {
+        _startingWorkId = null;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> assignWork({
     required String workId,
+    int? expectedRevision,
     required TechnicalWorkPriority priority,
     required AssignmentTarget target,
   }) async {
@@ -177,15 +235,18 @@ class TechnicalWorkController extends ChangeNotifier {
     }
 
     _isAssigning = true;
+    final generation = _sessionGeneration;
     _errorMessage = null;
     notifyListeners();
 
     try {
       final updatedWork = await _repository.assignWork(
         workId: workId,
+        expectedRevision: expectedRevision,
         priority: priority,
         target: target,
       );
+      if (_disposed || generation != _sessionGeneration) return false;
       _allWorks = List.unmodifiable([
         for (final work in _allWorks)
           if (work.id == updatedWork.id) updatedWork else work,
@@ -196,12 +257,22 @@ class TechnicalWorkController extends ChangeNotifier {
       ]);
       await _refreshParticipantNames();
       return true;
+    } on ApiException catch (error) {
+      if (_disposed || generation != _sessionGeneration) return false;
+      if (error.code == 'work_revision_conflict' && _currentUserId != null) {
+        await load(_currentUserId!);
+      }
+      _errorMessage = error.userMessage;
+      return false;
     } catch (_) {
+      if (_disposed || generation != _sessionGeneration) return false;
       _errorMessage = 'Teknik iş atanamadı.';
       return false;
     } finally {
-      _isAssigning = false;
-      notifyListeners();
+      if (!_disposed && generation == _sessionGeneration) {
+        _isAssigning = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -217,14 +288,17 @@ class TechnicalWorkController extends ChangeNotifier {
   }
 
   Future<void> _refreshWorkLists(String actorUserId) async {
-    final allWorksFuture = _repository.getAllWorks();
-    final assignedWorksFuture = _repository.getAssignedWorks(actorUserId);
-    _allWorks = List.unmodifiable(await allWorksFuture);
-    _assignedWorks = List.unmodifiable(await assignedWorksFuture);
+    final results = await Future.wait<List<TechnicalWork>>([
+      _repository.getAllWorks(),
+      _repository.getAssignedWorks(actorUserId),
+    ]);
+    _allWorks = List.unmodifiable(results[0]);
+    _assignedWorks = List.unmodifiable(results[1]);
     await _refreshParticipantNames();
   }
 
   Future<void> _refreshParticipantNames() async {
+    final generation = _loadGeneration;
     final source = _participantNameSource;
     if (source == null) {
       _userNames = const {};
@@ -249,6 +323,7 @@ class TechnicalWorkController extends ChangeNotifier {
         userIds: userIds,
         teamIds: teamIds,
       );
+      if (_disposed || generation != _loadGeneration) return;
       _userNames = names.userNames;
       _teamNames = names.teamNames;
     } catch (_) {

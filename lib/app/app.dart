@@ -10,7 +10,7 @@ import '../features/auth/data/services/api_user_directory.dart';
 import '../features/teams/data/repositories/api_team_repository.dart';
 import '../features/users/data/api_user_management_repository.dart';
 import '../features/users/presentation/user_management_controller.dart';
-import '../features/teams/data/adapters/user_assignment_target_adapter.dart';
+import '../features/technical_operations/data/repositories/api_technical_work_repository.dart';
 import '../features/auth/data/session/session_store.dart';
 import '../features/auth/data/session/secure_session_store.dart';
 import '../features/auth/data/api_configuration.dart';
@@ -99,18 +99,17 @@ class _TckYosiAppState extends State<TckYosiApp> {
       );
     }
 
-    _technicalWorkRepository = FakeTechnicalWorkRepository(
-      individualAssignmentTargetSource: service is ApiAuthService
-          ? UserAssignmentTargetAdapter(userDirectory: _userDirectory)
-          : null,
-      teamAssignmentTargetSource: TeamAssignmentTargetAdapter(
-        repository: _teamRepository,
-      ),
-      technicalWorkAccessSource: TeamTechnicalWorkAccessAdapter(
-        teamRepository: _teamRepository,
-        userDirectory: _userDirectory,
-      ),
-    );
+    _technicalWorkRepository = service is ApiAuthService
+        ? ApiTechnicalWorkRepository(api: service)
+        : FakeTechnicalWorkRepository(
+            teamAssignmentTargetSource: TeamAssignmentTargetAdapter(
+              repository: _teamRepository,
+            ),
+            technicalWorkAccessSource: TeamTechnicalWorkAccessAdapter(
+              teamRepository: _teamRepository,
+              userDirectory: _userDirectory,
+            ),
+          );
 
     final participantNameSource = TechnicalWorkParticipantNameAdapter(
       teamRepository: _teamRepository,

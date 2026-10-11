@@ -67,6 +67,7 @@ abstract interface class TechnicalWorkRepository {
 
   Future<TechnicalWork> assignWork({
     required String workId,
+    int? expectedRevision,
     required TechnicalWorkPriority priority,
     required AssignmentTarget target,
   });

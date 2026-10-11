@@ -34,6 +34,7 @@ class _FieldReportPageState extends State<FieldReportPage> {
   final _locationController = TextEditingController();
 
   TechnicalWorkCategory? _selectedCategory;
+  CreateFieldReportRequest? _lastRequest;
 
   @override
   void dispose() {
@@ -50,12 +51,23 @@ class _FieldReportPageState extends State<FieldReportPage> {
       return;
     }
 
-    final request = CreateFieldReportRequest(
+    final draft = CreateFieldReportRequest(
       category: _selectedCategory!,
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
       location: _locationController.text.trim(),
     );
+    // Retrying the same form reuses its server idempotency key after a timeout.
+    final previous = _lastRequest;
+    final request =
+        previous != null &&
+            previous.category == draft.category &&
+            previous.title == draft.title &&
+            previous.description == draft.description &&
+            previous.location == draft.location
+        ? previous
+        : draft;
+    _lastRequest = request;
 
     await widget.controller.submit(
       request: request,

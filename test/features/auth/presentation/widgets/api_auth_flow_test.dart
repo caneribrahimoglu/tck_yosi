@@ -21,7 +21,9 @@ void main() {
       sessionStore: store,
       client: MockClient(
         (r) async =>
-            r.url.path.contains('/teams') || r.url.path.endsWith('/directory')
+            r.url.path.contains('/teams') ||
+                r.url.path.contains('/technical-works') ||
+                r.url.path.endsWith('/directory')
             ? http.Response(
                 '[]',
                 200,
@@ -123,6 +125,7 @@ void main() {
             return http.Response('{}', 200);
           }
           if (r.url.path.contains('/teams') ||
+              r.url.path.contains('/technical-works') ||
               r.url.path.endsWith('/directory')) {
             return http.Response(
               '[]',

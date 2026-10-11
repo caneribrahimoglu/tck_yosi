@@ -70,6 +70,9 @@ class _AuthGateState extends State<AuthGate> {
     if (widget.authController.status != AuthStatus.unauthenticated) {
       return;
     }
+    widget.technicalWorkController.resetSession();
+    widget.technicalWorkDetailController.resetSession();
+    widget.fieldReportController.resetSession();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
           widget.authController.status != AuthStatus.unauthenticated) {
@@ -125,8 +128,13 @@ class _AuthGateState extends State<AuthGate> {
       technicalWorkController: widget.technicalWorkController,
       technicalWorkDetailController: widget.technicalWorkDetailController,
       technicalWorkCompletionController:
-          widget.technicalWorkCompletionController,
-      technicalWorkHoldController: widget.technicalWorkHoldController,
+          widget.technicalWorkController.supportsExecution
+          ? widget.technicalWorkCompletionController
+          : null,
+      technicalWorkHoldController:
+          widget.technicalWorkController.supportsExecution
+          ? widget.technicalWorkHoldController
+          : null,
       fieldReportController: widget.fieldReportController,
       teamController: widget.teamController,
       vehicleController: widget.vehicleController,
@@ -143,7 +151,7 @@ class _AuthGateState extends State<AuthGate> {
             child: const Padding(
               padding: EdgeInsets.all(8),
               child: Text(
-                'Giriş, kullanıcılar ve ekipler gerçek sunucu kayıtlarıdır. İş ve araç verileri geçici demodur.',
+                'Giriş, kullanıcılar, ekipler ve saha bildirimleri sunucuda saklanır. Araçlar demodur; iş yürütme akışı hazırlanıyor.',
                 textAlign: TextAlign.center,
               ),
             ),
