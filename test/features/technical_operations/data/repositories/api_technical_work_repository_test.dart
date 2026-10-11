@@ -183,19 +183,20 @@ void main() {
   );
 
   test(
-    'no global assign grant returns no targets; no demo lifecycle fallback',
+    'no global assign grant; real execution but no demo completion fallback',
     () async {
       var requests = 0;
       final repo = await repository((r) async {
         requests++;
-        return jsonResponse([]);
+        return jsonResponse({'can_start': false});
       }, permissions: const []);
       expect(await repo.getAssignmentTargets(), isEmpty);
       expect(requests, 0);
-      expect(repo.supportsExecution, isFalse);
+      expect(repo.supportsExecution, isTrue);
+      expect(repo.supportsCompletion, isFalse);
       expect(await repo.canUserStartTechnicalWork('real-chief-uuid'), isFalse);
       await expectLater(
-        repo.startWork(workId: 'work-uuid', actorUserId: 'real-chief-uuid'),
+        repo.getPendingCompletionReviews(actorUserId: 'real-chief-uuid'),
         throwsA(
           isA<ApiException>().having(
             (e) => e.code,
@@ -204,7 +205,7 @@ void main() {
           ),
         ),
       );
-      expect(requests, 0);
+      expect(requests, 1);
     },
   );
 
@@ -248,6 +249,9 @@ void main() {
           }, 409);
         }
         if (r.url.path.endsWith('/assignment-targets')) return jsonResponse([]);
+        if (r.url.path.endsWith('/actor-capabilities')) {
+          return jsonResponse({'can_start': false});
+        }
         return jsonResponse([workJson(revision: 1, team: 'another-team')]);
       });
       final controller = TechnicalWorkController(repository: repo);

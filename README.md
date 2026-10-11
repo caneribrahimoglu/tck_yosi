@@ -4,26 +4,26 @@ Karayolu işletme şefliği için geliştirilen Flutter tabanlı operasyon ve y�
 
 ## Güncel durum
 
-Bu belge 11 Ekim 2026 tarihinde güncellendi. `840b757` gerçek auth/kullanıcı/ekip teslimi üzerine ilk teknik operasyon backend dilimi eklendi. Önceki auth/kullanıcı/ekip akışları ve yeni iş dilimi kullanıcı tarafından manuel doğrulandı.
+Bu belge 11 Ekim 2026 tarihinde güncellendi. `31c2d45` ilk teknik backend teslimi üzerine ikinci dilim eklendi: başlatma, ilerleme notları ve bekleme/devam. Önceki auth/kullanıcı/ekip ve bildirim/atama dilimleri kullanıcı tarafından manuel doğrulandı; yeni yürütme diliminin cihaz üstü manuel kabulü bekleniyor.
 
 | Alan | Mevcut durum |
 | --- | --- |
 | Flutter uygulaması | Responsive Violet UI, rol bazlı dashboardlar ve şef modül ana sayfası mevcut. |
-| Teknik operasyonlar | Bildirim, yetkili liste/detay ve mühendis/ekip ataması gerçek API/DB'ye bağlı. Başlatma/ilerleme/bekleme/onay henüz yalnız izole fake/test uygulamasında mevcut. |
+| Teknik operasyonlar | Bildirim, yetkili liste/detay, atama, başlatma, ilerleme ve bekleme/devam gerçek API/DB'ye bağlı. Tamamlama/onay henüz yalnız izole fake/test uygulamasında mevcut. |
 | Ekipler | Üyelik, yetki, aktif/pasif, arşiv/geri yükleme gerçek PostgreSQL kayıtlarına bağlı. |
 | Araçlar | Filo, detay, ekleme/düzenleme, atama geçmişi, teslim/kontrol, arıza ve bakım akışları mevcut. |
 | Personel | Şef için gerçek kullanıcı oluşturma, aktiflik, geçici parola ve doğrudan yetki yönetimi. Mesai/izin gibi personel süreçleri henüz yok. |
 | Backend | FastAPI, PostgreSQL/SQLAlchemy, Alembic ve güvenli kimlik doğrulama temeli mevcut. |
 | Flutter–backend bağlantısı | Auth, kullanıcılar, ekip/üyelik/yetkiler ve teknik bildirim/atama gerçek API'ye bağlı. Araçlar demo. |
 
-Kullanıcılar, ekipler, teknik işler ve atama geçmişi PostgreSQL'de kalıcıdır; çıkış/giriş veya uygulama yeniden açılışı kayıtları sıfırlamaz. Araç fake verisi yeniden başlatılınca sıfırlanır. Gerçek kullanıcı UUID'si demo ID'sine çevrilmez. Eski fake teknik işler veritabanına aktarılmaz; ilk gerçek iş listesi boş başlayabilir. Gerçek işlerde desteklenmeyen lifecycle işlemleri fake repository'ye yönlendirilmez.
+Kullanıcılar, ekipler, teknik işler, atama/ilerleme/bekleme geçmişi PostgreSQL'de kalıcıdır; çıkış/giriş veya uygulama yeniden açılışı kayıtları sıfırlamaz. Araç fake verisi yeniden başlatılınca sıfırlanır. Gerçek kullanıcı UUID'si demo ID'sine çevrilmez. Eski fake teknik işler veritabanına aktarılmaz; ilk gerçek iş listesi boş başlayabilir. Gerçek işlerde desteklenmeyen tamamlama/onay işlemleri fake repository'ye yönlendirilmez.
 
 ## Çalışan ürün akışları
 
 - Şef girişte Şeflik Ana Sayfasını görür; Operasyon Merkezi, Araç Yönetimi ve yetkisi varsa Personel Yönetimine geçer.
 - Saha bildirimi şef tarafından incelenir, önceliklendirilir ve kullanıcıya veya ekibe atanır.
 - Aktif doğrudan atanan mühendis veya aktif/arşivlenmemiş ekibin aktif üyesi atanmış işi listede ve detayda görür. Oluşturan kendi bildirimini, explicit `viewAllTechnicalWork` sahibi tüm işleri okuyabilir.
-- Gerçek iş detayında başlık/açıklama/konum, öncelik/durum ve çözümlenmiş kişi/ekip isimleri bulunur. Başlatma, ilerleme, bekleme/devam ve tamamlama onayı sonraki backend dilimlerine bırakıldı; gerçek ekranda hazırlık bilgisi gösterilir.
+- Yetkili aktif atanan kişi/ekip üyesi işi başlatır; iş ekipte atanmış kalır, başlatan ve zaman ayrı kaydedilir. Detaydan ilerleme notu ekler, gerekçeyle beklemeye alır ve devam eder. Beklemede not eklenemez; bütün döngüler korunur. Şef geçmişi okuyabilir ancak global okuma izni mutasyon yetkisi vermez. Tamamlama/onay sonraki backend dilimidir.
 - Ekipler silinmez; arşivlenir. Geri yüklenen ekip aynı kimlik/üyelik/yetkilerle pasif olarak döner.
 - Şef Personel Yönetiminden kullanıcı oluşturur; yeni kullanıcı ilk girişte en az 12 karakterlik yeni parola belirler. Şef kullanıcının aktifliğini, geçici parolasını ve sahip olduğu yetkiler sınırında doğrudan izinlerini yönetir.
 - Şefin `manageUsers` yetkisi doğrudandır; ekipten devredilemez. Bu ekran kendi şef hesabını veya diğer yönetici hesaplarını değiştirmez, yönetici rolü oluşturmaz.
@@ -83,6 +83,8 @@ Yeni `b82d1f9c0a41` migration'ı kullanıcıya JSON `permissions` alanı ekler v
 
 `d1b9e206f734` migration'ı gerçek teknik iş ve ayrı atama geçmişi tablolarını kurar; yerel PostgreSQL'e uygulandı. Bildirimde kimlik/zaman/oluşturan/durum sunucudan gelir. Aynı gönderim anahtarının tekrarında aynı kayıt döner. Atama revision kontrolü eski ekranın yeni atamayı ezmesini engeller; geçmiş silinmez. Açık işi bulunan ekip artık sunucu transaction sınırında arşivlenemez.
 
+`e8a7152c4906` migration'ı ilerleme notları ve bekleme/devam döngülerini ayrı tablolarda saklar; yerel PostgreSQL'e uygulandı. İlerleme gönderimi work/actor/submission anahtarıyla idempotenttir. Başlatma ve bekleme/devam, actor → sıralı ekipler → iş kilitleri ve revision kontrolüyle korunur; eski ekran ve iki cihaz yarışı güncel durumu ezemez. Kimlik, yazar, başlatan ve zamanlar sunucudan gelir.
+
 Android/masaüstü oturum tokenı `flutter_secure_storage` ile saklanır; parola veya güvenilen kullanıcı/yetki kopyası saklanmaz. Açılışta `/me` ile yeniden doğrulanır. Web'de bearer token kalıcı web storage yerine yalnız bellekte tutulur; sayfa yenilenince yeniden giriş gerekir. Web geliştirme için backend `.env` dosyasında `CORS_ORIGINS=["http://localhost:5173"]` ayarlayıp `flutter run -d chrome --web-port=5173 --dart-define=API_BASE_URL=http://127.0.0.1:8000/api/v1/` kullanın; `.env` değişince backend'i yeniden başlatın.
 
 Token süresi dolduğunda, `/me` 401/403 veya iş uçları 401 verdiğinde oturum ve child route'lar kapatılır. Yönetim uçlarındaki 403 yetki reddi oturumu gereksiz yere kapatmaz. Çıkış tokenı istemciden temizler; backend revocation/refresh token henüz yoktur.
@@ -103,8 +105,13 @@ Mevcut backend uçları:
 - `GET /technical-works/assignment-targets`
 - `GET /technical-works/{id}`; `GET /technical-works/{id}/assignments`
 - `POST /technical-works/{id}/assign` (priority, tek hedef ve expected_revision)
+- `GET /technical-works/actor-capabilities`; `GET /technical-works/{id}/capabilities`
+- `POST /technical-works/{id}/start` (expected_revision)
+- `GET|POST /technical-works/{id}/progress` (POST: submission_id, content)
+- `GET /technical-works/{id}/holds`
+- `POST /technical-works/{id}/hold|resume` (expected_revision; hold için reason)
 
-Teknik lifecycle (başlatma/ilerleme/bekleme/tamamlama), araç API'leri, refresh token ve sunucu tarafı token iptali henüz uygulanmadı. Atama hedefleri güncel DB kullanıcı/ekiplerinden gelir. Şef çapında atama, doğrudan `assignTechnicalWork` + `viewAllTechnicalWork` izinlerini gerektirir; yalnız rol veya istemcinin gönderdiği kullanıcı/yetki bilgisi yeterli değildir.
+Tamamlama/onay, araç API'leri, refresh token ve sunucu tarafı token iptali henüz uygulanmadı. Atama hedefleri güncel DB kullanıcı/ekiplerinden gelir. Şef çapında atama, doğrudan `assignTechnicalWork` + `viewAllTechnicalWork` izinlerini gerektirir. Yürütme, güncel atama + aktif actor/üyelik/ekip + ilgili etkin `startTechnicalWork`, `addTechnicalWorkProgress`, `pauseTechnicalWork` veya `resumeTechnicalWork` iznini gerektirir; rol veya istemcinin gönderdiği kullanıcı/yetki yeterli değildir.
 
 ## Kalite kontrolleri
 
@@ -131,7 +138,13 @@ python -m pytest
 Remove-Item Env:TCK_TEST_POSTGRES
 ```
 
-Yeni dilim manuel QA: şefle Operasyon Merkezi'nde bildirim oluşturun, gerçek aktif mühendis/ekibe öncelikle atayın; ekibe atıyorsanız mühendisi aktif üye yapın. Çıkış yapıp mühendisle girin, listeden detayı açın ve isim/konumu doğrulayın. Uygulamayı kapatıp açınca kayıt korunmalı. Şimdilik “İşi Başlat” görünmemesi beklenen davranıştır. Açık işe atanmış ekibi arşivleme reddedilmelidir.
+Yeni dilim manuel QA:
+
+1. Uygulamayı tam durdurup yeniden çalıştırın. Şefle Ekip Yönetiminde aktif ekibe aktif mühendisi ekleyin; işi başlatma, ilerleme, beklemeye alma ve devam etme izinlerini verin. Bildirim oluşturup bu ekibe atayın.
+2. Mühendisle giriş yapın, “İşi Başlat”a basın. Durum Devam Ediyor olmalı; ekip ataması korunmalı, başlatan/tarih görünmeli.
+3. Detayda boş ilerleme notunun reddini ve dolu notun kaydını kontrol edin. Beklemeye Al dialogunda boş gerekçe reddedilmeli; dolu gerekçeyle durum Beklemeye Alındı olmalı ve ilerleme formu kaybolmalı.
+4. Çalışmaya Devam Et'e basın; önceki gerekçe/kişiler/tarihler geçmişte kalmalı. İkinci döngü yeni kayıt oluşturmalı. Tamamlama/onay henüz açılmamalı.
+5. Çıkış/giriş ve tam uygulama yeniden açılışı sonrası geçmiş korunmalı. Şef aynı detayda geçmişi görebilmeli; atanmamış şefte yürütme aksiyonları görünmemeli. Açık işe atanmış ekip arşivlenememeli.
 
 Testler repository kuralları, controller durumları, widget/navigasyon, API auth adapterı, migration ve backend HTTP/güvenlik sınırlarını kapsar. Teslimin gerçek doğrulama sonuçları CHANGELOG'da tutulur.
 

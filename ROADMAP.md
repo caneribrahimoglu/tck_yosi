@@ -1,10 +1,10 @@
 # TCK YÖSİ — Yol haritası ve devam noktası
 
-Son güncelleme: 11 Ekim 2026. Taban: `840b757`; bu teslim ilk teknik operasyon backend dilimini ekler. Bu belge tamamlanan kodu ve önerilen işleri ayırır; sonraki maddeler kendiliğinden onaylanmış görev kapsamı değildir.
+Son güncelleme: 11 Ekim 2026. Taban: `31c2d45`; bu teslim ikinci teknik backend dilimini ekler. Bu belge tamamlanan kodu ve önerilen işleri ayırır; sonraki maddeler kendiliğinden onaylanmış görev kapsamı değildir.
 
 ## Mevcut aşama
 
-Gerçek auth ve kullanıcı/ekip manuel kabulü tamamlandı. İlk teknik operasyon backend dilimi eklendi: bildirim, yetkili liste/detay, mühendis/ekip ataması ve kalıcı atama geçmişi. Otomatik testler/Android derlemesi tamamlandı; kullanıcı yeni iş akışını manuel testte “evet çalışıyor, sorun yok” diye doğruladı. Teknik lifecycle ve araçların backend geçişi hâlâ açık.
+Gerçek auth/kullanıcı/ekip ve ilk teknik backend diliminin manuel kabulü tamamlandı. İkinci teknik backend dilimi başlatma, ilerleme notları ve bekleme/devam döngülerini PostgreSQL'e taşıdı; cihaz üstü manuel kabulü bekleniyor. Tamamlama/onay ve araçların backend geçişi hâlâ açık.
 
 ## Tamamlanan dilimler
 
@@ -31,14 +31,15 @@ Gerçek auth ve kullanıcı/ekip manuel kabulü tamamlandı. İlk teknik operasy
 | Backend temeli (`45c352d`) | FastAPI, PostgreSQL/SQLAlchemy, Alembic kullanıcı migration'ı, ilk şef oluşturma aracı. |
 | Backend auth (`7f7cc6c`) | Giriş, JWT, mevcut kullanıcı, parola değiştirme ve güvenlik testleri. |
 | Gerçek auth/kullanıcı/ekip (`840b757`) | Flutter API adapterları, güvenli oturum, şef kullanıcı yönetimi ve kalıcı ekip/üyelik/yetkiler. |
-| Teknik backend dilim 1 (11 Ekim 2026 teslimi) | Bildirim, kapsamlı liste/detay yetkilendirmesi, gerçek mühendis/ekip ataması, revision/audit, sunucu ekip arşiv guard'ı. Manuel kabul tamamlandı. |
+| Teknik backend dilim 1 (`31c2d45`) | Bildirim, kapsamlı liste/detay yetkilendirmesi, gerçek mühendis/ekip ataması, revision/audit, sunucu ekip arşiv guard'ı. Manuel kabul tamamlandı. |
+| Teknik backend dilim 2 (11 Ekim 2026 teslimi) | Güvenli başlatma, idempotent ilerleme notları, gerekçeli bekleme/devam ve kalıcı döngü geçmişi. Manuel kabul bekleniyor. |
 
 “Tamamlandı” bu dilimin kodunun mevcut olduğunu belirtir; üretim kurulumu veya gerçek backend entegrasyonu tamamlandı demek değildir.
 
 ## Açık işler ve mevcut sınırlar
 
 - API auth adapterı uygulamanın varsayılan servisidir. Gerçek `sef` hesabıyla giriş/restore/logout manuel kabulü tamamlandı.
-- Teknik işler ve atama geçmişi, kullanıcılar ve ekip/üyelik/yetkiler PostgreSQL'de kalıcıdır. Araçlar demo kalır. Başlatma/ilerleme/bekleme/onay fake testlerde korunur ama gerçek işlere uygulanamaz.
+- Teknik işler, atama/ilerleme/bekleme geçmişi ve kullanıcı/ekip/üyelik/yetkiler PostgreSQL'de kalıcıdır. Araçlar demo kalır. Tamamlama/onay fake testlerde korunur ama gerçek işlere henüz uygulanamaz.
 - Şef `manageUsers` doğrudan yetkisiyle kullanıcı oluşturma, aktiflik, geçici parola ve izin yönetimi yapar. Ekip yönetimi ayrı `manageTeamPermissions` sınırındadır. Yönetim yetkileri ekipten devredilemez.
 - Zorunlu parola değişimi Flutter'da uygulanıyor; gelecekteki korumalı iş uçları sunucudaki dependency'yi kullanmalıdır.
 - Android/masaüstünde güvenli kalıcı token oturumu mevcut. Web tokenı yalnız bellekte. Refresh token ve sunucu logout/revocation henüz yok.
@@ -49,10 +50,10 @@ Gerçek auth ve kullanıcı/ekip manuel kabulü tamamlandı. İlk teknik operasy
 
 ## Önerilen devam sırası
 
-1. **Teknik backend dilim 2:** işi başlatma, ilerleme notları ve bekleme/devam akışlarını kalıcılaştır. İlk bildirim/atama diliminin ve önceki kullanıcı/ekip tesliminin manuel kabulü tamamlandı. Üçüncü dilim tamamlama talebi ve şef onayı olacak.
+1. **İkinci dilimin manuel kabulü → teknik backend dilim 3:** mevcut başlatma/ilerleme/bekleme/devam akışını cihazda doğrula. Sonraki kapsam tamamlama talebi, gerçek şef onay kuyruğu, onay/red ve kalıcı talep geçmişi olacak.
 2. **Oturumun sonraki ihtiyaçlarını seç:** mevcut access-token oturumu dışında refresh/revocation veya web HttpOnly-cookie akışı gerekiyorsa ayrı dilim tanımla.
 3. **Kullanıcı ve ekip temeli eklendi:** migration/API ve Flutter adapterları hazır; sonrasında ihtiyaç varsa profil/rol düzenleme ve kapsamlı audit ayrı dilimdir.
-4. **Kalan domain'leri backend'e taşı:** teknik lifecycle ve araç migration/API/adapterları. Bildirim/atama/audit/arşiv guard tamamlandı; kalan geçmişler ve durum geçişleri ayrı transaction'larla korunmalı.
+4. **Kalan domain'leri backend'e taşı:** teknik tamamlama/onay ve araç migration/API/adapterları. Bildirim/atama/yürütme/audit/arşiv guard tamamlandı; kalan geçmişler ve durum geçişleri ayrı transaction'larla korunmalı.
 5. **Yeni ürün kapsamını seç:** personel, yakıt/kilometre takibi, raporlar ve bildirimler. Her biri ayrı ve test edilebilir dikey dilim olarak tanımlanmalı.
 
 Bu sıra mevcut bağımlılıklara göre öneridir. Ayrıntılı görev kimliği ve kabul kriterleri uygulama başlamadan netleştirilir.

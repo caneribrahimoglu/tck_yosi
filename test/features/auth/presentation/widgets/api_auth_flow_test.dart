@@ -20,10 +20,15 @@ void main() {
       baseUrl: Uri.parse('http://localhost/api/v1/'),
       sessionStore: store,
       client: MockClient(
-        (r) async =>
-            r.url.path.contains('/teams') ||
-                r.url.path.contains('/technical-works') ||
-                r.url.path.endsWith('/directory')
+        (r) async => r.url.path.endsWith('/actor-capabilities')
+            ? http.Response(
+                '{"can_start":false}',
+                200,
+                headers: {'content-type': 'application/json'},
+              )
+            : r.url.path.contains('/teams') ||
+                  r.url.path.contains('/technical-works') ||
+                  r.url.path.endsWith('/directory')
             ? http.Response(
                 '[]',
                 200,
@@ -123,6 +128,13 @@ void main() {
           if (r.url.path.endsWith('/change-password')) {
             changed = true;
             return http.Response('{}', 200);
+          }
+          if (r.url.path.endsWith('/actor-capabilities')) {
+            return http.Response(
+              '{"can_start":false}',
+              200,
+              headers: {'content-type': 'application/json'},
+            );
           }
           if (r.url.path.contains('/teams') ||
               r.url.path.contains('/technical-works') ||

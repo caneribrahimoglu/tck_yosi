@@ -1,6 +1,6 @@
 # TCK YÖSİ — Mimari karar kaydı
 
-11 Ekim 2026: `840b757` ve bu teslimdeki ilk teknik backend dilimine göre güncellendi. İlk kararların tarihleri korunmuştur; geçmiş kararlar o teslimin kapsamını anlatır.
+11 Ekim 2026: `31c2d45` ve ikinci teknik backend dilimine göre güncellendi. İlk kararların tarihleri korunmuştur; geçmiş kararlar o teslimin kapsamını anlatır.
 
 ## ADR-001 — Feature-first mimari
 
@@ -48,9 +48,9 @@ README mevcut ürünü ve çalıştırmayı; ROADMAP tamamlanan/önerilen işler
 
 Referans: `45c352d`, `7f7cc6c`. Durum: kodda uygulanmış yön.
 
-Backend FastAPI, SQLAlchemy, PostgreSQL ve Alembic kullanır. Auth/kullanıcı/ekip entegrasyonu `840b757`'de; ilk teknik bildirim/atama backend dilimi mevcut çalışma ağacındadır. Araç ve kalan teknik lifecycle fake/test implementasyonunda kalır.
+Backend FastAPI, SQLAlchemy, PostgreSQL ve Alembic kullanır. Auth/kullanıcı/ekip entegrasyonu `840b757`'de, ilk teknik bildirim/atama dilimi `31c2d45`'tedir. İkinci teknik dilim başlatma/ilerleme/bekleme-devamı kalıcılaştırır; yalnız tamamlama/onay ve araçlar fake/test implementasyonunda kalır.
 
-Sonuç: domain API'leri ve kalıcı yetki/üyelik modeli sonraki dilimlerde tasarlanmalıdır. Migration, transaction ve constraint'ler fake repository invariantlarını korumalıdır.
+Sonuç: mevcut domain portları ve kalıcı yetki/üyelik modeli sonraki dilimlerde korunmalıdır. Migration, transaction ve constraint'ler fake repository invariantlarını korumalıdır.
 
 ## ADR-008 — Rol, permission ve üyeliği ayırma
 
@@ -85,6 +85,18 @@ Varsayılan giriş `ApiAuthService` olur; fake auth yalnız testlerde injection 
 Yetkiler backend User JSON alanında explicit saklanır. Migration en eski bootstrap şef hesabına sabit başlangıç grant listesini yazar; diğer hesaplar boş kalır. Runtime rolü şef olmak kendiliğinden grant üretmez. Gerçek kullanıcı ID'si demo kişiye çevrilmez; demo/önceki actor isimleri yalnız display için tutulur ve aktif yetkili actor olarak dönmez.
 
 `http` ve `flutter_secure_storage`, ağ ve güvenli native saklama için eklendi. Ayrı state-management framework eklenmedi. Debug yerel HTTP kullanabilir; release/profile HTTPS URL gerektirir. Web kalıcı oturumu gelecekte backend HttpOnly-cookie kararıyla ele alınabilir.
+
+## ADR-014 — Kalıcı teknik yürütme ve güvenli geçişler
+
+Referans: 11 Ekim 2026, `31c2d45` sonrası ikinci teknik backend dilimi. Durum: kodlandı; cihaz üstü manuel kabulü bekleniyor.
+
+Başlatma, ilerleme ve bekleme/devam aynı gerçek repository'ye bağlanır; tamamlama/onay bir sonraki dilimdir. Capability portu execution ile completion'ı ayrı belirtir. Fake lifecycle testlerde korunur, gerçek işlere fake fallback yapılmaz. Yeni paket eklenmez.
+
+Mutasyon, güncel aktif actor, uygun direct/team assignment ve explicit effective operation permission ister. Şef/global read tek başına yazma hakkı vermez. Authorization durum hatalarından önce, ardından actor → sıralı ekipler → iş row lock altında yeniden doğrulanır. Protected grant'ler ekipten sayılmaz; işlem boyunca kilitlenmemiş yeni ekipten grant alınmaz. Revision start/hold/resume sırasında artırılır; eşzamanlı hold/resume ve stale ekran tek valid geçiş üretir. Zaten başlatma typed hatadır ve mevcut metadata değişmez.
+
+Progress note ve hold cycle ayrı tablolardır. ID/yazar/zaman sunucudan gelir. Notta work/actor/submission unique anahtarı retry duplicate'ini önler; Flutter aynı başarısız gönderimde aynı request/key'i korur. Uygulama kapanışı sonrasında taslak/key outbox kalıcılığı bu dilimde yoktur. Tek açık hold partial unique index ile korunur; resume aynı kaydı tamamlar ve ikinci cycle yeni kayıt açar. History edit/delete API'si yoktur.
+
+Geç oturum yanıtları controller generation ile atılır. Detail/capability/history, geçiş sonrası ve dashboard'a dönüşte güncellenir. Gerçek PostgreSQL yarışları yalnız izole disposable test şemasında çalışır; canlı uygulama verisini değiştirmez.
 
 ## Henüz karara bağlanmamış başlıklar
 

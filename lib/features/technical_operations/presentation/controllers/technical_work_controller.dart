@@ -67,6 +67,9 @@ class TechnicalWorkController extends ChangeNotifier {
   bool get supportsExecution =>
       _repository is! TechnicalWorkRepositoryCapabilities ||
       (_repository as TechnicalWorkRepositoryCapabilities).supportsExecution;
+  bool get supportsCompletion =>
+      _repository is! TechnicalWorkRepositoryCapabilities ||
+      (_repository as TechnicalWorkRepositoryCapabilities).supportsCompletion;
 
   TechnicalWorkController({
     required TechnicalWorkRepository repository,
@@ -210,6 +213,16 @@ class TechnicalWorkController extends ChangeNotifier {
       _startStatus = TechnicalWorkStartStatus.alreadyStarted;
       _errorMessage = 'İş zaten başlatıldı.';
       await _refreshWorkLists(actorUserId);
+      return false;
+    } on TechnicalWorkStartNotAllowedException {
+      if (_disposed || generation != _sessionGeneration) return false;
+      _startStatus = TechnicalWorkStartStatus.failure;
+      _errorMessage = 'Bu işi başlatma yetkiniz yok.';
+      return false;
+    } on ApiException catch (error) {
+      if (_disposed || generation != _sessionGeneration) return false;
+      _startStatus = TechnicalWorkStartStatus.failure;
+      _errorMessage = error.userMessage;
       return false;
     } catch (_) {
       if (_disposed || generation != _sessionGeneration) return false;

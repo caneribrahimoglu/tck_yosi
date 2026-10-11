@@ -1,6 +1,18 @@
 # TCK YÖSİ — Değişiklik geçmişi
 
-## 11 Ekim 2026 — İlk teknik operasyon backend dilimi (`840b757` sonrası)
+## 11 Ekim 2026 — Teknik backend dilim 2 (`31c2d45` sonrası)
+
+- Başlatma, ilerleme notu, beklemeye alma/devam gerçek API ve PostgreSQL'e taşındı; ekip ataması ve orijinal başlangıç metadata'sı korunur.
+- Ayrı TechnicalWorkProgressNote/HoldRecord tabloları ve `e8a7152c4906` migration'ı; yerel PostgreSQL'e uygulandı, Alembic model karşılaştırması temiz.
+- Aktif current actor/atama/etkin operasyon izni doğrulaması durum hatalarından önce yapılır. Global chief read yazma izni değildir; team/work row lock altında tekrar doğrulanır.
+- Başlatma ve hold/resume revision koruması; notlarda idempotent retry, tek açık hold DB index'i, silinmeyen döngü geçmişi.
+- API adapter/capability split, güvenli detail/hold controller state ve logout temizliği; mevcut Violet detail/engineer ekranları bağlandı. Tamamlama/onay kapalı kalır; araçlar demo.
+- API/controller/widget testleri: şef atama → mühendis başlat/not/bekle/devam → logout → şef read-only geçmiş, isimler ve dar ekran.
+- PostgreSQL'de iki yetkili start, yetkisiz/yetkili start yarışı, duplicate hold/resume, hold-resume ve progress-hold yarışları ile duplicate not testi.
+
+11 Ekim 2026 doğrulaması: 296 Flutter testi ve PostgreSQL yarış testleri dahil 153 backend testi geçti; Dart format, Flutter analyze, git diff --check ve Alembic check temiz. Android debug APK derlendi; yerel API yeniden başlatıldı, API/DB health ve yeni uçlar doğrulandı. Cihaz üstü manuel kabul henüz bekleniyor; kullanıcı gün sonunda stage/commit/push işlemlerini onayladı. İlk tüm-test koşusunda bir mevcut araç testi başarısız oldu; ilgili dosya tek başına ve ardından tam paket yeniden çalıştırıldığında tüm testler geçti. Araç kodu bu dilimde değiştirilmedi.
+
+## 11 Ekim 2026 — İlk teknik operasyon backend dilimi (`31c2d45`)
 
 - Saha bildirimleri, yetkili liste/detay ve gerçek mühendis/ekip ataması FastAPI/PostgreSQL'e taşındı; fake iş seed'i gerçek veriye aktarılmaz.
 - TechnicalWork ve append-only TechnicalWorkAssignment tabloları; `d1b9e206f734` migration'ı yerel veritabanına uygulandı, Alembic model karşılaştırması temiz.

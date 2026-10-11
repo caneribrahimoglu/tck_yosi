@@ -34,7 +34,9 @@ void main() {
           if (path.endsWith('/login')) {
             return loginResponse(permissions: grants);
           }
-          if (path.endsWith('/me')) {
+          if (path.endsWith('/actor-capabilities')) {
+            result = {'can_start': false};
+          } else if (path.endsWith('/me')) {
             result = chief;
           } else if (path.endsWith('/users') && request.method == 'POST') {
             final body = jsonDecode(request.body) as Map<String, dynamic>;

@@ -212,7 +212,7 @@ class _ChiefHomePageState extends State<ChiefHomePage> {
       ),
       ModuleSummary(
         label: 'Tamamlama onayı',
-        value: widget.technicalWorkController.supportsExecution
+        value: widget.technicalWorkController.supportsCompletion
             ? (widget.completionController?.pendingCount ?? 0).toString()
             : 'Hazırlanıyor',
       ),

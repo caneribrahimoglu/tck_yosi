@@ -265,7 +265,7 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
                 icon: Icons.add_location_alt_outlined,
                 onPressed: widget.onCreateFieldReport,
               ),
-            if (widget.technicalWorkController.supportsExecution &&
+            if (widget.technicalWorkController.supportsCompletion &&
                 widget.currentUser.hasPermission(
                   AppPermission.reviewTechnicalWorkCompletion,
                 ))
@@ -458,10 +458,10 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
   }
 
   Widget _buildApprovalQueueCard(BuildContext context) {
-    if (!widget.technicalWorkController.supportsExecution) {
+    if (!widget.technicalWorkController.supportsCompletion) {
       return const AppCard(
         child: Text(
-          'Tamamlama ve onay akışı hazırlanıyor. Bu aşamada saha bildirimi ve atama kullanılabilir.',
+          'Tamamlama ve onay akışı hazırlanıyor. Bildirim, atama ve iş yürütme kullanılabilir.',
         ),
       );
     }

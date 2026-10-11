@@ -22,6 +22,8 @@ class ApiException implements Exception {
     'assignment_target_not_available' =>
       'Seçilen kullanıcı veya ekip artık atamaya uygun değil.',
     'work_assignment_invalid_state' => 'Bu durumdaki iş yeniden atanamaz.',
+    'technical_work_start_invalid_state' =>
+      'Yalnız atanmış bir iş başlatılabilir.',
     'feature_not_available' => 'Bu işlem henüz sunucuda kullanıma açılmadı.',
     'submission_conflict' =>
       'Bildirim gönderimi çakıştı. Bilgileri kontrol edin.',

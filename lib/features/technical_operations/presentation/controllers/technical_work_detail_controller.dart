@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../domain/repositories/technical_work_repository_capabilities.dart';
 
 import '../../domain/errors/technical_work_progress_exception.dart';
@@ -27,6 +28,7 @@ class TechnicalWorkDetailController extends ChangeNotifier {
   String? _errorMessage;
   int _generation = 0;
   bool _disposed = false;
+  AddTechnicalWorkProgressRequest? _retryProgressRequest;
 
   @override
   void notifyListeners() {
@@ -48,6 +50,9 @@ class TechnicalWorkDetailController extends ChangeNotifier {
     _teamNames = const {};
     _currentUserId = null;
     _canAddProgress = false;
+    _errorMessage = null;
+    _retryProgressRequest = null;
+    _submissionStatus = TechnicalWorkProgressSubmissionStatus.initial;
     _loadStatus = TechnicalWorkLoadStatus.initial;
     notifyListeners();
   }
@@ -105,6 +110,9 @@ class TechnicalWorkDetailController extends ChangeNotifier {
   }
 
   Future<void> load({required String workId, required String userId}) async {
+    if (_currentUserId != userId || _work?.id != workId) {
+      _retryProgressRequest = null;
+    }
     final generation = ++_generation;
     _work = null;
     _notes = const [];
@@ -124,7 +132,7 @@ class TechnicalWorkDetailController extends ChangeNotifier {
       );
       if (_disposed || generation != _generation) return;
       _work = work;
-      _notes = !supportsExecution
+      final List<TechnicalWorkProgressNote> notes = !supportsExecution
           ? const []
           : List.unmodifiable(
               await _repository.getProgressNotes(
@@ -132,9 +140,13 @@ class TechnicalWorkDetailController extends ChangeNotifier {
                 actorUserId: userId,
               ),
             );
-      _canAddProgress =
+      if (_disposed || generation != _generation) return;
+      _notes = notes;
+      final canAdd =
           supportsExecution &&
           await _repository.canUserAddProgress(workId: workId, userId: userId);
+      if (_disposed || generation != _generation) return;
+      _canAddProgress = canAdd;
       await _resolveNames();
       if (_disposed || generation != _generation) return;
       _loadStatus = TechnicalWorkLoadStatus.loaded;
@@ -164,34 +176,52 @@ class TechnicalWorkDetailController extends ChangeNotifier {
     }
 
     _submissionStatus = TechnicalWorkProgressSubmissionStatus.submitting;
+    final generation = _generation;
+    final previous = _retryProgressRequest;
+    final request =
+        previous != null &&
+            previous.workId == work.id &&
+            previous.content == content
+        ? previous
+        : AddTechnicalWorkProgressRequest(workId: work.id, content: content);
+    _retryProgressRequest = request;
     _errorMessage = null;
     notifyListeners();
     try {
       final note = await _repository.addProgressNote(
-        request: AddTechnicalWorkProgressRequest(
-          workId: work.id,
-          content: content,
-        ),
+        request: request,
         actorUserId: currentUserId,
       );
-      final updatedNotes = [..._notes, note]
+      if (_disposed || generation != _generation) return false;
+      _retryProgressRequest = null;
+      final updatedNotes = [..._notes.where((old) => old.id != note.id), note]
         ..sort((first, second) => first.createdAt.compareTo(second.createdAt));
       _notes = List.unmodifiable(updatedNotes);
       await _resolveNames();
+      if (_disposed || generation != _generation) return false;
       _submissionStatus = TechnicalWorkProgressSubmissionStatus.success;
       notifyListeners();
       return true;
     } on TechnicalWorkProgressNotAllowedException {
+      if (_disposed || generation != _generation) return false;
       _errorMessage = 'Bu işe ilerleme kaydı ekleme yetkiniz yok.';
     } on TechnicalWorkProgressInvalidInputException {
+      if (_disposed || generation != _generation) return false;
       _errorMessage = 'İlerleme notu boş olamaz.';
     } on TechnicalWorkProgressInvalidStateException {
+      if (_disposed || generation != _generation) return false;
       _errorMessage = 'Yalnız devam eden işe ilerleme kaydı eklenebilir.';
     } on TechnicalWorkProgressSubmissionInFlightException {
+      if (_disposed || generation != _generation) return false;
       _errorMessage = 'İlerleme kaydı zaten gönderiliyor.';
+    } on ApiException catch (error) {
+      if (_disposed || generation != _generation) return false;
+      _errorMessage = error.userMessage;
     } catch (_) {
+      if (_disposed || generation != _generation) return false;
       _errorMessage = 'İlerleme kaydı eklenemedi.';
     }
+    if (_disposed || generation != _generation) return false;
     _submissionStatus = TechnicalWorkProgressSubmissionStatus.failure;
     notifyListeners();
     return false;

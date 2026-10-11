@@ -1,6 +1,6 @@
 # TCK YÖSİ — Mevcut mimari
 
-11 Ekim 2026: `840b757` tabanı üzerindeki ilk teknik operasyon backend dilimine göre güncellendi; kullanıcı manuel kabulü tamamlandı.
+11 Ekim 2026: `31c2d45` tabanı üzerindeki ikinci teknik backend dilimine göre güncellendi. İlk dilimin manuel kabulü tamamlandı; yürütme diliminin cihaz üstü kabulü bekleniyor.
 
 ## İki ayrı çalışma katmanı
 
@@ -12,7 +12,7 @@ Flutter araç UI → ChangeNotifier controller → domain repository → fake ad
 FastAPI route → dependency/service → SQLAlchemy session/model → PostgreSQL
 ```
 
-Auth, kullanıcılar, ekipler ve teknik bildirim/atama backend'e bağlıdır; araçlar fake adapter kullanır. Domain arayüzleri korunur; izole fake testlerde tam teknik lifecycle çalışmaya devam eder. `TechnicalWorkRepositoryCapabilities.supportsExecution` gerçek adapterda false'tur: sunucuya taşınmamış lifecycle ekranları kapalı ve dürüst hazırlık mesajıyla gösterilir, fake write fallback yoktur.
+Auth, kullanıcılar, ekipler ve teknik bildirim/atama/başlatma/ilerleme/bekleme-devam backend'e bağlıdır; araçlar fake adapter kullanır. Domain arayüzleri korunur; izole fake testlerde tam teknik lifecycle çalışmaya devam eder. Gerçek adapterda `supportsExecution=true`, `supportsCompletion=false`: yalnız sunucuda karşılığı bulunan aksiyonlar açılır, tamamlama/onay ekranları kapalıdır ve fake write fallback yoktur.
 
 ## Dizinler ve sorumluluklar
 
@@ -34,7 +34,7 @@ backend/
   app/api/                    route ve auth dependencies
   app/core/                   ayarlar ve parola/JWT güvenliği
   app/db/                     engine, session, declarative base
-  app/models/                 User, Team, TeamMembership, TechnicalWork/Assignment
+  app/models/                 User, Team/Membership, TechnicalWork/Assignment/ProgressNote/HoldRecord
   app/schemas/                HTTP giriş/çıkış modelleri
   app/services/               auth ve ilk kullanıcı iş kuralları
   app/cli/                    etkileşimli ilk şef oluşturma aracı
@@ -68,6 +68,10 @@ Kullanıcı yönetimi kendi/diğer yönetici hesabını değiştirmez, yönetici
 
 Şef çapında atama direct `assignTechnicalWork` ve `viewAllTechnicalWork` ister. Güncel aktif mühendis veya aktif/arşivlenmemiş ekip hedefi kilitlenir, iş row lock altında revision/state tekrar kontrol edilir. Dialog açıldığı andaki revision gönderilir; stale conflict güncel listeyi yükler, yeni atamayı sessizce ezmez. Aynı anda kullanıcı+ekip hedefi DB constraint'iyle de yasaktır. Ekip arşivleme aynı team row lock üzerinden açık işleri kontrol eder; yerel guard yalnız erken UX kontrolüdür, sunucu nihai otoritedir. Bu yarışlar izole PostgreSQL şeması testlerinde doğrulandı.
 
+Yürütme mutasyonları `technical_work_execution` servisindedir. Önce current actor/assignment/permission doğrulanır; sonra actor → sıralı etkin ekipler → iş kilitleri altında yeniden doğrulanır. Global okuma mutasyon hakkı vermez; yetkisiz/missing işe aynı güvenli 403 döner, durum bilgisi açılmaz. Kilit alındıktan sonra eklenen bir üyelikten gelen kilitlenmemiş izin bu işlemde kullanılmaz. Başlatma/bekleme/devam revision artırır; bekleme/devam aynı captured revision ile iki defa veya ters yönde yarışarak uygulanamaz.
+
+`e8a7152c4906` migration'ı ayrı progress/hold tablolarını kurar. İlerleme work/actor/submission unique anahtarıyla tekrar gönderimde tek not üretir; client aynı içerikte başarısız gönderimi aynı request/key ile tekrarlar. Bir işte tek açık bekleme döngüsü partial unique index ile korunur. Resume yalnız açık döngünün resume alanlarını tamamlar; eski döngüyü değiştirmez, sonraki hold yeni kayıt oluşturur. Flutter history listeleri immutable'dır. Detail ve hold controller'ları logout/dispose/generation ile geç yanıtı atar; mutation sonrası detay/capability/history ve dönüşte dashboard yeniden yüklenir.
+
 ## Domain ve feature sınırları
 
 - Modeller immutable değerlerdir; UI isimleri domain kayıtlarına yazılmaz.
@@ -81,7 +85,7 @@ Kullanıcı yönetimi kendi/diğer yönetici hesabını değiştirmez, yönetici
 
 ## Teknik iş kuralları
 
-Aşağıdaki tam lifecycle kuralları fake/test implementasyonunda mevcut ürün tasarımıdır. Gerçek backend bu teslimde yalnız bildirim → atama, yetkili okuma ve atama audit'ini uygular; diğer geçişler sonraki dilimlere aittir.
+Aşağıdaki tam lifecycle kuralları fake/test implementasyonunda mevcut ürün tasarımıdır. Gerçek backend bildirim → atama → başlatma, ilerleme ve bekleme/devam ile yetkili okuma/audit'i uygular. Tamamlama talebi/onay/red henüz sonraki dilime aittir.
 
 - Temel akış: bildirim/inceleme → atama → `inProgress` → `awaitingCompletionApproval` → `completed`.
 - Tamamlama reddi işi `inProgress` durumuna döndürür; talep geçmişi korunur.
@@ -93,7 +97,7 @@ Aşağıdaki tam lifecycle kuralları fake/test implementasyonunda mevcut ürün
 - Detay/history okuma da actor ister. Global okuma `viewAllTechnicalWork` ile sağlanır; rol adı tek başına yetki değildir.
 - Tamamlama inceleme doğrudan `reviewTechnicalWorkCompletion` gerektirir; ekipten devredilemez.
 - Authorization durum hatalarından önce yapılır; typed hatalar controller'da güvenli kullanıcı mesajlarına çevrilir.
-- Fake repository'lerde eşzamanlı submission/karar için in-flight korumaları ve yeniden doğrulama bulunur. Backend'e geçişte bunların transaction/constraint karşılığı gerekir.
+- Fake repository'lerde in-flight korumaları vardır. Mevcut backend yürütme geçişleri row lock/revision, notlar idempotency ve açık bekleme döngüsü unique constraint ile korunur; tamamlama kararının backend karşılığı henüz yoktur.
 
 Gerçek liste/detay/audit okumalarında aynı kapsam filtresi vardır: current active actor, kendi oluşturduğu bildirim veya doğrudan assignment veya aktif/arşivlenmemiş ekipte aktif üyelik; explicit direct `viewAllTechnicalWork` tüm kayıtları açar. Eksik/inaccessible UUID aynı typed 403 verir. Assigned-only listede ekip yoluyla yalnız açık işler gelir; OR sorgusu aynı işi tek kayıt getirir. Eski fake geniş liste API'sinin borcu gerçek sunucuya aktarılmadı.
 
@@ -105,13 +109,13 @@ Araç domain'i kuruma ait/sözleşmeli ayrımı, tür, kilometre ve operasyon du
 
 ## Backend sınırı
 
-Kalıcı modeller User, Team, TeamMembership, TechnicalWork ve TechnicalWorkAssignment'tır. Araç tabloları ve teknik progress/hold/completion history tabloları henüz yoktur. Kullanıcı direct izinleri ve ekip izinleri ayrı JSON alanlarında, üyelikler ayrı tablodadır. Permission enum'ları Flutter sözleşmesiyle eşleşir; rol runtime grant üretmez.
+Kalıcı modeller User, Team, TeamMembership, TechnicalWork, TechnicalWorkAssignment, TechnicalWorkProgressNote ve TechnicalWorkHoldRecord'dır. Araç ve completion history tabloları henüz yoktur. Kullanıcı direct izinleri ve ekip izinleri ayrı JSON alanlarında, üyelikler ayrı tablodadır. Permission enum'ları Flutter sözleşmesiyle eşleşir; rol runtime grant üretmez.
 
 - Parolalar Argon2 ile hash'lenir; yeni parola minimum 12 karakterdir.
 - JWT erişim tokenı HS256 ile imzalanır; örnek ayarda ömür 30 dakikadır.
 - Auth dependency tokenı doğrular ve kullanıcıyı veritabanından yeniden okur; eksik/pasif actor reddedilir.
 - Zorunlu parola değişimi dependency'si kullanıcı/ekip ve bütün teknik iş uçlarında uygulanır.
-- Health/auth, kullanıcı/ekip ve teknik bildirim/liste/detay/atama/audit uçları vardır. Refresh/revocation, teknik lifecycle ve araç API'leri henüz yoktur.
+- Health/auth, kullanıcı/ekip ve teknik bildirim/liste/detay/atama/audit/başlatma/ilerleme/bekleme-devam uçları vardır. Refresh/revocation, teknik tamamlama/onay ve araç API'leri henüz yoktur.
 - Ayarlar environment/`.env` üzerinden alınır; gerçek secret değerleri source control'e yazılmaz.
 - API adresi `API_BASE_URL` dart-define ile seçilir. Yerel HTTP yalnız Flutter debug'da kabul edilir; release/profile HTTPS ister. CORS yalnız açıkça yapılandırılmış origin'lere izin verir.
 

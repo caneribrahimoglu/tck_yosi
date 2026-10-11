@@ -126,6 +126,7 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
       return;
     }
     final succeeded = await controller.putOnHold(reason);
+    final errorMessage = controller.errorMessage;
     await _refreshAfterHoldTransition();
     if (!mounted) {
       return;
@@ -135,7 +136,7 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
       type: succeeded ? AppSnackbarType.success : AppSnackbarType.error,
       message: succeeded
           ? 'İş beklemeye alındı.'
-          : controller.errorMessage ?? 'İş beklemeye alınamadı.',
+          : errorMessage ?? 'İş beklemeye alınamadı.',
     );
   }
 
@@ -145,6 +146,7 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
       return;
     }
     final succeeded = await controller.resume();
+    final errorMessage = controller.errorMessage;
     await _refreshAfterHoldTransition();
     if (!mounted) {
       return;
@@ -154,7 +156,7 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
       type: succeeded ? AppSnackbarType.success : AppSnackbarType.error,
       message: succeeded
           ? 'Çalışmaya devam edildi.'
-          : controller.errorMessage ?? 'İşe devam edilemedi.',
+          : errorMessage ?? 'İşe devam edilemedi.',
     );
   }
 
@@ -164,6 +166,10 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
       userId: widget.currentUser.id,
     );
     await widget.completionController?.loadForWork(
+      workId: widget.workId,
+      userId: widget.currentUser.id,
+    );
+    await widget.holdController?.load(
       workId: widget.workId,
       userId: widget.currentUser.id,
     );
@@ -376,6 +382,21 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
           const SizedBox(height: AppSpacing.md),
           if (isLoading)
             const AppLoading(message: 'Bekleme geçmişi yükleniyor...')
+          else if (controller.status == TechnicalWorkHoldStatus.failure &&
+              controller.history.isEmpty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(controller.errorMessage ?? 'Bekleme geçmişi yüklenemedi.'),
+                TextButton(
+                  onPressed: () => controller.load(
+                    workId: widget.workId,
+                    userId: widget.currentUser.id,
+                  ),
+                  child: const Text('Tekrar Dene'),
+                ),
+              ],
+            )
           else if (controller.history.isEmpty)
             const Text('Bu iş daha önce beklemeye alınmadı.')
           else

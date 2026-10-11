@@ -8,6 +8,9 @@ import '../../domain/enums/technical_work_category.dart';
 import '../../domain/enums/technical_work_priority.dart';
 import '../../domain/enums/technical_work_status.dart';
 import '../../domain/errors/technical_work_detail_read_exception.dart';
+import '../../domain/errors/technical_work_start_exception.dart';
+import '../../domain/errors/technical_work_progress_exception.dart';
+import '../../domain/errors/technical_work_hold_exception.dart';
 import '../../domain/models/add_technical_work_progress_request.dart';
 import '../../domain/models/assignment_target.dart';
 import '../../domain/models/create_field_report_request.dart';
@@ -21,8 +24,8 @@ import '../../domain/models/technical_work_progress_note.dart';
 import '../../domain/repositories/technical_work_repository.dart';
 import '../../domain/repositories/technical_work_repository_capabilities.dart';
 
-/// Real reports/assignment only. Execution is explicitly unavailable until its
-/// server slice is implemented; real records never enter the fake repository.
+/// Real reports, assignment, start/progress/hold/resume. Completion remains
+/// explicitly unavailable; real records never enter the fake repository.
 class ApiTechnicalWorkRepository
     implements TechnicalWorkRepository, TechnicalWorkRepositoryCapabilities {
   final ApiAuthService api;
@@ -31,7 +34,9 @@ class ApiTechnicalWorkRepository
   ApiTechnicalWorkRepository({required this.api});
 
   @override
-  bool get supportsExecution => false;
+  bool get supportsExecution => true;
+  @override
+  bool get supportsCompletion => false;
 
   Future<void> _requireActor(String id) async {
     final user = await api.getCurrentUser();
@@ -188,13 +193,121 @@ class ApiTechnicalWorkRepository
       );
 
   Never _unavailable() => throw const ApiException('feature_not_available');
+
+  String _path(String workId, String suffix) =>
+      'technical-works/${Uri.encodeComponent(workId)}/$suffix';
+
+  Future<Object?> _read(String path, String actorUserId) async {
+    await _requireActor(actorUserId);
+    try {
+      return await api.requestBusiness(path);
+    } on ApiException catch (error) {
+      if (error.code == 'technical_work_read_not_allowed' ||
+          error.code == 'not_allowed') {
+        throw const TechnicalWorkDetailReadNotAllowedException();
+      }
+      rethrow;
+    }
+  }
+
+  Future<Object?> _mutate(
+    String path,
+    String actorUserId,
+    Map<String, Object?> body,
+    String operation,
+  ) async {
+    try {
+      try {
+        await _requireActor(actorUserId);
+      } on TechnicalWorkDetailReadNotAllowedException {
+        throw const ApiException('not_allowed');
+      }
+      return await api.requestBusiness(path, body: body);
+    } on ApiException catch (error) {
+      final denied =
+          error.code == 'not_allowed' || error.code.endsWith('_not_allowed');
+      if (operation == 'start') {
+        if (denied) throw const TechnicalWorkStartNotAllowedException();
+        if (error.code == 'technical_work_already_started') {
+          throw const TechnicalWorkAlreadyStartedException();
+        }
+      } else if (operation == 'progress') {
+        if (denied) throw const TechnicalWorkProgressNotAllowedException();
+        if (error.code == 'invalid_input') {
+          throw const TechnicalWorkProgressInvalidInputException();
+        }
+        if (error.code == 'technical_work_progress_invalid_state') {
+          throw const TechnicalWorkProgressInvalidStateException();
+        }
+        if (error.code == 'technical_work_progress_submission_conflict') {
+          throw const TechnicalWorkProgressSubmissionInFlightException();
+        }
+      } else {
+        if (denied) throw const TechnicalWorkHoldNotAllowedException();
+        if (error.code == 'invalid_input') {
+          throw const TechnicalWorkHoldInvalidInputException();
+        }
+        if (error.code == 'technical_work_hold_invalid_state') {
+          throw const TechnicalWorkHoldInvalidStateException();
+        }
+        if (error.code == 'technical_work_hold_transition_conflict') {
+          throw const TechnicalWorkHoldTransitionInFlightException();
+        }
+      }
+      rethrow;
+    }
+  }
+
+  int _revision(String workId) =>
+      _revisions[workId] ??
+      (throw const ApiException('work_revision_conflict'));
+
+  TechnicalWorkProgressNote _note(Object? value) {
+    final data = value as Map<String, dynamic>;
+    return TechnicalWorkProgressNote(
+      id: data['id'] as String,
+      workId: data['work_id'] as String,
+      authorUserId: data['author_user_id'] as String,
+      content: data['content'] as String,
+      createdAt: DateTime.parse(data['created_at'] as String).toLocal(),
+    );
+  }
+
+  TechnicalWorkHoldRecord _hold(Object? value) {
+    final data = value as Map<String, dynamic>;
+    return TechnicalWorkHoldRecord(
+      id: data['id'] as String,
+      workId: data['work_id'] as String,
+      heldByUserId: data['held_by_user_id'] as String,
+      heldAt: DateTime.parse(data['held_at'] as String).toLocal(),
+      reason: data['reason'] as String,
+      resumedByUserId: data['resumed_by_user_id'] as String?,
+      resumedAt: data['resumed_at'] == null
+          ? null
+          : DateTime.parse(data['resumed_at'] as String).toLocal(),
+    );
+  }
+
+  Future<bool> _can(String workId, String userId, String capability) async {
+    final data =
+        await _read(_path(workId, 'capabilities'), userId)
+            as Map<String, dynamic>;
+    return data[capability] as bool;
+  }
+
   @override
-  Future<bool> canUserStartTechnicalWork(String userId) async => false;
+  Future<bool> canUserStartTechnicalWork(String userId) async {
+    final data =
+        await _read('technical-works/actor-capabilities', userId)
+            as Map<String, dynamic>;
+    return data['can_start'] as bool;
+  }
+
   @override
   Future<bool> canUserAddProgress({
     required String workId,
     required String userId,
-  }) async => false;
+  }) => _can(workId, userId, 'can_add_progress');
   @override
   Future<bool> canUserRequestCompletion({
     required String workId,
@@ -204,17 +317,19 @@ class ApiTechnicalWorkRepository
   Future<bool> canUserPauseWork({
     required String workId,
     required String userId,
-  }) async => false;
+  }) => _can(workId, userId, 'can_pause');
   @override
   Future<bool> canUserResumeWork({
     required String workId,
     required String userId,
-  }) async => false;
+  }) => _can(workId, userId, 'can_resume');
   @override
   Future<List<TechnicalWorkProgressNote>> getProgressNotes({
     required String workId,
     required String actorUserId,
-  }) async => _unavailable();
+  }) async => List.unmodifiable(
+    (await _read(_path(workId, 'progress'), actorUserId) as List).map(_note),
+  );
   @override
   Future<List<TechnicalWorkCompletionRequest>> getCompletionRequests({
     required String workId,
@@ -228,17 +343,36 @@ class ApiTechnicalWorkRepository
   Future<List<TechnicalWorkHoldRecord>> getHoldHistory({
     required String workId,
     required String actorUserId,
-  }) async => _unavailable();
+  }) async => List.unmodifiable(
+    (await _read(_path(workId, 'holds'), actorUserId) as List).map(_hold),
+  );
   @override
   Future<TechnicalWork> startWork({
     required String workId,
     required String actorUserId,
-  }) async => _unavailable();
+  }) async {
+    final revision = _revision(workId);
+    return _parse(
+      await _mutate(_path(workId, 'start'), actorUserId, {
+        'expected_revision': revision,
+      }, 'start'),
+    );
+  }
+
   @override
   Future<TechnicalWorkProgressNote> addProgressNote({
     required AddTechnicalWorkProgressRequest request,
     required String actorUserId,
-  }) async => _unavailable();
+  }) async {
+    final submissionId = _submissionIds[request] ??= _uuid();
+    return _note(
+      await _mutate(_path(request.workId, 'progress'), actorUserId, {
+        'submission_id': submissionId,
+        'content': request.content,
+      }, 'progress'),
+    );
+  }
+
   @override
   Future<TechnicalWorkCompletionRequest> submitCompletionRequest({
     required SubmitTechnicalWorkCompletionRequest request,
@@ -259,10 +393,30 @@ class ApiTechnicalWorkRepository
   Future<TechnicalWorkHoldRecord> putWorkOnHold({
     required PutTechnicalWorkOnHoldRequest request,
     required String actorUserId,
-  }) async => _unavailable();
+  }) async {
+    final revision = _revision(request.workId);
+    final data =
+        await _mutate(_path(request.workId, 'hold'), actorUserId, {
+              'expected_revision': revision,
+              'reason': request.reason,
+            }, 'hold')
+            as Map<String, dynamic>;
+    _parse(data['work']);
+    return _hold(data['record']);
+  }
+
   @override
   Future<TechnicalWorkHoldRecord> resumeWork({
     required String workId,
     required String actorUserId,
-  }) async => _unavailable();
+  }) async {
+    final revision = _revision(workId);
+    final data =
+        await _mutate(_path(workId, 'resume'), actorUserId, {
+              'expected_revision': revision,
+            }, 'hold')
+            as Map<String, dynamic>;
+    _parse(data['work']);
+    return _hold(data['record']);
+  }
 }
