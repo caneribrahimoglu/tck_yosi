@@ -117,14 +117,22 @@ class RoleDashboardResolver extends StatelessWidget {
       return;
     }
     await technicalWorkController.load(currentUser.id);
-    if (currentUser.role == UserRole.chief) {
+    if (currentUser.role == UserRole.chief &&
+        technicalWorkController.supportsCompletion &&
+        currentUser.hasPermission(
+          AppPermission.reviewTechnicalWorkCompletion,
+        )) {
       await technicalWorkCompletionController?.loadPending(currentUser.id);
     }
   }
 
   Future<void> _openCompletionQueue(BuildContext context) async {
     final controller = technicalWorkCompletionController;
-    if (controller == null) {
+    if (controller == null ||
+        !technicalWorkController.supportsCompletion ||
+        !currentUser.hasPermission(
+          AppPermission.reviewTechnicalWorkCompletion,
+        )) {
       return;
     }
     await Navigator.of(context).push<void>(
@@ -171,7 +179,12 @@ class RoleDashboardResolver extends StatelessWidget {
       return;
     }
     await technicalWorkController.load(currentUser.id);
-    await technicalWorkCompletionController?.loadPending(currentUser.id);
+    if (technicalWorkController.supportsCompletion &&
+        currentUser.hasPermission(
+          AppPermission.reviewTechnicalWorkCompletion,
+        )) {
+      await technicalWorkCompletionController?.loadPending(currentUser.id);
+    }
   }
 
   Future<void> _openVehicleModule(BuildContext context) async {

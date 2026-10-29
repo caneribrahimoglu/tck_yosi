@@ -19,6 +19,7 @@ import '../../technical_operations/domain/models/assignment_target.dart';
 import '../../technical_operations/domain/models/technical_work.dart';
 import '../../technical_operations/presentation/controllers/technical_work_controller.dart';
 import '../../technical_operations/presentation/controllers/technical_work_completion_controller.dart';
+import '../../technical_operations/presentation/controllers/technical_work_completion_status.dart';
 import '../../technical_operations/presentation/controllers/technical_work_load_status.dart';
 import '../../technical_operations/presentation/technical_work_presentation.dart';
 
@@ -75,7 +76,12 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
         return;
       }
       widget.technicalWorkController.load(widget.currentUser.id);
-      widget.completionController?.loadPending(widget.currentUser.id);
+      if (widget.technicalWorkController.supportsCompletion &&
+          widget.currentUser.hasPermission(
+            AppPermission.reviewTechnicalWorkCompletion,
+          )) {
+        widget.completionController?.loadPending(widget.currentUser.id);
+      }
     });
   }
 
@@ -458,11 +464,38 @@ class _ChiefDashboardPageState extends State<ChiefDashboardPage> {
   }
 
   Widget _buildApprovalQueueCard(BuildContext context) {
+    if (!widget.currentUser.hasPermission(
+      AppPermission.reviewTechnicalWorkCompletion,
+    )) {
+      return const SizedBox.shrink();
+    }
     if (!widget.technicalWorkController.supportsCompletion) {
       return const AppCard(
         child: Text(
-          'Tamamlama ve onay akışı hazırlanıyor. Bildirim, atama ve iş yürütme kullanılabilir.',
+          'Şef onay/red kuyruğu hazırlanıyor. Bildirim, atama, iş yürütme ve tamamlama talebi kullanılabilir.',
         ),
+      );
+    }
+    final completion = widget.completionController;
+    if (completion?.queueStatus == TechnicalWorkCompletionStatus.failure) {
+      return AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(completion?.errorMessage ?? 'Tamamlama onayları yüklenemedi.'),
+            TextButton(
+              onPressed: () => completion?.loadPending(widget.currentUser.id),
+              child: const Text('Tekrar Dene'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (completion == null ||
+        completion.queueStatus == TechnicalWorkCompletionStatus.initial ||
+        completion.queueStatus == TechnicalWorkCompletionStatus.loading) {
+      return const AppCard(
+        child: AppLoading(message: 'Tamamlama onayları yükleniyor...'),
       );
     }
     return AppCard(

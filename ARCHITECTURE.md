@@ -1,6 +1,6 @@
 # TCK YÖSİ — Mevcut mimari
 
-11 Ekim 2026: `31c2d45` tabanı üzerindeki ikinci teknik backend dilimine göre güncellendi. İlk dilimin manuel kabulü tamamlandı; yürütme diliminin cihaz üstü kabulü bekleniyor.
+29 Ekim 2026: `3a6eeb7` üzerine 3A tamamlama talebi ve 3B şef review eklendi. API/widget/yarış QA sonrası kullanıcı da talep, gerekçeli red, yeniden talep, onay ve geçmişin korunmasını emülatörde başarılı doğruladı.
 
 ## İki ayrı çalışma katmanı
 
@@ -12,7 +12,7 @@ Flutter araç UI → ChangeNotifier controller → domain repository → fake ad
 FastAPI route → dependency/service → SQLAlchemy session/model → PostgreSQL
 ```
 
-Auth, kullanıcılar, ekipler ve teknik bildirim/atama/başlatma/ilerleme/bekleme-devam backend'e bağlıdır; araçlar fake adapter kullanır. Domain arayüzleri korunur; izole fake testlerde tam teknik lifecycle çalışmaya devam eder. Gerçek adapterda `supportsExecution=true`, `supportsCompletion=false`: yalnız sunucuda karşılığı bulunan aksiyonlar açılır, tamamlama/onay ekranları kapalıdır ve fake write fallback yoktur.
+Auth, kullanıcılar, ekipler ve mevcut teknik lifecycle/talep/review backend'e bağlıdır; araçlar fake adapter kullanır. Domain arayüzleri korunur; izole fake testlerde teknik lifecycle çalışmaya devam eder. Gerçek adapterda execution/request/completion capability'leri true'dur; gerçek işlerde fake write fallback yoktur.
 
 ## Dizinler ve sorumluluklar
 
@@ -72,6 +72,12 @@ Yürütme mutasyonları `technical_work_execution` servisindedir. Önce current 
 
 `e8a7152c4906` migration'ı ayrı progress/hold tablolarını kurar. İlerleme work/actor/submission unique anahtarıyla tekrar gönderimde tek not üretir; client aynı içerikte başarısız gönderimi aynı request/key ile tekrarlar. Bir işte tek açık bekleme döngüsü partial unique index ile korunur. Resume yalnız açık döngünün resume alanlarını tamamlar; eski döngüyü değiştirmez, sonraki hold yeni kayıt oluşturur. Flutter history listeleri immutable'dır. Detail ve hold controller'ları logout/dispose/generation ile geç yanıtı atar; mutation sonrası detay/capability/history ve dönüşte dashboard yeniden yüklenir.
 
+Tamamlama isteği ayrı `TechnicalWorkCompletionRequest` tablosunda tutulur. Güvenli history okuması mevcut `read_work` kapsamını kullanır. Gönderim aynı actor/ekip/iş lock sırası ve `requestTechnicalWorkCompletion` etkin izniyle korunur. Talep ve pending durum geçişi tek transaction'dadır; assignment/start metadata değişmez. Work/actor/submission unique anahtarı aynı isteğin kayıp yanıt sonrası tekrarını tanır, bir işte tek pending talep partial unique index ile garanti edilir. API kimlik/yazar/zaman/decision alanlarını client'tan kabul etmez.
+
+Pending queue ve karar yalnız active/password-complete actor'ın persisted direct `reviewTechnicalWorkCompletion` iznine açıktır. Team grant, role ve global view yeterli değildir. Review actor → work → request row lock sırasını kullanır; yetki ilk lookup'tan önce, pending decision/work state lock altında doğrulanır. Approve work'ü completed yapar, tek now hem completed_at hem reviewed_at olur; reject zorunlu gerekçeyle inProgress'e döndürür. Work revision artar, assignment/start korunur, eski request silinmez. Yeni request ayrı ID'dir. İki farklı reviewer'ın approve/reject yarışında tek karar kaydolur; diğerine typed already-decided gelir.
+
+Completion controller aynı başarısız gönderimde request/key'i korur, Future.wait ile paralel read hatalarını toplar, logout/dispose/generation sonrası geç yanıtı atar. History/request desteği ile queue/review desteği ayrı capability'dir. Detay controller'ları ortak dashboard dinleyicilerine build sırasında bildirim vermemek için ilk frame sonrasında yüklenir. Pending durumda progress/hold/talep formları kapanır; backend durum doğrulaması ayrıca geçerlidir.
+
 ## Domain ve feature sınırları
 
 - Modeller immutable değerlerdir; UI isimleri domain kayıtlarına yazılmaz.
@@ -85,7 +91,7 @@ Yürütme mutasyonları `technical_work_execution` servisindedir. Önce current 
 
 ## Teknik iş kuralları
 
-Aşağıdaki tam lifecycle kuralları fake/test implementasyonunda mevcut ürün tasarımıdır. Gerçek backend bildirim → atama → başlatma, ilerleme ve bekleme/devam ile yetkili okuma/audit'i uygular. Tamamlama talebi/onay/red henüz sonraki dilime aittir.
+Aşağıdaki mevcut lifecycle hem fake/test hem gerçek backend'de uygulanır: bildirim → atama → yürütme → talep/pending → onay/completed veya red/inProgress. Güvenli geçmiş okumaları ve bekleme/devam döngüleri de kalıcıdır.
 
 - Temel akış: bildirim/inceleme → atama → `inProgress` → `awaitingCompletionApproval` → `completed`.
 - Tamamlama reddi işi `inProgress` durumuna döndürür; talep geçmişi korunur.
@@ -97,7 +103,7 @@ Aşağıdaki tam lifecycle kuralları fake/test implementasyonunda mevcut ürün
 - Detay/history okuma da actor ister. Global okuma `viewAllTechnicalWork` ile sağlanır; rol adı tek başına yetki değildir.
 - Tamamlama inceleme doğrudan `reviewTechnicalWorkCompletion` gerektirir; ekipten devredilemez.
 - Authorization durum hatalarından önce yapılır; typed hatalar controller'da güvenli kullanıcı mesajlarına çevrilir.
-- Fake repository'lerde in-flight korumaları vardır. Mevcut backend yürütme geçişleri row lock/revision, notlar idempotency ve açık bekleme döngüsü unique constraint ile korunur; tamamlama kararının backend karşılığı henüz yoktur.
+- Fake repository'lerde in-flight korumaları vardır. Backend geçişleri row lock/revision, notlar idempotency, açık bekleme ve pending request unique constraint'leriyle korunur. Review pending → terminal geçişi lock altında tek kez yapılır.
 
 Gerçek liste/detay/audit okumalarında aynı kapsam filtresi vardır: current active actor, kendi oluşturduğu bildirim veya doğrudan assignment veya aktif/arşivlenmemiş ekipte aktif üyelik; explicit direct `viewAllTechnicalWork` tüm kayıtları açar. Eksik/inaccessible UUID aynı typed 403 verir. Assigned-only listede ekip yoluyla yalnız açık işler gelir; OR sorgusu aynı işi tek kayıt getirir. Eski fake geniş liste API'sinin borcu gerçek sunucuya aktarılmadı.
 
@@ -109,13 +115,13 @@ Araç domain'i kuruma ait/sözleşmeli ayrımı, tür, kilometre ve operasyon du
 
 ## Backend sınırı
 
-Kalıcı modeller User, Team, TeamMembership, TechnicalWork, TechnicalWorkAssignment, TechnicalWorkProgressNote ve TechnicalWorkHoldRecord'dır. Araç ve completion history tabloları henüz yoktur. Kullanıcı direct izinleri ve ekip izinleri ayrı JSON alanlarında, üyelikler ayrı tablodadır. Permission enum'ları Flutter sözleşmesiyle eşleşir; rol runtime grant üretmez.
+Kalıcı modeller User, Team, TeamMembership, TechnicalWork, TechnicalWorkAssignment, TechnicalWorkProgressNote, TechnicalWorkHoldRecord ve TechnicalWorkCompletionRequest'tir. 3B mevcut review alanlarını kullanır; ek migration yoktur. Araç tabloları henüz yoktur. Kullanıcı direct izinleri ve ekip izinleri ayrı JSON alanlarında, üyelikler ayrı tablodadır. Permission enum'ları Flutter sözleşmesiyle eşleşir; rol runtime grant üretmez.
 
 - Parolalar Argon2 ile hash'lenir; yeni parola minimum 12 karakterdir.
 - JWT erişim tokenı HS256 ile imzalanır; örnek ayarda ömür 30 dakikadır.
 - Auth dependency tokenı doğrular ve kullanıcıyı veritabanından yeniden okur; eksik/pasif actor reddedilir.
 - Zorunlu parola değişimi dependency'si kullanıcı/ekip ve bütün teknik iş uçlarında uygulanır.
-- Health/auth, kullanıcı/ekip ve teknik bildirim/liste/detay/atama/audit/başlatma/ilerleme/bekleme-devam uçları vardır. Refresh/revocation, teknik tamamlama/onay ve araç API'leri henüz yoktur.
+- Health/auth, kullanıcı/ekip ve teknik bildirim/liste/detay/atama/audit/yürütme/talep/history/review/pending queue uçları vardır. Refresh/revocation ve araç API'leri henüz yoktur.
 - Ayarlar environment/`.env` üzerinden alınır; gerçek secret değerleri source control'e yazılmaz.
 - API adresi `API_BASE_URL` dart-define ile seçilir. Yerel HTTP yalnız Flutter debug'da kabul edilir; release/profile HTTPS ister. CORS yalnız açıkça yapılandırılmış origin'lere izin verir.
 

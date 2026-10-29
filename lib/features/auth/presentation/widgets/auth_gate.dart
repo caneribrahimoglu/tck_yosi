@@ -73,6 +73,7 @@ class _AuthGateState extends State<AuthGate> {
     widget.technicalWorkController.resetSession();
     widget.technicalWorkDetailController.resetSession();
     widget.technicalWorkHoldController.resetSession();
+    widget.technicalWorkCompletionController.resetSession();
     widget.fieldReportController.resetSession();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
@@ -129,7 +130,7 @@ class _AuthGateState extends State<AuthGate> {
       technicalWorkController: widget.technicalWorkController,
       technicalWorkDetailController: widget.technicalWorkDetailController,
       technicalWorkCompletionController:
-          widget.technicalWorkController.supportsCompletion
+          widget.technicalWorkController.supportsCompletionRequests
           ? widget.technicalWorkCompletionController
           : null,
       technicalWorkHoldController:
@@ -152,7 +153,7 @@ class _AuthGateState extends State<AuthGate> {
             child: const Padding(
               padding: EdgeInsets.all(8),
               child: Text(
-                'Kullanıcılar, ekipler ve teknik iş yürütme kayıtları sunucuda saklanır. Araçlar demodur; tamamlama/onay akışı hazırlanıyor.',
+                'Teknik işler, tamamlama talepleri ve şef kararları sunucuda saklanır. Araçlar demodur.',
                 textAlign: TextAlign.center,
               ),
             ),

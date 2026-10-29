@@ -64,6 +64,7 @@ def capabilities(work_id: UUID, session: DatabaseSession, actor: BusinessUser):
         "can_add_progress": work.status == "inProgress" and can_execute(session, actor, work, AppPermission.addTechnicalWorkProgress),
         "can_pause": work.status == "inProgress" and can_execute(session, actor, work, AppPermission.pauseTechnicalWork),
         "can_resume": work.status == "onHold" and can_execute(session, actor, work, AppPermission.resumeTechnicalWork),
+        "can_request_completion": work.status == "inProgress" and can_execute(session, actor, work, AppPermission.requestTechnicalWorkCompletion),
     }
 
 

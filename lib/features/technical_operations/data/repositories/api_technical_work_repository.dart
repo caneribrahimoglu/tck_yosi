@@ -11,6 +11,8 @@ import '../../domain/errors/technical_work_detail_read_exception.dart';
 import '../../domain/errors/technical_work_start_exception.dart';
 import '../../domain/errors/technical_work_progress_exception.dart';
 import '../../domain/errors/technical_work_hold_exception.dart';
+import '../../domain/errors/technical_work_completion_exception.dart';
+import '../../domain/enums/technical_work_completion_decision.dart';
 import '../../domain/models/add_technical_work_progress_request.dart';
 import '../../domain/models/assignment_target.dart';
 import '../../domain/models/create_field_report_request.dart';
@@ -24,8 +26,7 @@ import '../../domain/models/technical_work_progress_note.dart';
 import '../../domain/repositories/technical_work_repository.dart';
 import '../../domain/repositories/technical_work_repository_capabilities.dart';
 
-/// Real reports, assignment, start/progress/hold/resume. Completion remains
-/// explicitly unavailable; real records never enter the fake repository.
+/// Real technical lifecycle and completion review; never falls back to demo writes.
 class ApiTechnicalWorkRepository
     implements TechnicalWorkRepository, TechnicalWorkRepositoryCapabilities {
   final ApiAuthService api;
@@ -36,7 +37,9 @@ class ApiTechnicalWorkRepository
   @override
   bool get supportsExecution => true;
   @override
-  bool get supportsCompletion => false;
+  bool get supportsCompletion => true;
+  @override
+  bool get supportsCompletionRequests => true;
 
   Future<void> _requireActor(String id) async {
     final user = await api.getCurrentUser();
@@ -192,8 +195,6 @@ class ApiTechnicalWorkRepository
         (work) => work.assignedToTeamId == teamId && work.isOpen,
       );
 
-  Never _unavailable() => throw const ApiException('feature_not_available');
-
   String _path(String workId, String suffix) =>
       'technical-works/${Uri.encodeComponent(workId)}/$suffix';
 
@@ -241,6 +242,31 @@ class ApiTechnicalWorkRepository
         }
         if (error.code == 'technical_work_progress_submission_conflict') {
           throw const TechnicalWorkProgressSubmissionInFlightException();
+        }
+      } else if (operation == 'review') {
+        if (denied) {
+          throw const TechnicalWorkCompletionReviewNotAllowedException();
+        }
+        if (error.code == 'invalid_input') {
+          throw const TechnicalWorkCompletionInvalidInputException();
+        }
+        if (error.code == 'technical_work_completion_already_decided') {
+          throw const TechnicalWorkCompletionAlreadyDecidedException();
+        }
+        if (error.code == 'technical_work_completion_review_invalid_state') {
+          throw const TechnicalWorkCompletionInvalidStateException();
+        }
+      } else if (operation == 'completion') {
+        if (denied) throw const TechnicalWorkCompletionNotAllowedException();
+        if (error.code == 'invalid_input') {
+          throw const TechnicalWorkCompletionInvalidInputException();
+        }
+        if (error.code == 'technical_work_completion_invalid_state' ||
+            error.code == 'technical_work_completion_revision_conflict') {
+          throw const TechnicalWorkCompletionInvalidStateException();
+        }
+        if (error.code == 'technical_work_completion_submission_conflict') {
+          throw const TechnicalWorkCompletionSubmissionInFlightException();
         }
       } else {
         if (denied) throw const TechnicalWorkHoldNotAllowedException();
@@ -312,7 +338,7 @@ class ApiTechnicalWorkRepository
   Future<bool> canUserRequestCompletion({
     required String workId,
     required String userId,
-  }) async => false;
+  }) => _can(workId, userId, 'can_request_completion');
   @override
   Future<bool> canUserPauseWork({
     required String workId,
@@ -334,11 +360,31 @@ class ApiTechnicalWorkRepository
   Future<List<TechnicalWorkCompletionRequest>> getCompletionRequests({
     required String workId,
     required String actorUserId,
-  }) async => _unavailable();
+  }) async => List.unmodifiable(
+    (await _read(_path(workId, 'completion-requests'), actorUserId) as List)
+        .map(_completion),
+  );
   @override
   Future<List<TechnicalWorkCompletionReviewItem>> getPendingCompletionReviews({
     required String actorUserId,
-  }) async => _unavailable();
+  }) async {
+    try {
+      return List.unmodifiable(
+        (await _read('technical-works/completion-requests/pending', actorUserId)
+                as List)
+            .map((value) {
+              final data = value as Map<String, dynamic>;
+              return TechnicalWorkCompletionReviewItem(
+                work: _parse(data['work']),
+                request: _completion(data['request']),
+              );
+            }),
+      );
+    } on TechnicalWorkDetailReadNotAllowedException {
+      throw const TechnicalWorkCompletionReviewNotAllowedException();
+    }
+  }
+
   @override
   Future<List<TechnicalWorkHoldRecord>> getHoldHistory({
     required String workId,
@@ -377,18 +423,76 @@ class ApiTechnicalWorkRepository
   Future<TechnicalWorkCompletionRequest> submitCompletionRequest({
     required SubmitTechnicalWorkCompletionRequest request,
     required String actorUserId,
-  }) async => _unavailable();
+  }) async {
+    final revision = _revision(request.workId);
+    final submissionId = _submissionIds[request] ??= _uuid();
+    final data =
+        await _mutate(
+              _path(request.workId, 'completion-requests'),
+              actorUserId,
+              {
+                'expected_revision': revision,
+                'submission_id': submissionId,
+                'summary': request.summary,
+              },
+              'completion',
+            )
+            as Map<String, dynamic>;
+    _parse(data['work']);
+    return _completion(data['request']);
+  }
+
+  TechnicalWorkCompletionRequest _completion(Object? value) {
+    final data = value as Map<String, dynamic>;
+    return TechnicalWorkCompletionRequest(
+      id: data['id'] as String,
+      workId: data['work_id'] as String,
+      requestedByUserId: data['requested_by_user_id'] as String,
+      summary: data['summary'] as String,
+      requestedAt: DateTime.parse(data['requested_at'] as String).toLocal(),
+      decision: TechnicalWorkCompletionDecision.values.byName(
+        data['decision'] as String,
+      ),
+      reviewedByUserId: data['reviewed_by_user_id'] as String?,
+      reviewedAt: data['reviewed_at'] == null
+          ? null
+          : DateTime.parse(data['reviewed_at'] as String).toLocal(),
+      rejectionReason: data['rejection_reason'] as String?,
+    );
+  }
+
   @override
   Future<TechnicalWorkCompletionRequest> approveCompletionRequest({
     required String requestId,
     required String actorUserId,
-  }) async => _unavailable();
+  }) => _reviewCompletion(requestId, actorUserId, const {}, 'approve');
   @override
   Future<TechnicalWorkCompletionRequest> rejectCompletionRequest({
     required String requestId,
     required String actorUserId,
     required String rejectionReason,
-  }) async => _unavailable();
+  }) => _reviewCompletion(requestId, actorUserId, {
+    'reason': rejectionReason,
+  }, 'reject');
+
+  Future<TechnicalWorkCompletionRequest> _reviewCompletion(
+    String requestId,
+    String actorUserId,
+    Map<String, Object?> body,
+    String action,
+  ) async {
+    final data =
+        await _mutate(
+              'technical-works/completion-requests/${Uri.encodeComponent(requestId)}/$action',
+              actorUserId,
+              body,
+              'review',
+            )
+            as Map<String, dynamic>;
+    _parse(data['work']);
+    return _completion(data['request']);
+  }
+
   @override
   Future<TechnicalWorkHoldRecord> putWorkOnHold({
     required PutTechnicalWorkOnHoldRequest request,

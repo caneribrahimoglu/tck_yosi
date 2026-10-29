@@ -1,10 +1,10 @@
 # TCK YÖSİ — Yol haritası ve devam noktası
 
-Son güncelleme: 11 Ekim 2026. Taban: `31c2d45`; bu teslim ikinci teknik backend dilimini ekler. Bu belge tamamlanan kodu ve önerilen işleri ayırır; sonraki maddeler kendiliğinden onaylanmış görev kapsamı değildir.
+Son güncelleme: 29 Ekim 2026. Taban: `3a6eeb7` sonrası 3A talep/history ve 3B şef onay/red teslimi. Kullanıcı manuel kabulü ve commit/push onayı tamamlandı. Bu belge tamamlanan kodu ve önerilen işleri ayırır; sonraki maddeler kendiliğinden onaylanmış görev kapsamı değildir.
 
 ## Mevcut aşama
 
-Gerçek auth/kullanıcı/ekip ve ilk teknik backend diliminin manuel kabulü tamamlandı. İkinci teknik backend dilimi başlatma, ilerleme notları ve bekleme/devam döngülerini PostgreSQL'e taşıdı; cihaz üstü manuel kabulü bekleniyor. Tamamlama/onay ve araçların backend geçişi hâlâ açık.
+Gerçek auth/kullanıcı/ekip ve mevcut teknik lifecycle/tamamlama dilimlerinin manuel kabulü tamamlandı. 310 Flutter/197 backend ve ayrı QA işiyle gerçek API red → yeniden talep → onay geçti. Kullanıcı da emülatörde kuyruğu, red sonrası çalışmaya dönüşü, yeni talebi, onayı ve geçmişin korunmasını başarılı doğruladı. Araç backend'i hâlâ açık.
 
 ## Tamamlanan dilimler
 
@@ -32,14 +32,16 @@ Gerçek auth/kullanıcı/ekip ve ilk teknik backend diliminin manuel kabulü tam
 | Backend auth (`7f7cc6c`) | Giriş, JWT, mevcut kullanıcı, parola değiştirme ve güvenlik testleri. |
 | Gerçek auth/kullanıcı/ekip (`840b757`) | Flutter API adapterları, güvenli oturum, şef kullanıcı yönetimi ve kalıcı ekip/üyelik/yetkiler. |
 | Teknik backend dilim 1 (`31c2d45`) | Bildirim, kapsamlı liste/detay yetkilendirmesi, gerçek mühendis/ekip ataması, revision/audit, sunucu ekip arşiv guard'ı. Manuel kabul tamamlandı. |
-| Teknik backend dilim 2 (11 Ekim 2026 teslimi) | Güvenli başlatma, idempotent ilerleme notları, gerekçeli bekleme/devam ve kalıcı döngü geçmişi. Manuel kabul bekleniyor. |
+| Teknik backend dilim 2 (`3a6eeb7`) | Güvenli başlatma, idempotent ilerleme notları, gerekçeli bekleme/devam ve kalıcı döngü geçmişi. 29 Ekim'de manuel kabul tamamlandı. |
+| Teknik backend dilim 3A (29 Ekim teslimi) | Mühendis tamamlama talebi, pending geçişi ve güvenli kalıcı geçmiş; manuel kabul tamamlandı. |
+| Teknik backend dilim 3B (29 Ekim teslimi) | Direct reviewer yetkisi, gerçek onay/red kuyruğu, required ret nedeni, tek terminal karar, kalıcı history ve gerçek sayaç. 310 Flutter/197 backend ve kullanıcı manuel kabulü tamamlandı. |
 
 “Tamamlandı” bu dilimin kodunun mevcut olduğunu belirtir; üretim kurulumu veya gerçek backend entegrasyonu tamamlandı demek değildir.
 
 ## Açık işler ve mevcut sınırlar
 
 - API auth adapterı uygulamanın varsayılan servisidir. Gerçek `sef` hesabıyla giriş/restore/logout manuel kabulü tamamlandı.
-- Teknik işler, atama/ilerleme/bekleme geçmişi ve kullanıcı/ekip/üyelik/yetkiler PostgreSQL'de kalıcıdır. Araçlar demo kalır. Tamamlama/onay fake testlerde korunur ama gerçek işlere henüz uygulanamaz.
+- Teknik işler, tüm mevcut lifecycle/talep/karar geçmişi ve kullanıcı/ekip/üyelik/yetkiler PostgreSQL'de kalıcıdır. Araçlar demo kalır. Review doğrudan reviewTechnicalWorkCompletion ister; korunan bu yetki ekipten devredilemez.
 - Şef `manageUsers` doğrudan yetkisiyle kullanıcı oluşturma, aktiflik, geçici parola ve izin yönetimi yapar. Ekip yönetimi ayrı `manageTeamPermissions` sınırındadır. Yönetim yetkileri ekipten devredilemez.
 - Zorunlu parola değişimi Flutter'da uygulanıyor; gelecekteki korumalı iş uçları sunucudaki dependency'yi kullanmalıdır.
 - Android/masaüstünde güvenli kalıcı token oturumu mevcut. Web tokenı yalnız bellekte. Refresh token ve sunucu logout/revocation henüz yok.
@@ -50,10 +52,10 @@ Gerçek auth/kullanıcı/ekip ve ilk teknik backend diliminin manuel kabulü tam
 
 ## Önerilen devam sırası
 
-1. **İkinci dilimin manuel kabulü → teknik backend dilim 3:** mevcut başlatma/ilerleme/bekleme/devam akışını cihazda doğrula. Sonraki kapsam tamamlama talebi, gerçek şef onay kuyruğu, onay/red ve kalıcı talep geçmişi olacak.
+1. **Önerilen yeni dilim araç backend'i:** teknik 3A/3B manuel kabulü ve sabitleme onayı tamamlandı. Önce yetkili filo liste/detay read modeli ve API adapterı, sonra araç mutasyonları/geçmişleri ayrı küçük dilimler olarak planlanmalı. Uygulamaya başlamak için yeni kullanıcı talebi gerekir.
 2. **Oturumun sonraki ihtiyaçlarını seç:** mevcut access-token oturumu dışında refresh/revocation veya web HttpOnly-cookie akışı gerekiyorsa ayrı dilim tanımla.
 3. **Kullanıcı ve ekip temeli eklendi:** migration/API ve Flutter adapterları hazır; sonrasında ihtiyaç varsa profil/rol düzenleme ve kapsamlı audit ayrı dilimdir.
-4. **Kalan domain'leri backend'e taşı:** teknik tamamlama/onay ve araç migration/API/adapterları. Bildirim/atama/yürütme/audit/arşiv guard tamamlandı; kalan geçmişler ve durum geçişleri ayrı transaction'larla korunmalı.
+4. **Kalan domain'leri backend'e taşı:** araç migration/API/adapterları. Mevcut teknik bildirim/atama/yürütme/tamamlama-karar/audit/arşiv guard tamamlandı; araç geçmişleri ve durum geçişleri ayrı transaction'larla korunmalı.
 5. **Yeni ürün kapsamını seç:** personel, yakıt/kilometre takibi, raporlar ve bildirimler. Her biri ayrı ve test edilebilir dikey dilim olarak tanımlanmalı.
 
 Bu sıra mevcut bağımlılıklara göre öneridir. Ayrıntılı görev kimliği ve kabul kriterleri uygulama başlamadan netleştirilir.

@@ -32,6 +32,7 @@ void main() {
       Map<String, Object?>? stored;
       final notes = <Map<String, Object?>>[];
       final holds = <Map<String, Object?>>[];
+      final completions = <Map<String, Object?>>[];
       final team = {
         'id': 'team-uuid',
         'name': 'Gerçek Teknik Ekip',
@@ -43,6 +44,7 @@ void main() {
           'addTechnicalWorkProgress',
           'pauseTechnicalWork',
           'resumeTechnicalWork',
+          'requestTechnicalWorkCompletion',
         ],
       };
       var creates = 0;
@@ -84,7 +86,37 @@ void main() {
                   current == engineer && stored?['status'] == 'inProgress',
               'can_resume':
                   current == engineer && stored?['status'] == 'onHold',
+              'can_request_completion':
+                  current == engineer && stored?['status'] == 'inProgress',
             });
+          }
+          if (path.endsWith('/completion-requests')) {
+            if (r.method == 'POST') {
+              final data = jsonDecode(r.body);
+              expect(data['expected_revision'], stored!['revision']);
+              expect(data['submission_id'], isA<String>());
+              completions.add({
+                'id': 'completion-uuid',
+                'work_id': 'work-uuid',
+                'requested_by_user_id': 'engineer-uuid',
+                'summary': data['summary'],
+                'requested_at': '2026-10-29T12:00:00Z',
+                'decision': 'pending',
+                'reviewed_by_user_id': null,
+                'reviewed_at': null,
+                'rejection_reason': null,
+              });
+              stored = {
+                ...stored!,
+                'status': 'awaitingCompletionApproval',
+                'revision': (stored!['revision'] as int) + 1,
+              };
+              return jsonResponse({
+                'work': stored,
+                'request': completions.last,
+              }, 201);
+            }
+            return jsonResponse(completions);
           }
           if (path.endsWith('/start')) {
             expect(jsonDecode(r.body), {'expected_revision': 1});
@@ -272,7 +304,7 @@ void main() {
       expect(find.text('Gerçek Test Şef'), findsOneWidget);
       expect(find.text('Kalıcı saha açıklaması'), findsOneWidget);
       expect(find.text('İlerleme Kaydı Ekle'), findsOneWidget);
-      expect(find.text('Tamamlanmak Üzere Gönder'), findsNothing);
+      expect(find.text('Tamamlanmak Üzere Gönder'), findsOneWidget);
       await tester.ensureVisible(find.text('İlerleme Kaydı Ekle'));
       await tester.tap(find.text('İlerleme Kaydı Ekle'));
       await tester.pumpAndSettle();
@@ -319,9 +351,34 @@ void main() {
       expect(tester.takeException(), isNull);
       tester.view.physicalSize = const Size(1400, 1100);
       await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 7));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Tamamlanmak Üzere Gönder'));
+      await tester.tap(find.text('Tamamlanmak Üzere Gönder'));
+      await tester.pumpAndSettle();
+      expect(find.text('Tamamlama özeti boş olamaz.'), findsOneWidget);
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Tamamlama özeti'),
+        'Kalıcı tamamlama özeti',
+      );
+      await tester.ensureVisible(find.text('Tamamlanmak Üzere Gönder'));
+      await tester.tap(find.text('Tamamlanmak Üzere Gönder'));
+      await tester.pumpAndSettle();
+      expect(completions, hasLength(1));
+      expect(find.text('Kalıcı tamamlama özeti'), findsOneWidget);
+      expect(find.text('Onay Bekliyor'), findsOneWidget);
+      expect(find.text('İlerleme Kaydı Ekle'), findsNothing);
+      expect(find.text('Beklemeye Al'), findsNothing);
+      expect(find.text('Tamamlanmak Üzere Gönder'), findsNothing);
+      expect(stored!['assigned_to_team_id'], 'team-uuid');
+      tester.view.physicalSize = const Size(360, 800);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      tester.view.physicalSize = const Size(1400, 1100);
+      await tester.pumpAndSettle();
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.text('Devam Ediyor'), findsWidgets);
+      expect(find.text('Tamamlama Onayı Bekliyor'), findsWidgets);
       await tester.tap(find.byTooltip('Çıkış yap'));
       await tester.pumpAndSettle();
       await login('sef');
@@ -338,6 +395,10 @@ void main() {
       );
       expect(find.text('İlerleme Kaydı Ekle'), findsNothing);
       expect(find.text('Beklemeye Al'), findsNothing);
+      expect(find.text('Kalıcı tamamlama özeti'), findsOneWidget);
+      expect(find.text('Tamamlanmak Üzere Gönder'), findsNothing);
+      expect(find.text('completion-uuid'), findsNothing);
+      expect(find.text('Onay Kuyruğu'), findsNothing);
       expect(find.text('engineer-uuid'), findsNothing);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();

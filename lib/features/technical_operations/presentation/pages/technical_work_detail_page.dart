@@ -52,18 +52,23 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
   @override
   void initState() {
     super.initState();
-    widget.controller.load(
-      workId: widget.workId,
-      userId: widget.currentUser.id,
-    );
-    widget.completionController?.loadForWork(
-      workId: widget.workId,
-      userId: widget.currentUser.id,
-    );
-    widget.holdController?.load(
-      workId: widget.workId,
-      userId: widget.currentUser.id,
-    );
+    // These controllers are shared with dashboards underneath this route.
+    // Notify them after the route's first build, not during widget construction.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.controller.load(
+        workId: widget.workId,
+        userId: widget.currentUser.id,
+      );
+      widget.completionController?.loadForWork(
+        workId: widget.workId,
+        userId: widget.currentUser.id,
+      );
+      widget.holdController?.load(
+        workId: widget.workId,
+        userId: widget.currentUser.id,
+      );
+    });
   }
 
   @override
@@ -89,10 +94,7 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
     }
     if (succeeded) {
       _completionSummaryController.clear();
-      await widget.controller.load(
-        workId: widget.workId,
-        userId: widget.currentUser.id,
-      );
+      await _refreshAfterHoldTransition();
       if (!mounted) {
         return;
       }
@@ -102,12 +104,15 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
         message: 'Tamamlama talebi onaya gönderildi.',
       );
     } else {
+      final message =
+          completionController.errorMessage ??
+          'Tamamlama talebi gönderilemedi.';
+      await _refreshAfterHoldTransition();
+      if (!mounted) return;
       AppSnackbar.show(
         context: context,
         type: AppSnackbarType.error,
-        message:
-            completionController.errorMessage ??
-            'Tamamlama talebi gönderilemedi.',
+        message: message,
       );
     }
   }
@@ -529,6 +534,24 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
           const SizedBox(height: AppSpacing.md),
           if (isLoading)
             const AppLoading(message: 'Tamamlama geçmişi yükleniyor...')
+          else if (controller.detailStatus ==
+                  TechnicalWorkCompletionStatus.failure &&
+              controller.history.isEmpty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  controller.errorMessage ?? 'Tamamlama geçmişi yüklenemedi.',
+                ),
+                TextButton(
+                  onPressed: () => controller.loadForWork(
+                    workId: widget.workId,
+                    userId: widget.currentUser.id,
+                  ),
+                  child: const Text('Tekrar Dene'),
+                ),
+              ],
+            )
           else if (controller.history.isEmpty)
             const Text('Henüz tamamlama talebi yok.')
           else
@@ -549,6 +572,12 @@ class _TechnicalWorkDetailPageState extends State<TechnicalWorkDetailPage> {
               if (index != controller.history.length - 1)
                 const Divider(height: AppSpacing.xl),
             ],
+          if (!controller.supportsReview) ...[
+            const SizedBox(height: AppSpacing.md),
+            const Text(
+              'Tamamlama talebi kaydedilir. Şef onay/red ekranı sonraki aşamada açılacaktır.',
+            ),
+          ],
           if (controller.canRequestCompletion) ...[
             const SizedBox(height: AppSpacing.xl),
             Form(

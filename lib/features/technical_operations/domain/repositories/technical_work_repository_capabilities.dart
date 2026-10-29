@@ -2,4 +2,5 @@
 abstract interface class TechnicalWorkRepositoryCapabilities {
   bool get supportsExecution;
   bool get supportsCompletion;
+  bool get supportsCompletionRequests;
 }

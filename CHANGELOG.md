@@ -1,5 +1,28 @@
 # TCK YÖSİ — Değişiklik geçmişi
 
+## 29 Ekim 2026 — Teknik backend 3B: şef onay/red
+
+- Persisted direct reviewer yetkisiyle gerçek pending queue, approve/reject API; role/global read ve legacy team review grant kabul edilmez. Authorization lookup/state hatalarından önce.
+- Actor → work → request row lock ile tek terminal karar; iki şefin approve/approve, reject/reject ve approve/reject yarışları PostgreSQL'de doğrulandı.
+- Onay completed durumuna ve aynı now ile completion/review zamanına; red gerekli gerekçeyle inProgress'e geçer. Revision artar, assignment/start ve tüm eski request history korunur.
+- Mevcut 3A review alanları kullanıldı; ek migration/paket yok. API adapter, typed hatalar ve gerçek queue/count açıldı.
+- Controller double-review/session/stale-load koruması; başarılı karar sonrası refresh hatası sonucu başarısız gibi göstermez. Already-decided kuyruk yeniler. Permission yoksa queue/count yok; loading/failure gerçek sayı gibi gösterilmez.
+- Literal Onay Kuyruğu üzerinden gerçek API mock navigasyonu, mobil approve/reject/boş gerekçe, detay metadata/history ve status/count dönüşü testleri.
+
+Doğrulama: 310 Flutter ve PostgreSQL yarışları dahil 197 backend testi geçti; analyze, format ve Alembic check temiz. Gerçek yerel API'de yalnız mevcut QA işinde red → yeni request → onay ve tekrar karar reddi geçti; QA hesap/ekip finally ile tekrar pasifleştirildi. Ajanın ek görsel kontrolü oturum ekranında kaldıktan sonra kullanıcı emülatörde Onay Kuyruğu, gerekçeli red, çalışmaya dönüş, yeniden talep, onay ve geçmişin korunmasını bizzat başarılı doğruladı. 29 Ekim'de manuel kabulü ve commit/push işlemlerini onayladı.
+
+## 29 Ekim 2026 — Teknik backend 3A: tamamlama talebi
+
+- `3a6eeb7` yürütme dilimi kullanıcıyla manuel doğrulandı: başlatma, ilerleme, boş/dolu bekleme gerekçesi, devam ve şef oturumunda geçmiş/atama sınırı çalışıyor.
+- Kullanıcının küçük parçalarla ilerleme isteğiyle talep/history (3A) ve şef review/queue (3B) ayrıldı. 3A bu teslimdir; gerçek onay/red ve sayaç henüz kapalı.
+- Ayrı completion request modeli/şeması/servisi ve GET/POST history API; `f2a6c803d915` migration'ı yerel PostgreSQL'e uygulandı, model karşılaştırması temiz.
+- Aktif current assignment/permission doğrulaması state hatalarından önce; aynı actor/teams/work lock düzeni, revision, idempotency ve tek pending DB index'i. Talep ve pending geçişi atomik; assignment/start korunur.
+- Flutter API adapterı, ayrı request/review capability, retry/double-submit ve session-generation korumalı controller; mevcut detail formu ve read-only şef history bağlandı. Pending durumda ilerleme/hold/yeni talep kapanır.
+- Ortak controller'ların detail sayfası açılırken ilk frame sonrası yüklenmesi build sırasında notifier hatasını giderir. History load failure boş başarı gibi gösterilmez.
+- Kalıcılık, auth/state/input, API/controller/widget, dar ekran ve PostgreSQL çift gönderim/hold yarışı testleri eklendi.
+
+Doğrulama: 301 Flutter testi ve PostgreSQL yarışları dahil 181 backend testi geçti; kullanıcının uzaktayken test isteği üzerine iki paket tekrar çalıştırıldı ve yine geçti. Dart format, Flutter analyze, git diff --check ve migration/Alembic check temiz; Android debug APK derlendi. Yerel API yeniden başlatıldı, DB health ve yeni history/request ucu doğrulandı. Ajan gerçek API'ye bağlı Pixel 9 Pro XL emülatöründe boş/dolu özet, submitting/disabled, pending form kilidi, yeniden açılış ve şef read-only history akışını doğruladı. Ayrı QA hesabı/ekibi test sonrası pasifleştirildi; tek etiketli test işi/history kaldı. Geçici test dosyaları kaldırıldı, standart uygulama geri yüklendi. Ayrıntılar [QA raporunda](QA_REPORT_2026-10-29.md). Bu, kullanıcı tarafından yapılmış manuel kabul iddiası değildir. Stage/commit/push yapılmadı.
+
 ## 11 Ekim 2026 — Teknik backend dilim 2 (`31c2d45` sonrası)
 
 - Başlatma, ilerleme notu, beklemeye alma/devam gerçek API ve PostgreSQL'e taşındı; ekip ataması ve orijinal başlangıç metadata'sı korunur.

@@ -5,6 +5,7 @@ import '../../../shared/widgets/app_page_header.dart';
 import '../../auth/domain/enums/app_permission.dart';
 import '../../auth/domain/models/app_user.dart';
 import '../../technical_operations/presentation/controllers/technical_work_completion_controller.dart';
+import '../../technical_operations/presentation/controllers/technical_work_completion_status.dart';
 import '../../technical_operations/presentation/controllers/technical_work_controller.dart';
 import '../../technical_operations/presentation/controllers/technical_work_load_status.dart';
 import '../widgets/module_card.dart';
@@ -56,7 +57,12 @@ class _ChiefHomePageState extends State<ChiefHomePage> {
       return;
     }
     widget.technicalWorkController.load(widget.currentUser.id);
-    widget.completionController?.loadPending(widget.currentUser.id);
+    if (widget.technicalWorkController.supportsCompletion &&
+        widget.currentUser.hasPermission(
+          AppPermission.reviewTechnicalWorkCompletion,
+        )) {
+      widget.completionController?.loadPending(widget.currentUser.id);
+    }
   }
 
   @override
@@ -210,12 +216,22 @@ class _ChiefHomePageState extends State<ChiefHomePage> {
         label: 'Kritik olay',
         value: widget.technicalWorkController.criticalWorkCount.toString(),
       ),
-      ModuleSummary(
-        label: 'Tamamlama onayı',
-        value: widget.technicalWorkController.supportsCompletion
-            ? (widget.completionController?.pendingCount ?? 0).toString()
-            : 'Hazırlanıyor',
-      ),
+      if (widget.currentUser.hasPermission(
+        AppPermission.reviewTechnicalWorkCompletion,
+      ))
+        ModuleSummary(
+          label: 'Tamamlama onayı',
+          value: widget.technicalWorkController.supportsCompletion
+              ? switch (widget.completionController?.queueStatus) {
+                  TechnicalWorkCompletionStatus.loaded ||
+                  TechnicalWorkCompletionStatus.success ||
+                  TechnicalWorkCompletionStatus.submitting =>
+                    widget.completionController!.pendingCount.toString(),
+                  TechnicalWorkCompletionStatus.failure => 'Yüklenemedi',
+                  _ => 'Yükleniyor',
+                }
+              : 'Hazırlanıyor',
+        ),
     ];
   }
 }

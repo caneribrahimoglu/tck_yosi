@@ -218,7 +218,9 @@ void main() {
     expect(find.text('Yetki Yönetimi'), findsOneWidget);
     expect(find.text('Yol yüzeyinde çökme'), findsNWidgets(2));
     expect(find.text('Ekip Durumu'), findsOneWidget);
-    expect(find.text('Onay Bekleyenler'), findsOneWidget);
+    // Generic approveOperations must not expose technical completion review.
+    expect(find.text('Onay Bekleyenler'), findsNothing);
+    expect(find.text('Onay Kuyruğu'), findsNothing);
     expect(find.text('Yönetim Menüsü'), findsNothing);
     expect(find.text('Bugünkü Aracın'), findsNothing);
 

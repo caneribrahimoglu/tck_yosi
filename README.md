@@ -4,26 +4,26 @@ Karayolu işletme şefliği için geliştirilen Flutter tabanlı operasyon ve y�
 
 ## Güncel durum
 
-Bu belge 11 Ekim 2026 tarihinde güncellendi. `31c2d45` ilk teknik backend teslimi üzerine ikinci dilim eklendi: başlatma, ilerleme notları ve bekleme/devam. Önceki auth/kullanıcı/ekip ve bildirim/atama dilimleri kullanıcı tarafından manuel doğrulandı; yeni yürütme diliminin cihaz üstü manuel kabulü bekleniyor.
+Bu belge 29 Ekim 2026 tarihinde güncellendi. `3a6eeb7` üzerine 3A tamamlama talebi ve 3B şef onay/red kuyruğu gerçek backend'e bağlandı. Otomatik/API QA sonrası kullanıcı da emülatörde talep → gerekçeli red → yeniden talep → onay ve geçmişin korunmasını başarılı doğruladı; commit/push işlemlerini onayladı. Ayrıntılar: [QA raporu](QA_REPORT_2026-10-29.md).
 
 | Alan | Mevcut durum |
 | --- | --- |
 | Flutter uygulaması | Responsive Violet UI, rol bazlı dashboardlar ve şef modül ana sayfası mevcut. |
-| Teknik operasyonlar | Bildirim, yetkili liste/detay, atama, başlatma, ilerleme ve bekleme/devam gerçek API/DB'ye bağlı. Tamamlama/onay henüz yalnız izole fake/test uygulamasında mevcut. |
+| Teknik operasyonlar | Bildirim, yetkili liste/detay, atama, yürütme, tamamlama talebi/geçmişi ve şef onay/red gerçek API/DB'ye bağlı. |
 | Ekipler | Üyelik, yetki, aktif/pasif, arşiv/geri yükleme gerçek PostgreSQL kayıtlarına bağlı. |
 | Araçlar | Filo, detay, ekleme/düzenleme, atama geçmişi, teslim/kontrol, arıza ve bakım akışları mevcut. |
 | Personel | Şef için gerçek kullanıcı oluşturma, aktiflik, geçici parola ve doğrudan yetki yönetimi. Mesai/izin gibi personel süreçleri henüz yok. |
 | Backend | FastAPI, PostgreSQL/SQLAlchemy, Alembic ve güvenli kimlik doğrulama temeli mevcut. |
-| Flutter–backend bağlantısı | Auth, kullanıcılar, ekip/üyelik/yetkiler ve teknik bildirim/atama gerçek API'ye bağlı. Araçlar demo. |
+| Flutter–backend bağlantısı | Auth, kullanıcı/ekip yönetimi ve mevcut teknik lifecycle/talep/onay-red gerçek API'ye bağlı. Araçlar demo. |
 
-Kullanıcılar, ekipler, teknik işler, atama/ilerleme/bekleme geçmişi PostgreSQL'de kalıcıdır; çıkış/giriş veya uygulama yeniden açılışı kayıtları sıfırlamaz. Araç fake verisi yeniden başlatılınca sıfırlanır. Gerçek kullanıcı UUID'si demo ID'sine çevrilmez. Eski fake teknik işler veritabanına aktarılmaz; ilk gerçek iş listesi boş başlayabilir. Gerçek işlerde desteklenmeyen tamamlama/onay işlemleri fake repository'ye yönlendirilmez.
+Kullanıcılar, ekipler, teknik işler ve atama/ilerleme/bekleme/talep/karar geçmişi PostgreSQL'de kalıcıdır; çıkış/giriş veya uygulama yeniden açılışı kayıtları sıfırlamaz. Araç fake verisi yeniden başlatılınca sıfırlanır. Gerçek kullanıcı UUID'si demo ID'sine çevrilmez. Eski fake teknik işler veritabanına aktarılmaz. Gerçek teknik işler fake repository'ye yönlendirilmez.
 
 ## Çalışan ürün akışları
 
 - Şef girişte Şeflik Ana Sayfasını görür; Operasyon Merkezi, Araç Yönetimi ve yetkisi varsa Personel Yönetimine geçer.
 - Saha bildirimi şef tarafından incelenir, önceliklendirilir ve kullanıcıya veya ekibe atanır.
 - Aktif doğrudan atanan mühendis veya aktif/arşivlenmemiş ekibin aktif üyesi atanmış işi listede ve detayda görür. Oluşturan kendi bildirimini, explicit `viewAllTechnicalWork` sahibi tüm işleri okuyabilir.
-- Yetkili aktif atanan kişi/ekip üyesi işi başlatır; iş ekipte atanmış kalır, başlatan ve zaman ayrı kaydedilir. Detaydan ilerleme notu ekler, gerekçeyle beklemeye alır ve devam eder. Beklemede not eklenemez; bütün döngüler korunur. Şef geçmişi okuyabilir ancak global okuma izni mutasyon yetkisi vermez. Tamamlama/onay sonraki backend dilimidir.
+- Yetkili aktif atanan kişi/ekip üyesi işi başlatır; iş ekipte atanmış kalır, başlatan ve zaman ayrı kaydedilir. Detaydan ilerleme notu ekler, gerekçeyle beklemeye alır ve devam eder. Beklemede not eklenemez; bütün döngüler korunur. Etkin `requestTechnicalWorkCompletion` izniyle dolu bir özet gönderince iş Tamamlama Onayı Bekliyor olur; yeni ilerleme/hold/talep engellenir. Doğrudan `reviewTechnicalWorkCompletion` yetkili şef gerçek kuyruktan onaylar (completed) veya zorunlu gerekçeyle reddeder (inProgress). Eski red korunur; yeni talep ayrı kayıttır. Global okuma veya şef rolü tek başına karar yetkisi değildir.
 - Ekipler silinmez; arşivlenir. Geri yüklenen ekip aynı kimlik/üyelik/yetkilerle pasif olarak döner.
 - Şef Personel Yönetiminden kullanıcı oluşturur; yeni kullanıcı ilk girişte en az 12 karakterlik yeni parola belirler. Şef kullanıcının aktifliğini, geçici parolasını ve sahip olduğu yetkiler sınırında doğrudan izinlerini yönetir.
 - Şefin `manageUsers` yetkisi doğrudandır; ekipten devredilemez. Bu ekran kendi şef hesabını veya diğer yönetici hesaplarını değiştirmez, yönetici rolü oluşturmaz.
@@ -110,8 +110,14 @@ Mevcut backend uçları:
 - `GET|POST /technical-works/{id}/progress` (POST: submission_id, content)
 - `GET /technical-works/{id}/holds`
 - `POST /technical-works/{id}/hold|resume` (expected_revision; hold için reason)
+- `GET|POST /technical-works/{id}/completion-requests` (POST: expected_revision, submission_id, summary)
+- `GET /technical-works/completion-requests/pending` (direct reviewer only)
+- `POST /technical-works/completion-requests/{requestId}/approve` (body: `{}`)
+- `POST /technical-works/completion-requests/{requestId}/reject` (body: reason)
 
-Tamamlama/onay, araç API'leri, refresh token ve sunucu tarafı token iptali henüz uygulanmadı. Atama hedefleri güncel DB kullanıcı/ekiplerinden gelir. Şef çapında atama, doğrudan `assignTechnicalWork` + `viewAllTechnicalWork` izinlerini gerektirir. Yürütme, güncel atama + aktif actor/üyelik/ekip + ilgili etkin `startTechnicalWork`, `addTechnicalWorkProgress`, `pauseTechnicalWork` veya `resumeTechnicalWork` iznini gerektirir; rol veya istemcinin gönderdiği kullanıcı/yetki yeterli değildir.
+Araç API'leri, refresh token ve sunucu tarafı token iptali henüz uygulanmadı. Atama hedefleri güncel DB kullanıcı/ekiplerinden gelir. Şef çapında atama, doğrudan `assignTechnicalWork` + `viewAllTechnicalWork` izinlerini gerektirir. Yürütme ve talep, güncel atama + aktif actor/üyelik/ekip + ilgili etkin operasyon iznini gerektirir; rol veya istemcinin gönderdiği kullanıcı/yetki yeterli değildir.
+
+`f2a6c803d915` migration'ı tamamlama taleplerini ayrı tabloda saklar. Work/actor/submission anahtarı yeniden gönderimde aynı kaydı döndürür; partial unique index bir işte tek pending talep sağlar. Talep ve işin pending durumuna geçişi aynı transaction'dadır. 3B mevcut karar alanlarını kullanır, yeni migration gerektirmez. Kararda actor → work → request lock sırası ve yeniden doğrulama tek terminal karar sağlar; yetkisiz actor'a durum/varlık sızmaz. Onay tamamlanma ve inceleme zamanına aynı now değerini yazar.
 
 ## Kalite kontrolleri
 
@@ -143,8 +149,9 @@ Yeni dilim manuel QA:
 1. Uygulamayı tam durdurup yeniden çalıştırın. Şefle Ekip Yönetiminde aktif ekibe aktif mühendisi ekleyin; işi başlatma, ilerleme, beklemeye alma ve devam etme izinlerini verin. Bildirim oluşturup bu ekibe atayın.
 2. Mühendisle giriş yapın, “İşi Başlat”a basın. Durum Devam Ediyor olmalı; ekip ataması korunmalı, başlatan/tarih görünmeli.
 3. Detayda boş ilerleme notunun reddini ve dolu notun kaydını kontrol edin. Beklemeye Al dialogunda boş gerekçe reddedilmeli; dolu gerekçeyle durum Beklemeye Alındı olmalı ve ilerleme formu kaybolmalı.
-4. Çalışmaya Devam Et'e basın; önceki gerekçe/kişiler/tarihler geçmişte kalmalı. İkinci döngü yeni kayıt oluşturmalı. Tamamlama/onay henüz açılmamalı.
+4. Çalışmaya Devam Et'e basın; önceki gerekçe/kişiler/tarihler geçmişte kalmalı. İkinci döngü yeni kayıt oluşturmalı. Bu yürütme akışı 29 Ekim 2026'da kullanıcıyla manuel doğrulandı.
 5. Çıkış/giriş ve tam uygulama yeniden açılışı sonrası geçmiş korunmalı. Şef aynı detayda geçmişi görebilmeli; atanmamış şefte yürütme aksiyonları görünmemeli. Açık işe atanmış ekip arşivlenememeli.
+6. Talep/karar: ekibe Tamamlama Talebi Gönderme izni verin. Mühendis boş özeti gönderememeli; dolu özet pending oluşturmalı. Şef Operasyon Merkezi'nde literal Onay Kuyruğu butonunu açın. Boş ret nedeni reddedilmeli; dolu ret işi inProgress'e döndürmeli. Mühendis yeniden talep gönderince ayrı history oluşmalı. Şef onaylayınca completed olmalı, gerçek pending sayısı düşmeli ve detayda inceleyen/zaman/gerekçe görünmeli. Bu akış 29 Ekim'de kullanıcı tarafından da manuel doğrulandı.
 
 Testler repository kuralları, controller durumları, widget/navigasyon, API auth adapterı, migration ve backend HTTP/güvenlik sınırlarını kapsar. Teslimin gerçek doğrulama sonuçları CHANGELOG'da tutulur.
 

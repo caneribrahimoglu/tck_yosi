@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:tck_yosi/core/network/api_exception.dart';
 import 'package:tck_yosi/features/auth/data/services/api_auth_service.dart';
 import 'package:tck_yosi/features/auth/data/session/session_store.dart';
 import 'package:tck_yosi/features/technical_operations/data/repositories/api_technical_work_repository.dart';
@@ -11,6 +10,7 @@ import 'package:tck_yosi/features/technical_operations/domain/enums/assignment_t
 import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_category.dart';
 import 'package:tck_yosi/features/technical_operations/domain/enums/technical_work_priority.dart';
 import 'package:tck_yosi/features/technical_operations/domain/errors/technical_work_detail_read_exception.dart';
+import 'package:tck_yosi/features/technical_operations/domain/errors/technical_work_completion_exception.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/assignment_target.dart';
 import 'package:tck_yosi/features/technical_operations/domain/models/create_field_report_request.dart';
 import 'package:tck_yosi/features/technical_operations/presentation/controllers/technical_work_controller.dart';
@@ -183,29 +183,28 @@ void main() {
   );
 
   test(
-    'no global assign grant; real execution but no demo completion fallback',
+    'no global assign grant; review access is enforced by authenticated API',
     () async {
       var requests = 0;
       final repo = await repository((r) async {
         requests++;
+        if (r.url.path.endsWith('/pending')) {
+          return jsonResponse({
+            'detail': {'code': 'not_allowed'},
+          }, 403);
+        }
         return jsonResponse({'can_start': false});
       }, permissions: const []);
       expect(await repo.getAssignmentTargets(), isEmpty);
       expect(requests, 0);
       expect(repo.supportsExecution, isTrue);
-      expect(repo.supportsCompletion, isFalse);
+      expect(repo.supportsCompletion, isTrue);
       expect(await repo.canUserStartTechnicalWork('real-chief-uuid'), isFalse);
       await expectLater(
         repo.getPendingCompletionReviews(actorUserId: 'real-chief-uuid'),
-        throwsA(
-          isA<ApiException>().having(
-            (e) => e.code,
-            'code',
-            'feature_not_available',
-          ),
-        ),
+        throwsA(isA<TechnicalWorkCompletionReviewNotAllowedException>()),
       );
-      expect(requests, 1);
+      expect(requests, 2);
     },
   );
 

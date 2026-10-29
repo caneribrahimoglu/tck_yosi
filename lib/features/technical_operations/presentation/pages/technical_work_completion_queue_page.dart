@@ -44,6 +44,7 @@ class _TechnicalWorkCompletionQueuePageState
   }
 
   Future<void> _approve(String requestId) async {
+    if (widget.controller.isReviewingAny) return;
     final confirmed = await AppDialog.show(
       context: context,
       type: AppDialogType.success,
@@ -63,6 +64,7 @@ class _TechnicalWorkCompletionQueuePageState
   }
 
   Future<void> _reject(String requestId) async {
+    if (widget.controller.isReviewingAny) return;
     final reason = await showDialog<String>(
       context: context,
       barrierDismissible: false,
@@ -238,6 +240,7 @@ class _RejectionDialogState extends State<_RejectionDialog> {
           prefixIcon: Icons.feedback_outlined,
           minLines: 3,
           maxLines: 5,
+          maxLength: 1000,
           validator: (value) => value == null || value.trim().isEmpty
               ? 'Ret nedeni boş olamaz.'
               : null,

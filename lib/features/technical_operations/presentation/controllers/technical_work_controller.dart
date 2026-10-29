@@ -70,6 +70,10 @@ class TechnicalWorkController extends ChangeNotifier {
   bool get supportsCompletion =>
       _repository is! TechnicalWorkRepositoryCapabilities ||
       (_repository as TechnicalWorkRepositoryCapabilities).supportsCompletion;
+  bool get supportsCompletionRequests =>
+      _repository is! TechnicalWorkRepositoryCapabilities ||
+      (_repository as TechnicalWorkRepositoryCapabilities)
+          .supportsCompletionRequests;
 
   TechnicalWorkController({
     required TechnicalWorkRepository repository,

@@ -161,9 +161,9 @@ def test_current_capabilities_and_chief_read_only_unless_assigned(api):
     root='/api/v1/technical-works'
     assert client.get(root+'/actor-capabilities',headers=headers(engineer)).json()=={'can_start':True}
     assert client.get(root+f'/{work_id}/capabilities',headers=headers(engineer)).json()=={
-        'can_start':False,'can_add_progress':True,'can_pause':True,'can_resume':False}
+        'can_start':False,'can_add_progress':True,'can_pause':True,'can_resume':False,'can_request_completion':False}
     assert client.get(root+f'/{work_id}/capabilities',headers=headers(chief)).json()=={
-        'can_start':False,'can_add_progress':False,'can_pause':False,'can_resume':False}
+        'can_start':False,'can_add_progress':False,'can_pause':False,'can_resume':False,'can_request_completion':False}
     assert action(api,work_id,'hold',{'expected_revision':2,'reason':'X'},actor=chief).status_code==403
     engineer.permissions=[]
     session.commit()

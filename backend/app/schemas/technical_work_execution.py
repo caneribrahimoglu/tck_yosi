@@ -71,3 +71,4 @@ class ExecutionCapabilities(BaseModel):
     can_add_progress: bool
     can_pause: bool
     can_resume: bool
+    can_request_completion: bool

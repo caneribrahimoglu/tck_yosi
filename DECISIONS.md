@@ -1,6 +1,6 @@
 # TCK YÖSİ — Mimari karar kaydı
 
-11 Ekim 2026: `31c2d45` ve ikinci teknik backend dilimine göre güncellendi. İlk kararların tarihleri korunmuştur; geçmiş kararlar o teslimin kapsamını anlatır.
+29 Ekim 2026: `3a6eeb7` ve tamamlama talebi/şef kararları dilimlerine göre güncellendi. İlk kararların tarihleri korunmuştur; geçmiş kararlar o teslimin kapsamını anlatır.
 
 ## ADR-001 — Feature-first mimari
 
@@ -97,6 +97,24 @@ Mutasyon, güncel aktif actor, uygun direct/team assignment ve explicit effectiv
 Progress note ve hold cycle ayrı tablolardır. ID/yazar/zaman sunucudan gelir. Notta work/actor/submission unique anahtarı retry duplicate'ini önler; Flutter aynı başarısız gönderimde aynı request/key'i korur. Uygulama kapanışı sonrasında taslak/key outbox kalıcılığı bu dilimde yoktur. Tek açık hold partial unique index ile korunur; resume aynı kaydı tamamlar ve ikinci cycle yeni kayıt açar. History edit/delete API'si yoktur.
 
 Geç oturum yanıtları controller generation ile atılır. Detail/capability/history, geçiş sonrası ve dashboard'a dönüşte güncellenir. Gerçek PostgreSQL yarışları yalnız izole disposable test şemasında çalışır; canlı uygulama verisini değiştirmez.
+
+## ADR-015 — Tamamlama talebi ve şef review ayrı küçük dilimler
+
+Referans: 29 Ekim 2026, kullanıcıyla önceki dilimin manuel kabulü sonrası. Durum: 3A talep/history uygulandı; 3B şef review bekliyor.
+
+Talep gönderme ve şef karar verme tek büyük teslim yerine ayrı küçük dilimlerdir. `supportsCompletionRequests` detail/history'yi açar; `supportsCompletion` full review/queue desteğini belirtir ve gerçek adapterda şimdilik false kalır. UI olmayan backend review davranışını taklit etmez; talebin bu aşamada pending kalacağı açıkça belirtilir.
+
+Mevcut `requestTechnicalWorkCompletion` operasyon izni direct veya aktif ekipten gelebilir, fakat current assignment/aktif actor koşulları da gerekir. Global view yazma hakkı vermez. Tek transaction, mevcut sıralı row lock ve captured revision kullanılır. Ayrı history tablosu ID/zaman/actor'ı sunucudan alır; idempotency anahtarı aynı isteğin retry'sini korur, partial unique index aynı işte iki pending talebi önler. Karar alanları gelecekteki dilimle uyumludur fakat bu dilimde review endpoint'i yoktur. Explicit direct review permission ve pending sayaç/queue 3B'ye bırakılır. Yeni paket yoktur.
+
+## ADR-016 — Şef review ve gerçek kuyruk (3B)
+
+Referans: 29 Ekim 2026. Durum: uygulandı, API/widget/yarış QA geçti. ADR-015'teki geçici review-kapalı sınırı kaldırıldı; capability'ler gerçek adapterda true.
+
+Review/list-pending persisted direct `reviewTechnicalWorkCompletion` ister; active/password-complete actor ilk lookup öncesi doğrulanır. Protected grant ekipten sayılamaz; role/global read fallback yoktur. Queue full detail read policy'sini genişletmez; detay navigasyonu mevcut secure read API'sini kullanır. Current chief zaten explicit global read ve review izinlerine sahiptir.
+
+Actor → work → request lock sırası mevcut submission sırasıyla uyumludur. Karar pending request + pending work state üzerinde tek transaction'dır, her karar revision artırır. Approve completed/review zamanına aynı now'ı yazar; reject zorunlu trim/nonblank gerekçe ve inProgress dönüşüdür. History/assignment/start metadata korunur. Karar ID'si immutable olduğundan request decision/state kilidi çift kararın önlenmesi için yeterlidir; review body actor/time/status kabul etmez. Ek migration veya paket yoktur.
+
+Flutter queue sonuçlarını immutable parse eder. Controller doğrulanmış kararı yerel listeden çıkarır; sonrasındaki read hatası başarılı kararı başarısız diye sunmaz. Already-decided stale kuyruğu yeniler, session/generation ve decision başlangıcında queue-generation artışı geç eski yanıtı engeller. Dashboard gerçek pending state'ten beslenir; failure/loading sıfır sayısı gibi gösterilmez, review yetkisi olmayanda count/queue gizlidir. Operasyon merkezindeki literal Onay Kuyruğu gerçek navigation callback'ini kullanır.
 
 ## Henüz karara bağlanmamış başlıklar
 
